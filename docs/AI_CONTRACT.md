@@ -27,14 +27,28 @@
 - Rule: a subtraction that would go below 0 is BLOCKED with a clear message — it is never silently clamped.
 - Rule: quantity changes happen only through the quantity adjuster → review → approve flow. The details form shows Stock Qty read-only.
 - Rule: before writing, re-read the target row, confirm the `id` still matches and the quantity still equals what the user reviewed. If not, abort the write and show the fresh value. No silent overwrite.
-- Rule: every approved change also stamps Last Updated with a static timestamp (never a formula).
-- Forbidden: writing quantity without approval; writing a value computed from anything but the freshly re-read sheet value + the approved delta.
+- Rule: Stock Status is typed text in the sheet, so it is DERIVED and written with every quantity change (and whenever Low Stock Threshold is edited) by ONE pure function, `deriveStockStatus(qty, lowStockThreshold)` in `core/stock-adjust/`. It is never typed by the user and never computed in a component. This supersedes V1's "stock status is read verbatim" rule, which applied only to V1's read-only contract.
+- Rule: every approved change also stamps Last Updated with a static timestamp (never a formula), shown as `dd/MM/yyyy HH:mm:ss`.
+- Forbidden: writing quantity without approval; writing a value computed from anything but the freshly re-read sheet value + the approved delta; writing a quantity without its derived Stock Status in the same request.
 
 ### Writes (cross-cutting)
-- Allowlisted columns only: every product field EXCEPT `id`, `Created At`, and any formula column. Last Updated is written by the app, never typed by the user.
-- Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet or whole-row ranges — target exact cells only.
+- Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.
+- Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet or whole-row ranges — target exact cells only. Legacy rows whose Last Updated cell holds a formula get a static value only when that row is edited; no bulk conversion.
+- Request only the Sheets scope (`spreadsheets`). Do not add scopes (e.g. `email`) without a logged decision.
 - A write is shown as successful only after the API confirms it. No optimistic success. Errors (401, 403, 429, network) surface to the user with a retry path; they are never swallowed.
 - After a write, display the value the API returned/re-read — never re-fetch through gviz (it can lag behind recent edits).
+
+### Linked Sheets (master + Dr Trust)
+- Rule: the app edits two spreadsheets — the master (all brands) and a separate Dr Trust spreadsheet. Both are described in environment config (`master`, `dr-trust`), each with a test and a production ID. Spreadsheet IDs appear nowhere else.
+- Rule: rows are paired by normalised SKU (trimmed, case-insensitive). A product is "linked" only when its SKU appears exactly once in each sheet. Sheet-local `id` values are NEVER compared or matched across sheets and never leave `core/sheets/`.
+- Rule: a linked product is always written to BOTH sheets in one approved action, by `SheetsWriter` only. Success is reported only when both writes are API-confirmed. A partial failure names the sheet that was updated and the one that was not, and offers a retry; it is never reported as success and never swallowed.
+- Rule: writes use ABSOLUTE final values (re-read value ± approved delta), so retrying is idempotent. Before writing, both rows are re-read and checked (both sheet-local `id`s, and the master quantity the user reviewed); before a retry the failed row is re-read again.
+- Rule: quantity mismatches between the sheets are ALWAYS overridden. A linked quantity adjustment is computed from the MASTER's current quantity and the resulting absolute quantity is written to BOTH sheets, replacing whatever the Dr Trust sheet held. There is no reconcile step and no blocking. The Dr Trust quantity is not part of the re-read guard (it is overwritten by design), but the review step must show a non-blocking note when it differs.
+- Rule: a duplicate SKU in either sheet makes that product non-editable. Unmatched rows (orphans) are reported as warnings and never synced or guessed.
+- Rule: details edits write only the changed fields, to both sheets. Untouched fields that differ between the sheets are left alone.
+- Rule: SKU is editable, including for linked products. A SKU change is part of the same dual write (both sheets, same approved action). The new SKU must be non-empty and, normalised, must not match any other row's SKU in either sheet; otherwise the save is blocked. During a write and its retries the linked pair is held in memory by row refs and is never re-matched by SKU.
+- Rule: changing a linked product requires Editor access to both spreadsheets; if one is inaccessible, block the change and name that sheet.
+- Forbidden: writing a linked product to only one sheet; pairing by `id`, row number, or product name; overwriting a differing Dr Trust quantity without showing it in the review step; writing a SKU change to only one sheet; separate write code paths per sheet (one `SheetsWriter`, parameterised by sheet definition).
 
 ## Forbidden Shortcuts
 - One-off "quick fixes" that bypass the data-access service or the model layer (Q-G2). Solve it in the right layer instead.
@@ -57,5 +71,10 @@ After any core domain change, Claude must:
    - no code path writes without an approval step
    - no write payload contains the `id`, `Created At`, or a formula
    - `proposeQuantity` never returns a negative or non-integer value
+   - every quantity write also carries `deriveStockStatus(qty, threshold)` for that same quantity
+   - a linked-product write issues exactly one write per sheet, and reports success only when both succeed
+   - a product with a duplicate SKU cannot be adjusted or edited
+   - a linked quantity write sets the approved absolute quantity in both sheets even when their quantities differed beforehand
+   - a SKU change is rejected when the new SKU (normalised) exists on another row in either sheet, and is otherwise written to both sheets in the same action
    - the only HTTP method that mutates the sheet is issued from `SheetsWriter`
 4. Confirm no forbidden patterns above were introduced

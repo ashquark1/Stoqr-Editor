@@ -12,6 +12,7 @@ V2 scope: a single-page, frontend-only editor for the Stoqr Google Sheet. Pick a
 ## Stack Decisions (don't deviate without asking)
 - State: Angular Signals in injectable services only. No NgRx.
 - Backend: NONE. Frontend-only. Staff sign in with Google (Google Identity Services token flow) and the app calls the Google Sheets API v4 directly with their access token. No server, no service account, no Apps Script endpoint.
+- Two spreadsheets: master (all brands) + a separate Dr Trust file. Rows are paired by SKU; a linked product is written to BOTH sheets, success only when both confirm. See the Linked Sheets rules in @docs/AI_CONTRACT.md.
 - Data access: Angular `HttpClient` only, wrapped in `core/sheets/` services. No `HttpClient` in components. Reads AND writes go through those services — never gviz.
 - Writes: only through the single `SheetsWriter`, only after explicit user approval, only to allowlisted columns. See @docs/AI_CONTRACT.md.
 - Forms: Reactive Forms + built-in Validators only. No external validation library.
@@ -35,6 +36,7 @@ V2 scope: a single-page, frontend-only editor for the Stoqr Google Sheet. Pick a
 - No business logic in components — it belongs in services/stores/pure functions.
 - Components never call `HttpClient` or Google APIs directly.
 - Quantity is a whole number ≥ 0. Never write without the approval step. Never write `id`.
+- Stock Status is derived (`deriveStockStatus`) and written with every quantity change; never typed, never computed in a component.
 - Standalone components only. No NgModules.
 
 ## Off-Limits (never modify without explicit confirmation)

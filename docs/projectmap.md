@@ -16,7 +16,7 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** `id` on `Product` or in any form/template; creating or deleting rows; transforming fields inline in templates.
 
 ### Stock & Inventory Levels
-- **Owns:** `proposeQuantity` (pure: current ± amount, whole numbers, blocks < 0), the adjuster state (mode add/subtract, amount, proposed quantity), the review/approve state machine, and the low-stock warning preview.
+- **Owns:** `proposeQuantity` (pure: current ± amount, whole numbers, blocks < 0), `deriveStockStatus` (pure: quantity + Low Stock Threshold → `In Stock` / `Low Stock` / `Out of Stock`; Stock Status is typed text in the sheet so the app keeps it in step), the adjuster state (mode add/subtract, amount, proposed quantity), the review/approve state machine, and the low-stock warning preview.
 - **Does NOT own:** the write itself (Data Source) or product identity (Products).
 - **Code lives in:** `src/app/core/stock-adjust/` (`stock-adjust.ts` pure functions, `stock-adjust-store.ts` signal state).
 - **The rule:** quantity changes only via adjuster → review → approve; the proposed value is computed in exactly one place.
@@ -30,21 +30,21 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** persisting tokens; embedding secrets or API keys; components touching GIS directly.
 
 ### Data Source (Google Sheets API v4) — cross-cutting
-- **Owns:** all communication with the Sheet via `HttpClient`: loading the sheet, header-label→column resolution, locating a row by `id`, the pre-write re-read guard, targeted cell writes, the optional Stock Log append, 429 retry with backoff, and exposing results as signals (`loading`, `saving`, `error`, `fetchedAt`).
+- **Owns:** all communication with the two spreadsheets (master + Dr Trust, defined in `src/environments/`) via `HttpClient`: loading both sheets, header-label→column resolution per sheet, SKU pairing of rows into linked products (plus data-health results: duplicate SKUs, orphans, quantity drift), locating each row by its sheet-local `id`, the pre-write re-read guard on both rows, dual writes with partial-failure reporting and idempotent retry, targeted cell writes (quantity + derived Stock Status + Last Updated), 429 retry with backoff, and exposing results as signals (`loading`, `saving`, `error`, `fetchedAt`).
 - **Does NOT own:** quantity maths, form state, or UI.
-- **Code lives in:** `src/app/core/sheets/` — `sheets-reader.ts`, `sheets-writer.ts` (the ONLY file that issues a mutating request), `field-map.ts`, `data-mapping.ts`. Spreadsheet ID lives in `src/environments/`.
+- **Code lives in:** `src/app/core/sheets/` — `sheets-reader.ts`, `sheets-writer.ts` (the ONLY file that issues a mutating request), `field-map.ts`, `data-mapping.ts`, `sheet-pairing.ts` (pure SKU pairing + data-health). Spreadsheet IDs live in `src/environments/` as a list of sheet definitions.
 - **The rule:** this is the ONLY place `HttpClient` is used. Writes only after approval, only allowlisted columns, only exact cells, success shown only after API confirmation.
 - **Forbidden:** gviz; writing formulas, `id`, or `Created At`; clearing/overwriting ranges; any mutating request outside `SheetsWriter`.
 
 ### Stock Editor (UI / feature) — cross-cutting
-- **Owns:** the single page: product picker (search-as-you-type), quantity adjuster, review & approve panel, and the details form (grouped: Product / Stock / Pricing / Additional — same groups as V1, `id` excluded, Stock Qty read-only, Created At read-only, Last Updated app-stamped), including the changed-fields diff before save.
+- **Owns:** the single page: product picker (search-as-you-type), quantity adjuster, review & approve panel, and the details form (grouped: Product / Stock / Pricing / Additional — same groups as V1, `id` excluded, Stock Qty read-only, Stock Status read-only/derived, Created At read-only, Last Updated app-stamped), including the changed-fields diff before save.
 - **Does NOT own:** fetching, mapping, quantity maths, or write rules (services own those).
 - **Code lives in:** `src/app/features/stock-editor/` (`product-picker/`, `quantity-adjuster/`, `review-panel/`, `details-form/`), consuming `shared/ui/` wrappers (`<stoqr-modal>`, `<stoqr-toast>`, `<stoqr-badge>`, `<stoqr-status-badge>`, `<stoqr-logo>`, `loading-overlay`). Search rules reuse V1's `product-matcher` approach (`src/app/core/search/`).
 - **The rule:** components hold view state as signals only and render via the `shared/ui` kit; Reactive Forms for inputs.
 - **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
 
 ## Data Flow (high level)
-User opens the SPA → signs in with Google (`core/auth`) → `SheetsReader` loads the sheet and maps rows into `Product` + opaque `RowRef` signals → the picker narrows the list → the user selects a product and enters an amount → `proposeQuantity` shows the proposed final quantity → the user approves → `SheetsWriter` re-reads the row, verifies `id` + quantity unchanged, writes the new quantity and Last Updated to exact cells (and optionally appends a Stock Log row) → the UI shows the API-confirmed value. The details form follows the same re-read → targeted write → confirm path for changed fields only.
+User opens the SPA → signs in with Google (`core/auth`) → `SheetsReader` loads both sheets, maps rows into `Product` + opaque `RowRef` signals and pairs them by SKU (linked / master-only / blocked) → the picker narrows the list → the user selects a product and enters an amount → `proposeQuantity` shows the proposed final quantity → the user approves → `SheetsWriter` re-reads the row (both rows for a linked product), verifies `id` + quantity unchanged, writes the new quantity, the derived Stock Status and Last Updated to exact cells in each sheet → the UI shows the API-confirmed values (or, on partial failure, which sheet is behind plus Retry). The details form follows the same re-read → targeted write → confirm path for changed fields only.
 
 ## Where Changes Belong
 - Change how a field is read/named/editable → `Product` model + `field-map.ts` / `data-mapping.ts` (`src/app/core/`).

@@ -45,7 +45,7 @@
 
 - Decision [confirmed]: whole numbers only (no decimals). The amount is a positive whole number. Subtracting past zero is blocked with a message, not silently clamped.
 - Decision [proposed]: a sanity cap of 1,000,000 on the amount or resulting quantity to catch typos such as an extra zero.
-- Decision [proposed]: show a low-stock warning in the review step when the proposed quantity is at or below `Low Stock Threshold`. This is a preview only; V1's "stock status is read verbatim" rule still applies to what the sheet stores.
+- Decision [proposed]: show a low-stock warning in the review step when the proposed quantity is below `Low Stock Threshold` (strictly; equal is still In Stock). It uses the same `deriveStockStatus` rule that is written to the sheet (see the 2026-10-27 Stock Status entry), so the preview and the stored value cannot disagree.
 
 ## 2026-10-21: Approval flow with a re-read guard [confirmed]
 
@@ -53,25 +53,68 @@
 - Reason: the browser cannot do an atomic compare-and-set; this narrows the race window to milliseconds, which is acceptable for a small team.
 - Rejected: writing the computed absolute value blindly; optimistic UI before API confirmation.
 
-## 2026-10-21: Last Updated becomes a static timestamp [confirmed direction, details open]
+## 2026-10-27: Last Updated is stamped as a static value; old rows left alone [confirmed]
 
-- Finding: the sheet's Last Updated column is `=NOW()`, which recalculates continuously, so it shows the current time rather than when a product changed.
-- Decision: convert the column from formulas to plain values (one-time sheet change by the owner) and have the app stamp a real timestamp on every approved quantity change and details edit, in the column's existing display format. V1 keeps working (it only displays the text).
-- Open: what historical rows get (today's date vs blank); the exact display format (read from the column pattern at M1).
+- Finding: the sheet's Last Updated column is `=NOW()`, which recalculates continuously, so for those rows it shows the current time rather than when a product changed.
+- Decision: the app stamps a real, static timestamp on every approved quantity change and details edit, displayed as `dd/MM/yyyy HH:mm:ss` (e.g. `27/10/2026 14:26:03`). Existing rows are NOT bulk-converted or touched; a row's Last Updated cell is replaced with a static value only when that row is edited through the app. V1 keeps working (it only displays the text).
+- Consequence: until a row is edited, its Last Updated keeps behaving as before (a `=NOW()` row keeps showing the current time). This is the owner's choice; revisit if it causes confusion.
+- Decision [proposed]: write the timestamp as a date-time serial number (days since 1899-12-30, from the user's local wall-clock time) with `USER_ENTERED`, so it is a real date in the sheet and the column's `dd/MM/yyyy HH:mm:ss` format applies. Writing the text `27/10/2026 …` instead would be misread under a US-locale spreadsheet or stored as plain text. Verify the column's number format at M1.
+- Assumption: all staff work in the same time zone (IST).
+
+## 2026-10-27: Stock Status is typed text, so the app derives and writes it [confirmed]
+
+- Finding: Stock Status is plain typed text in the sheet, not a formula. After a quantity change it would go stale unless the app updates it.
+- Decision [confirmed]: the app writes Stock Status together with the new quantity in the same request, and again whenever a details edit changes Stock Qty's inputs (Low Stock Threshold).
+- Decision [confirmed]: ONE pure function, `deriveStockStatus(qty, lowStockThreshold)`, in `core/stock-adjust/`, using the sheet's exact label texts (confirmed by the owner):
+  - qty = 0 → `Out of Stock`
+  - 0 < qty < threshold → `Low Stock`
+  - qty ≥ threshold → `In Stock` (a quantity EQUAL to the threshold is In Stock)
+  - threshold is empty → `In Stock` when qty > 0 (no low-stock band)
+- Decision [proposed]: in the details form Stock Status is read-only (derived); users do not type it. The review step previews the new status and the low-stock warning from the same function.
+- Note: this deliberately supersedes V1's rule that stock status is "read verbatim, never derived". That rule belongs to V1's read-only contract; V2 owns the write, so it must own the derivation.
 
 ## 2026-10-21: Quantity is edited only via the adjuster [proposed]
 
-- Decision: the details form shows Stock Qty read-only; all quantity changes go through adjuster → review → approve. Created At is read-only; Last Updated is app-stamped; `id` is excluded.
+- Decision: the details form shows Stock Qty read-only; all quantity changes go through adjuster → review → approve. Created At is read-only; Last Updated is app-stamped; Stock Status is app-derived; `id` is excluded.
 - Reason: one reviewed path for quantity prevents unreviewed changes.
 
-## 2026-10-21: Optional Stock Log tab [proposed]
+## 2026-10-27: Stock Log tab deferred [confirmed]
 
-- Decision: append a row (timestamp, user email, `id`, old qty, new qty, delta, optional reason) to a separate "Stock Log" tab on each approved quantity change. Requires the `email` scope.
-- Status: awaiting owner confirmation.
+- Decision: no audit log in this version. It may be wanted later (idea: append timestamp, user, `id`, old qty, new qty, delta, optional reason to a separate "Stock Log" tab).
+- Consequence: only the `spreadsheets` scope is requested now; no `email` scope. Add the scope and a spec when the log is picked up.
+
+## 2026-10-27: Staff access [confirmed]
+
+- Fact: all staff have Google accounts, so they can be given Editor access to the sheet (and added as OAuth test users while the app is in Testing mode).
+
+## 2026-10-27: Test sheets are required; IDs supplied so far are PRODUCTION [confirmed]
+
+- Fact (2026-10-27): the master and Dr Trust spreadsheet IDs the owner supplied are both PRODUCTION sheets (the master is the one V1 reads). Test copies of both are still needed; the owner earlier mentioned a duplicate master copy, but its ID has not been supplied, and no Dr Trust test copy is confirmed.
+- Rule: development, tests and any write testing use TEST copies only (IDs in `src/environments/environment.development.ts`). Production IDs go only in `src/environments/environment.ts`, which is used by an explicit production build.
+- Consequence: no write feature is built or run until both test copies exist and their IDs are in the development config. Read-only work (scaffold, sign-in, loading, pairing) may start earlier, using placeholders for the development IDs.
+- Note: the Google OAuth Client ID is public by design and is not affected; one Client ID serves all four spreadsheets.
+
+## 2026-10-27: Two linked spreadsheets — master + Dr Trust, synced by SKU [scope confirmed, mechanics proposed]
+
+- Requirement [confirmed]: the owner edits two spreadsheets — the master (all brands) and a separate spreadsheet FILE holding only Dr Trust products. Dr Trust products exist in both and are also edited directly in each. Stock changes AND all detail edits made in the app must be applied to both. Rows are matched by SKU (the sheet-local `id` values differ between the files).
+- Decision [confirmed]: the app loads both spreadsheets, each with its own spreadsheet ID and tab, from environment config as a list of sheet definitions (`master`, `dr-trust`), with separate test and production IDs.
+- Constraint: Google cannot write to two spreadsheets atomically. A linked write is two requests; the app reports success only when BOTH are confirmed.
+- Decision [proposed] — pairing: SKU is normalised (trimmed, case-insensitive). A product is "linked" when its SKU appears exactly once in each sheet. Master-only products (other brands) are edited in master only. The picker is driven by the master sheet.
+- Decision [proposed] — data health: a duplicate SKU in either sheet blocks that product (not editable) with a message. Dr Trust rows with no master match, and master Dr Trust products missing from the Dr Trust sheet, are shown as warnings and are not synced.
+- Decision [confirmed 2026-10-27] — quantity mismatches are ALWAYS overridden: if a linked product's stock qty differs between the sheets, there is no reconcile step and nothing is blocked. The approved final quantity is written to BOTH sheets, replacing whatever the Dr Trust sheet held.
+- Decision [proposed] — base quantity: the adjuster's "current qty" and the add/subtract maths use the MASTER's quantity (the picker is driven by master). When the Dr Trust quantity differs, the review step shows a non-blocking note ("Dr Trust currently has X; it will be set to Y") so the overwrite is never invisible.
+- Decision [proposed] — write sequence: re-read BOTH rows, verify each sheet-local `id` still matches, and verify the master quantity (the base the user reviewed) is unchanged; compute final ABSOLUTE values; write master then Dr Trust. The Dr Trust quantity is not guarded — it is overwritten by design. Absolute values make retries idempotent.
+- Decision [proposed] — partial failure: if one write fails, show which sheet was updated and which was not, and offer Retry. Retry re-reads the failed row, re-verifies its `id` (and, for a master retry, the base quantity), then rewrites the same absolute values. The linked pair is held in memory by row refs, so retry does not depend on SKUs matching. If the user abandons it, the next load flags the product as out of sync.
+- Decision [proposed] — details edits: only CHANGED fields are written, to both sheets. Fields that already differ but were not edited are left alone. Last Updated is stamped on both; Stock Status is derived per sheet from the final qty and that sheet's own threshold.
+- Decision [confirmed 2026-10-27] — SKU is editable, including for linked products. A SKU change is written to BOTH sheets in the same approved action, so the pair stays linked.
+- Decision [proposed] — SKU safeguards: the new SKU must be non-empty and, normalised (trimmed, case-insensitive), must not match any OTHER row in either sheet — otherwise the save is blocked with a message. The review diff shows "old → new" and that it applies to both sheets. If a SKU change fails on only one sheet, the two sheets briefly hold different SKUs and the product would no longer pair on a reload; Retry (pair held in memory) completes it, and the data-health view lists it if abandoned.
+- Decision [proposed] — access: a user needs Editor access to BOTH spreadsheets to change a linked product. If a sheet is not accessible the app names it and blocks the change. Master-only products need master access only.
+- Decision [proposed] — both sheets must have the required headers (matched by label per sheet); a missing or renamed header in either blocks loading and names the sheet and column.
+- Cost: linked writes roughly double API calls; still far below the quotas.
+- Testing: needs a duplicate of the Dr Trust sheet as well as the master test copy.
 
 ## Open Questions
-- Is Stock Status a formula or typed text? If a formula, the app never writes it; if typed, the app must update it on each quantity change.
-- Last Updated display format and backfill choice (see above).
-- Stock Log tab: yes or no.
-- Do all staff have Google accounts that can be given Editor access?
+- Do both sheets have identical column headers? Are SKUs unique and consistently written (spacing, case) in both?
+- Test copies: received 2026-10-27 (both IDs differ from the production ones). The product tab is named `Sheet1` in all four spreadsheets (confirmed by the owner 2026-10-27); it is still config, not hard-coded. Non-secret config values are kept in the Stoqr project note `claude/stoqr-editor-config-values.md` until the environment files exist.
+- Do all staff have Editor access to both spreadsheets?
 - Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).
