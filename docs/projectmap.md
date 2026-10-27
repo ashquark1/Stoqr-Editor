@@ -1,0 +1,55 @@
+# Project Map — Stoqr Editor (V2)
+# Domain ownership reference. Read this before any core domain change.
+# Last updated: 2026-10-21
+# NOTE: the code paths below are PLANNED — nothing is scaffolded yet. Update as files land.
+
+## Purpose
+A frontend-only Angular 21 SPA with one page, used by the owner and staff to edit the Stoqr Google Sheet: find a product, adjust its stock quantity (add / subtract → see proposed final quantity → approve), and edit every product field except the internal `id`. There is no backend; users sign in with Google and the app calls the Sheets API directly. V1 (a separate repo) is the read-only search & view app and is not touched by V2.
+
+## Core Domains
+
+### Products
+- **Owns:** the typed `Product` model, row→model mapping by header label, the opaque `RowRef` (wraps the internal `id`), and the field allowlist (which columns are editable).
+- **Does NOT own:** quantity maths (Stock domain), HTTP/auth (Data Source, Auth), rendering (UI).
+- **Code lives in:** `src/app/core/models/product.ts`, `src/app/core/sheets/field-map.ts` (label ↔ column), `src/app/core/sheets/data-mapping.ts`.
+- **The rule:** the sheet is the single source of truth; `id` never leaves `core/sheets/` except as an opaque `RowRef`.
+- **Forbidden:** `id` on `Product` or in any form/template; creating or deleting rows; transforming fields inline in templates.
+
+### Stock & Inventory Levels
+- **Owns:** `proposeQuantity` (pure: current ± amount, whole numbers, blocks < 0), the adjuster state (mode add/subtract, amount, proposed quantity), the review/approve state machine, and the low-stock warning preview.
+- **Does NOT own:** the write itself (Data Source) or product identity (Products).
+- **Code lives in:** `src/app/core/stock-adjust/` (`stock-adjust.ts` pure functions, `stock-adjust-store.ts` signal state).
+- **The rule:** quantity changes only via adjuster → review → approve; the proposed value is computed in exactly one place.
+- **Forbidden:** clamping silently; decimals; computing the written value from anything but the re-read sheet value + approved delta.
+
+### Auth (Google sign-in) — cross-cutting
+- **Owns:** Google Identity Services token flow, the in-memory access token, signed-in user (email/name), expiry (~1 hour) and re-sign-in prompts, sign-out.
+- **Does NOT own:** any sheet reads/writes (it only supplies the token).
+- **Code lives in:** `src/app/core/auth/`.
+- **The rule:** tokens in memory only; the app is unusable until signed in; 401/403 surface as clear messages (expired session / no edit access to the sheet).
+- **Forbidden:** persisting tokens; embedding secrets or API keys; components touching GIS directly.
+
+### Data Source (Google Sheets API v4) — cross-cutting
+- **Owns:** all communication with the Sheet via `HttpClient`: loading the sheet, header-label→column resolution, locating a row by `id`, the pre-write re-read guard, targeted cell writes, the optional Stock Log append, 429 retry with backoff, and exposing results as signals (`loading`, `saving`, `error`, `fetchedAt`).
+- **Does NOT own:** quantity maths, form state, or UI.
+- **Code lives in:** `src/app/core/sheets/` — `sheets-reader.ts`, `sheets-writer.ts` (the ONLY file that issues a mutating request), `field-map.ts`, `data-mapping.ts`. Spreadsheet ID lives in `src/environments/`.
+- **The rule:** this is the ONLY place `HttpClient` is used. Writes only after approval, only allowlisted columns, only exact cells, success shown only after API confirmation.
+- **Forbidden:** gviz; writing formulas, `id`, or `Created At`; clearing/overwriting ranges; any mutating request outside `SheetsWriter`.
+
+### Stock Editor (UI / feature) — cross-cutting
+- **Owns:** the single page: product picker (search-as-you-type), quantity adjuster, review & approve panel, and the details form (grouped: Product / Stock / Pricing / Additional — same groups as V1, `id` excluded, Stock Qty read-only, Created At read-only, Last Updated app-stamped), including the changed-fields diff before save.
+- **Does NOT own:** fetching, mapping, quantity maths, or write rules (services own those).
+- **Code lives in:** `src/app/features/stock-editor/` (`product-picker/`, `quantity-adjuster/`, `review-panel/`, `details-form/`), consuming `shared/ui/` wrappers (`<stoqr-modal>`, `<stoqr-toast>`, `<stoqr-badge>`, `<stoqr-status-badge>`, `<stoqr-logo>`, `loading-overlay`). Search rules reuse V1's `product-matcher` approach (`src/app/core/search/`).
+- **The rule:** components hold view state as signals only and render via the `shared/ui` kit; Reactive Forms for inputs.
+- **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
+
+## Data Flow (high level)
+User opens the SPA → signs in with Google (`core/auth`) → `SheetsReader` loads the sheet and maps rows into `Product` + opaque `RowRef` signals → the picker narrows the list → the user selects a product and enters an amount → `proposeQuantity` shows the proposed final quantity → the user approves → `SheetsWriter` re-reads the row, verifies `id` + quantity unchanged, writes the new quantity and Last Updated to exact cells (and optionally appends a Stock Log row) → the UI shows the API-confirmed value. The details form follows the same re-read → targeted write → confirm path for changed fields only.
+
+## Where Changes Belong
+- Change how a field is read/named/editable → `Product` model + `field-map.ts` / `data-mapping.ts` (`src/app/core/`).
+- Change quantity rules (limits, warnings) → `src/app/core/stock-adjust/`.
+- Change what/how we write → `SheetsWriter` only, then update the allowlist + AI_CONTRACT rule tests.
+- Change sign-in/session behaviour → `src/app/core/auth/`.
+- Change the spreadsheet ID or OAuth client ID → `src/environments/` (off-limits; confirm first).
+- Change layout/styling → the relevant component's template + scoped SCSS (tokens only).

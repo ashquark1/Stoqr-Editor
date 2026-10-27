@@ -1,0 +1,94 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/
+jspm_packages/
+
+# Build output
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.cache/
+.parcel-cache/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Secrets / Google credentials (V2 talks to Google APIs — never commit these)
+client_secret*.json
+credentials*.json
+service-account*.json
+*-service-account.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing / coverage
+coverage/
+.nyc_output/
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# VS Code — ignore all except the shared configs committed by the Angular scaffold
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/mcp.json
+!.vscode/settings.json
+.history/
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Claude Code — keep shared settings.json, ignore personal local overrides
+.claude/settings.local.json
+.claude/*.local.json
+
+# Misc
+*.local
+.eslintcache
+.stylelintcache
+.turbo/
+*.tsbuildinfo
+
+# Angular
+.angular/
+/out-tsc/
+/bazel-out/
+/tmp/
+.sass-cache/
+/connect.lock
+/libpeerconnection.log
+testem.log
+/typings/
+__screenshots__/
