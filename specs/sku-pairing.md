@@ -44,7 +44,7 @@ Rule-level:
 ## Acceptance Checks
 - [x] All behavior rules hold (rule tests, 2026-10-28)
 - [x] Edge cases have tests
-- [ ] Counts on the load-check view reconcile with the TEST sheets, and the owner spot-checks 3 SKUs (OWNER CHECK, pending: needs sign-in)
+- [x] Counts on the load-check view reconcile with the TEST sheets, and the owner spot-checks 3 SKUs (owner confirmed 2026-10-28)
 - [x] No new libraries
 - [x] docs/DECISIONS.md updated: normaliser choice; "blocked rows are not orphans"; empty-SKU handling
 - [x] docs/projectmap.md updated (`sheet-pairing.ts` landed)

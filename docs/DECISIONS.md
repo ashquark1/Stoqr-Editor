@@ -186,7 +186,7 @@
 - Decision: errors — 401 → back to sign-in; 403 → no access to <sheet>; 400 "Unable to parse range" → tab not found; 404 → spreadsheet not found; 429/5xx/network → generic. No automatic retry yet (US-11).
 - Decision: an empty tab (no values) counts as missing every column; a header-only tab is zero products.
 - Decision: the load-check page shows errors in a persistent panel (empty-state + Retry), not the toast, which auto-dismisses.
-- Deferred (owner choice): the Phase 0 raw-value check moved to after sign-in; the page shows MRP, tax rate and last updated for it. Pending.
+- Deferred (owner choice): the Phase 0 raw-value check moved to after sign-in; the page shows MRP, tax rate and last updated for it. Done 2026-10-28: the owner confirmed the values on the TEST sheets match the mapping's assumptions; no change needed.
 
 ## 2026-10-28: Row issues and the opaque RowRef [confirmed]
 

@@ -55,15 +55,15 @@ Case tests: edge cases above; error-mapping table.
 
 ## Acceptance Checks
 - [x] All behavior rules hold (unit and architecture rule tests, 2026-10-28)
-- [ ] Both TEST sheets load and the counts equal each sheet's data row count (OWNER CHECK, pending: needs sign-in)
-- [ ] Renaming a header in a scratch copy produces the named-column error (OWNER CHECK, pending; throwaway copy, never LIVE). Covered by unit tests meanwhile.
+- [x] Both TEST sheets load and the counts equal each sheet's data row count (owner confirmed 2026-10-28)
+- [x] Renaming a header in a scratch copy produces the named-column error (owner confirmed 2026-10-28; throwaway copy, never LIVE)
 - [x] Edge cases have tests
 - [x] No writes issued (GET only; architecture rule); verified against TEST sheets only (no LIVE build served)
 - [x] No new libraries
 - [x] docs/DECISIONS.md updated (render options chosen, issue flags, all-or-nothing load); docs/projectmap.md updated
 
 ## Built differently from plan (2026-10-28)
-- Phase 0 (raw-value check) deferred to after sign-in, owner choice. PENDING: tax rate as 18 vs 0.18, SKU/packing as text, Last updated format, any blank or duplicate `id`. The load-check table shows MRP, tax rate and last updated for this.
+- Phase 0 (raw-value check) deferred to after sign-in, owner choice. DONE 2026-10-28: the owner checked tax rate, SKU/packing as text, the Last updated format and flagged rows on the load-check table; all as assumed, no mapping change needed.
 - A blank stock qty is flagged `invalid-quantity` (owner-approved), not just non-integers and negatives.
 - Errors on the load-check page use a persistent panel (`<stoqr-empty-state>` + Retry), not the auto-dismissing toast.
 - The reader checks `expiresAt` before calling the API and marks the session expired without a request.
