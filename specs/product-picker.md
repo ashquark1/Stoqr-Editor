@@ -44,7 +44,7 @@ Case tests: the edge cases above, the cap, and each state.
 ## Acceptance Checks
 - [x] All behavior rules hold (unit, component and architecture rule tests, 2026-10-28)
 - [x] Edge cases have tests
-- [ ] Owner searches by name, SKU, brand; selects a product; checks the summary at phone width (OWNER CHECK, pending)
+- [x] Owner searches by name, SKU, brand; selects a product; checks the summary at phone width (owner confirmed 2026-10-28)
 - [x] No new libraries
 - [x] docs/DECISIONS.md, docs/projectmap.md and docs/AI_CONTRACT.md updated
 

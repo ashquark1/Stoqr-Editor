@@ -49,7 +49,7 @@ Case tests: the edge cases above.
 - [x] Edge cases have tests
 - [x] No new libraries
 - [x] docs/DECISIONS.md: D1 resolved (profile scope, consent change, revoke on sign-out); docs/AI_CONTRACT.md scope rule updated; docs/projectmap.md Auth updated
-- [ ] Owner adds `userinfo.profile` to the OAuth consent screen's scopes in Google Cloud (recommended; OWNER ACTION, pending)
+- [x] Owner adds `userinfo.profile` to the OAuth consent screen's scopes in Google Cloud (owner confirmed 2026-10-28)
 
 ## Built differently from plan (2026-10-28)
 - `SheetsStore` maps both sheets before setting either (caught during the build: the first draft could have shown master rows when the Dr Trust mapping then failed).

@@ -41,6 +41,6 @@ Case tests: the edge cases above; each badge kind renders its label.
 ## Acceptance Checks
 - [x] All behavior rules hold (rule and component tests, 2026-10-28)
 - [x] Edge cases have tests
-- [ ] Owner sees Linked / Master only (and Out of sync where quantities differ) on the TEST sheets (OWNER CHECK, pending)
+- [x] Owner sees Linked / Master only (and Out of sync where quantities differ) on the TEST sheets (owner confirmed 2026-10-28)
 - [x] No new libraries
 - [x] docs/DECISIONS.md and docs/projectmap.md updated

@@ -45,7 +45,7 @@ Case tests: the edge cases above, each renewal outcome, the clock, the wrapper i
 ## Acceptance Checks
 - [x] All behavior rules hold (unit, component and architecture rule tests with fake timers, 2026-10-28)
 - [x] Edge cases have tests
-- [ ] Owner sees the 5-minute warning and, after expiry, Continue keeps the selected product (OWNER CHECK, pending: natural expiry)
+- [x] Owner sees the 5-minute warning and, after expiry, Continue keeps the selected product (owner confirmed 2026-10-28)
 - [x] No new libraries
 - [x] docs/DECISIONS.md, docs/AI_CONTRACT.md, docs/projectmap.md and CLAUDE.md updated
 
