@@ -8,9 +8,17 @@
     <stoqr-loading-overlay label="Loading both sheets…" />
   } @else if (store.error(); as message) {
     <stoqr-empty-state [message]="message">
-      <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="store.reload()">
-        Retry
-      </button>
+      <div class="load-check__actions">
+        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="store.reload()">
+          Retry
+        </button>
+        @if (store.noAccess()) {
+          <!-- The usual fix for no access is a different Google account (US-32). -->
+          <button type="button" class="stoqr-btn stoqr-btn--secondary" (click)="auth.signOut()">
+            Sign out
+          </button>
+        }
+      </div>
     </stoqr-empty-state>
   } @else if (store.fetchedAt()) {
     <p class="load-check__counts">

@@ -166,7 +166,7 @@
 
 - Decision: only `core/auth/` touches GIS. Local types (`gis-types.ts`), no types package. The script is injected by `GIS_LOADER` (an InjectionToken, faked in tests).
 - Decision: the script loads at startup in the background (not awaited), so `requestAccessToken()` runs inside the user's click and the popup is not blocked; the button stays disabled until it loads. Offline, the app still renders and offers Retry.
-- Decision: scope is `spreadsheets` only (`SHEETS_SCOPE`). Consequence of D1: the app shows "Signed in", never a name or email.
+- Decision: scope is `spreadsheets` only (`SHEETS_SCOPE`). Superseded 2026-10-28 by D1: `userinfo.profile` added for the first name.
 - Decision: the token is a private field read only by `core/sheets` via `accessToken()`; `expiresAt` = now + `expires_in` − 60 s. `markExpired()` (for 401s) clears it with "Your session expired. Please sign in again."
 - Finding (verified 2026-10-28): GIS enables granular consent, so users can untick the Sheets permission; `hasGrantedAllScopes` treats that as denied.
 
@@ -204,9 +204,19 @@
 - Decision: pairing keeps loader issues; a linked pair does not make a flagged row editable. Later, "editable" = no issues AND not blocked.
 - Decision: `SheetsStore` exposes `pairing` and `pairingCounts` as computed signals; the load-check page shows "Blocked N SKUs (M rows)" (owner choice) so totals reconcile.
 
+## 2026-10-28: D1 resolved — first name in the topbar via the profile scope [confirmed]
+
+- Decision (owner): show the signed-in person's first name. The app requests `spreadsheets` + `userinfo.profile` only — no `email`, no `openid`. Only the Sheets scope must be granted; without the profile the topbar shows "Signed in".
+- Decision: the name comes from `GET https://www.googleapis.com/oauth2/v3/userinfo` (`given_name`, else the first word of `name`), read by `core/auth/user-profile.ts`, held in memory only, cleared on sign-out/expiry; a failed or late lookup is ignored.
+- Consequence: the consent screen gains a "personal info" line, and every user approves again on next sign-in. Owner adds the scope to the OAuth consent screen in Google Cloud.
+
+## 2026-10-28: Sign-out revokes the token; every failing sheet is named [confirmed]
+
+- Decision: `Auth.signOut()` revokes the token with Google (not awaited) and always signs out locally. Trade-off: the next sign-in shows the consent screen again; chosen for shared shop computers.
+- Decision: `SheetsStore` waits for both reads (`Promise.allSettled`); `combineLoadErrors` names every sheet refusing access in one message, else lists each sheet's message; `noAccess` adds Sign out next to Retry. Both sheets are mapped before either is set (all-or-nothing holds).
+
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
-- D1: add identity scopes (`openid email profile`) so the signed-in name can be shown? Default: no. Decide before Sprint 2.
 - Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).
 
 ## Answered 2026-10-27

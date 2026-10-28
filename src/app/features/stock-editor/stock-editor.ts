@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
+import { Auth } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
 import { SheetKey } from '@core/config/app-environment';
 import { PRODUCT_ISSUE_LABELS } from '@core/models/product';
@@ -24,6 +25,7 @@ import { displayValue } from '@shared/util/display-value';
 export class StockEditor {
   protected readonly store = inject(SheetsStore);
   protected readonly config = inject(AppConfig);
+  protected readonly auth = inject(Auth);
   protected readonly issueLabels = PRODUCT_ISSUE_LABELS;
   protected readonly display = displayValue;
 

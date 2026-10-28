@@ -23,9 +23,9 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** clamping silently; decimals; computing the written value from anything but the re-read sheet value + approved delta.
 
 ### Auth (Google sign-in) — cross-cutting
-- **Owns:** Google Identity Services token flow, the in-memory access token, sign-in status (no name/email: D1), expiry (~1 hour) and re-sign-in prompts, sign-out, and auth-driven navigation (guards + redirects).
+- **Owns:** Google Identity Services token flow, the in-memory access token, sign-in status and the first name (memory only; D1: profile scope, no email), expiry (~1 hour) and re-sign-in prompts, sign-out (revokes the token), and auth-driven navigation (guards + redirects).
 - **Does NOT own:** any sheet reads/writes (it only supplies the token).
-- **Code lives in:** `src/app/core/auth/` — `gis-types.ts`, `gis-loader.ts`, `auth-scope.ts`, `auth.ts`, `auth-guards.ts`, `auth-redirects.ts`, `testing/fake-gis.ts`.
+- **Code lives in:** `src/app/core/auth/` — `gis-types.ts`, `gis-loader.ts`, `auth-scope.ts`, `auth.ts`, `user-profile.ts`, `auth-guards.ts`, `auth-redirects.ts`, `testing/fake-gis.ts`.
 - **The rule:** tokens in memory only; the app is unusable until signed in; 401/403 surface as clear messages (expired session / no edit access to the sheet).
 - **Forbidden:** persisting tokens; embedding secrets or API keys; components touching GIS directly.
 
@@ -56,7 +56,7 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
 
 ### App shell & architecture rules — cross-cutting
-- **Owns:** the page frame (topbar with the logo, routed content area, footer showing the TEST/LIVE mode and both sheet labels from `AppConfig`) and the contract rule tests.
+- **Owns:** the page frame (topbar with the logo, the first name and Sign out, routed content area, footer showing the TEST/LIVE mode and both sheet labels from `AppConfig`) and the contract rule tests.
 - **Code lives in:** `src/app/app.*` (shell; no logic), `src/app/app.config.ts` (providers), `src/app/app.routes.ts`, `src/app/architecture.spec.ts` (scans `src/` and asserts AI_CONTRACT rules).
 - **The rule:** when the contract gains a rule that can be checked by reading source, add it to `architecture.spec.ts`.
 

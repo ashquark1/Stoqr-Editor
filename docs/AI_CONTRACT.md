@@ -38,7 +38,7 @@
 - Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.
 - Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.
 - Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet or whole-row ranges — target exact cells only. Legacy rows whose Last Updated cell holds a formula get a static value only when that row is edited; no bulk conversion.
-- Request only the Sheets scope (`spreadsheets`). Do not add scopes (e.g. `email`) without a logged decision.
+- Request only `spreadsheets` and `userinfo.profile` (first name only, D1). Do not add scopes (e.g. `email`, `openid`) without a logged decision. Sign-in must never depend on the profile scope, and the name lives in memory only.
 - A write is shown as successful only after the API confirms it. No optimistic success. Errors (401, 403, 429, network) surface to the user with a retry path; they are never swallowed.
 - After a write, display the value the API returned/re-read — never re-fetch through gviz (it can lag behind recent edits).
 

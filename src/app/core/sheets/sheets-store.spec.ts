@@ -81,7 +81,10 @@ describe('SheetsStore', () => {
       expect(store.master()).toEqual([]);
       expect(store.drTrust()).toEqual([]);
       expect(store.fetchedAt()).toBeNull();
-      expect(store.error()).toBe("You don't have access to Dr Trust.");
+      expect(store.error()).toBe(
+        "You don't have access to Dr Trust. Ask the owner to share it with you as Editor.",
+      );
+      expect(store.noAccess()).toBe(true);
     });
 
     it('shows no data when one sheet has a missing column', async () => {
@@ -90,6 +93,56 @@ describe('SheetsStore', () => {
       await store.ensureLoaded();
       expect(store.master()).toEqual([]);
       expect(store.error()).toBe('Dr Trust sheet is missing column: sku');
+      expect(store.noAccess()).toBe(false);
+    });
+  });
+
+  describe('naming every sheet that failed (US-32)', () => {
+    const refused = (label: string) => async () => {
+      throw new SheetLoadError(label, 'access', `You don't have access to ${label}.`);
+    };
+
+    it('names both sheets when neither can be opened', async () => {
+      respond({ master: refused('Master'), 'dr-trust': refused('Dr Trust') });
+      await store.ensureLoaded();
+      expect(store.error()).toBe(
+        "You don't have access to Master or Dr Trust. Ask the owner to share them with you as Editor.",
+      );
+      expect(store.noAccess()).toBe(true);
+      expect(store.master()).toEqual([]);
+    });
+
+    it('shows both messages when the sheets fail for different reasons', async () => {
+      respond({
+        master: refused('Master'),
+        'dr-trust': async () => {
+          throw new SheetLoadError('Dr Trust', 'unavailable', "Couldn't load Dr Trust.");
+        },
+      });
+      await store.ensureLoaded();
+      // Mixed failures: each sheet's own message, in sheet order.
+      expect(store.error()).toBe("You don't have access to Master. Couldn't load Dr Trust.");
+      expect(store.noAccess()).toBe(true);
+    });
+
+    it('a successful Retry clears the no-access state', async () => {
+      let allowed = false;
+      respond({
+        master: async () => {
+          if (!allowed) {
+            throw new SheetLoadError('Master', 'access', 'no');
+          }
+          return masterRows;
+        },
+        'dr-trust': async () => drTrustRows,
+      });
+      await store.ensureLoaded();
+      expect(store.noAccess()).toBe(true);
+
+      allowed = true;
+      await store.reload();
+      expect(store.noAccess()).toBe(false);
+      expect(store.error()).toBeNull();
     });
   });
 

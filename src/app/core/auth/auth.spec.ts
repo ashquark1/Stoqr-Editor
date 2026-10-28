@@ -2,24 +2,36 @@ import { isSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { AppConfig } from '@core/config/app-config';
-import { AUTH_MESSAGES, Auth } from './auth';
-import { SHEETS_SCOPE } from './auth-scope';
+import { AUTH_MESSAGES, Auth, SIGNED_IN_LABEL } from './auth';
+import { PROFILE_SCOPE, REQUESTED_SCOPES, SHEETS_SCOPE } from './auth-scope';
 import { GIS_LOADER, GisLoader } from './gis-loader';
 import { FakeGis } from './testing/fake-gis';
+import { UserProfileReader } from './user-profile';
 
 const TOKEN = 'fake-access-token';
 
 describe('Auth', () => {
   let gis: FakeGis;
   let auth: Auth;
+  /** What the fake profile lookup resolves with; tests may replace it. */
+  let lookup: (token: string) => Promise<string | null>;
+  const firstName = vi.fn((token: string) => lookup(token));
 
   function setup(loader?: GisLoader): void {
     gis = new FakeGis();
+    lookup = () => Promise.resolve('Ashutosh');
+    firstName.mockClear();
     TestBed.configureTestingModule({
-      providers: [{ provide: GIS_LOADER, useValue: loader ?? (() => Promise.resolve(gis)) }],
+      providers: [
+        { provide: GIS_LOADER, useValue: loader ?? (() => Promise.resolve(gis)) },
+        { provide: UserProfileReader, useValue: { firstName } },
+      ],
     });
     auth = TestBed.inject(Auth);
   }
+
+  /** Lets the background profile lookup settle. */
+  const flush = () => new Promise<void>((resolve) => setTimeout(resolve));
 
   async function signedIn(): Promise<void> {
     await auth.prepare();
@@ -32,10 +44,24 @@ describe('Auth', () => {
   describe('rules', () => {
     beforeEach(() => setup());
 
-    it('requests exactly the Sheets scope with the configured Client ID', async () => {
+    it('requests exactly the approved scopes (Sheets + profile, D1) with the configured Client ID', async () => {
       await auth.prepare();
-      expect(gis.config?.scope).toBe(SHEETS_SCOPE);
+      expect(REQUESTED_SCOPES.split(' ')).toEqual([SHEETS_SCOPE, PROFILE_SCOPE]);
+      expect(gis.config?.scope).toBe(REQUESTED_SCOPES);
       expect(gis.config?.client_id).toBe(TestBed.inject(AppConfig).clientId());
+    });
+
+    it('requires only the Sheets scope to be granted (profile is optional)', async () => {
+      await signedIn();
+      expect(gis.checkedScopes).toEqual([[SHEETS_SCOPE]]);
+    });
+
+    it('sign-out always ends signed out, even when revoke throws', async () => {
+      await signedIn();
+      gis.revokeThrows = true;
+      auth.signOut();
+      expect(auth.status()).toBe('signed-out');
+      expect(auth.accessToken()).toBeNull();
     });
 
     it('never writes the token to browser storage or cookies', async () => {
@@ -127,6 +153,70 @@ describe('Auth', () => {
       gis.fail('popup_closed');
       auth.clearError();
       expect(auth.error()).toBeNull();
+    });
+  });
+
+  describe('first name and sign-out (US-07, D1)', () => {
+    beforeEach(() => setup());
+
+    it('shows "Signed in" until the first name arrives, then the name', async () => {
+      let resolveName: (name: string | null) => void = () => undefined;
+      lookup = () => new Promise((resolve) => (resolveName = resolve));
+      await signedIn();
+      expect(auth.userLabel()).toBe(SIGNED_IN_LABEL);
+      expect(firstName).toHaveBeenCalledWith(TOKEN);
+      resolveName('Ashutosh');
+      await flush();
+      expect(auth.firstName()).toBe('Ashutosh');
+      expect(auth.userLabel()).toBe('Ashutosh');
+    });
+
+    it('keeps "Signed in" when the profile is not available', async () => {
+      lookup = () => Promise.resolve(null);
+      await signedIn();
+      await flush();
+      expect(auth.status()).toBe('signed-in');
+      expect(auth.userLabel()).toBe(SIGNED_IN_LABEL);
+    });
+
+    it('signs out: revokes the token with Google and clears token, name and error', async () => {
+      await signedIn();
+      await flush();
+      auth.signOut();
+      expect(gis.revoked).toEqual([TOKEN]);
+      expect(auth.status()).toBe('signed-out');
+      expect(auth.accessToken()).toBeNull();
+      expect(auth.expiresAt()).toBeNull();
+      expect(auth.firstName()).toBeNull();
+      expect(auth.error()).toBeNull();
+    });
+
+    it('discards a first name that arrives after sign-out', async () => {
+      let resolveName: (name: string | null) => void = () => undefined;
+      lookup = () => new Promise((resolve) => (resolveName = resolve));
+      await signedIn();
+      auth.signOut();
+      resolveName('Late');
+      await flush();
+      expect(auth.firstName()).toBeNull();
+    });
+
+    it('clears the first name when the session expires', async () => {
+      await signedIn();
+      await flush();
+      auth.markExpired();
+      expect(auth.firstName()).toBeNull();
+      expect(auth.userLabel()).toBe(SIGNED_IN_LABEL);
+    });
+
+    it('sign-out before any sign-in does nothing harmful', () => {
+      auth.signOut();
+      expect(auth.status()).toBe('signed-out');
+      expect(gis.revoked).toEqual([]);
+    });
+
+    it('the cancelled message tells blocked users what to do', () => {
+      expect(AUTH_MESSAGES.cancelled).toContain('ask the owner to add your account as a test user');
     });
   });
 

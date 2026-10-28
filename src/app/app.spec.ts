@@ -2,6 +2,7 @@ import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
+import { Auth, AuthStatus } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
 import { AppMode, SheetDefinition } from '@core/config/app-environment';
 import { App } from './app';
@@ -21,11 +22,17 @@ function fakeConfig(mode: AppMode): Partial<AppConfig> {
   };
 }
 
+const status = signal<AuthStatus>('signed-out');
+const userLabel = signal('Signed in');
+const signOut = vi.fn();
+const fakeAuth = { status, userLabel, signOut };
+
 function render(mode?: AppMode): HTMLElement {
   TestBed.configureTestingModule({
     imports: [App],
     providers: [
       provideRouter([]),
+      { provide: Auth, useValue: fakeAuth },
       ...(mode ? [{ provide: AppConfig, useValue: fakeConfig(mode) }] : []),
     ],
   });
@@ -35,11 +42,40 @@ function render(mode?: AppMode): HTMLElement {
 }
 
 describe('App', () => {
+  beforeEach(() => {
+    status.set('signed-out');
+    userLabel.set('Signed in');
+    signOut.mockClear();
+  });
+
   it('renders the shell: topbar logo, content area and footer', () => {
     const el = render();
     expect(el.querySelector('header.stoqr-topbar stoqr-logo')).not.toBeNull();
     expect(el.querySelector('main router-outlet')).not.toBeNull();
     expect(el.querySelector('footer')).not.toBeNull();
+  });
+
+  describe('topbar user (US-07, D1)', () => {
+    it('shows nothing about the user when signed out', () => {
+      const el = render();
+      expect(el.querySelector('.app-user')).toBeNull();
+    });
+
+    it('shows the first name and a Sign out button when signed in', () => {
+      status.set('signed-in');
+      userLabel.set('Ashutosh');
+      const el = render();
+      expect(el.querySelector('.app-user__name')?.textContent?.trim()).toBe('Ashutosh');
+
+      el.querySelector<HTMLButtonElement>('.app-user button')?.click();
+      expect(signOut).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows "Signed in" when the first name is unknown', () => {
+      status.set('signed-in');
+      const el = render();
+      expect(el.querySelector('.app-user__name')?.textContent?.trim()).toBe('Signed in');
+    });
   });
 
   it('footer shows the mode and both sheet labels with their tabs', () => {

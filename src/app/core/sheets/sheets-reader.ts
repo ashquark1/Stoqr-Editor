@@ -6,7 +6,7 @@ import { AUTH_MESSAGES, Auth } from '@core/auth/auth';
 import { SheetDefinition } from '@core/config/app-environment';
 import { tabRange } from './a1-range';
 import { CellValue } from './data-mapping';
-import { SheetLoadError } from './sheet-load-error';
+import { SheetLoadError, noAccessMessage } from './sheet-load-error';
 
 export const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 
@@ -65,11 +65,7 @@ export class SheetsReader {
         this.auth.markExpired();
         return new SheetLoadError(sheet.label, 'expired', AUTH_MESSAGES.expired);
       case 403:
-        return new SheetLoadError(
-          sheet.label,
-          'access',
-          `You don't have access to ${sheet.label}. Ask the owner to share it with you as Editor.`,
-        );
+        return new SheetLoadError(sheet.label, 'access', noAccessMessage([sheet.label]));
       case 404:
         return new SheetLoadError(
           sheet.label,

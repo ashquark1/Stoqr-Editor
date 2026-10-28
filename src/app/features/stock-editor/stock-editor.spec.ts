@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { Auth } from '@core/auth/auth';
 import { LoadedProduct } from '@core/models/product';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { SheetsStore } from '@core/sheets/sheets-store';
@@ -19,6 +20,8 @@ describe('StockEditor (load-check view)', () => {
   const master = signal<readonly LoadedProduct[]>([]);
   const drTrust = signal<readonly LoadedProduct[]>([]);
   const flaggedCount = signal(0);
+  const noAccess = signal(false);
+  const auth = { signOut: vi.fn() };
   const pairingCounts = signal({
     linked: 0,
     masterOnly: 0,
@@ -33,6 +36,7 @@ describe('StockEditor (load-check view)', () => {
     master,
     drTrust,
     flaggedCount,
+    noAccess,
     pairingCounts,
     ensureLoaded: vi.fn(() => Promise.resolve()),
     reload: vi.fn(() => Promise.resolve()),
@@ -64,10 +68,14 @@ describe('StockEditor (load-check view)', () => {
     master.set([]);
     drTrust.set([]);
     flaggedCount.set(0);
+    noAccess.set(false);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [StockEditor],
-      providers: [{ provide: SheetsStore, useValue: store }],
+      providers: [
+        { provide: SheetsStore, useValue: store },
+        { provide: Auth, useValue: auth },
+      ],
     });
     fixture = TestBed.createComponent(StockEditor);
     el = fixture.nativeElement;
@@ -94,6 +102,16 @@ describe('StockEditor (load-check view)', () => {
     expect(el.querySelector('table')).toBeNull();
     button('Retry')?.click();
     expect(store.reload).toHaveBeenCalledTimes(1);
+    expect(button('Sign out')).toBeUndefined();
+  });
+
+  it('offers Sign out next to Retry when the account has no access (US-32)', () => {
+    error.set("You don't have access to Master or Dr Trust. Ask the owner to share them with you as Editor.");
+    noAccess.set(true);
+    fixture.detectChanges();
+    button('Sign out')?.click();
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    expect(button('Retry')).toBeDefined();
   });
 
   it('shows counts and the master table, then switches to Dr Trust', () => {

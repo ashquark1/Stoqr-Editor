@@ -1,16 +1,18 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { AppConfig } from '@core/config/app-config';
-import { SHEETS_SCOPE } from './auth-scope';
+import { REQUESTED_SCOPES, SHEETS_SCOPE } from './auth-scope';
 import { GIS_LOADER } from './gis-loader';
 import { GisClientError, GisOAuth2, GisTokenClient, GisTokenResponse } from './gis-types';
+import { UserProfileReader } from './user-profile';
 
 export type AuthStatus = 'signed-out' | 'signing-in' | 'signed-in';
 
 /** Friendly messages shown to staff. Exported for tests. */
 export const AUTH_MESSAGES = {
   denied: "You didn't allow access. Sign in again and approve access to Google Sheets.",
-  cancelled: 'Sign-in was cancelled.',
+  cancelled:
+    'Sign-in was cancelled. If Google said access is blocked, ask the owner to add your account as a test user.',
   popupBlocked:
     'Your browser blocked the Google sign-in window. Allow pop-ups for this site, then try again.',
   failed: "Google sign-in didn't complete. Please try again.",
@@ -21,20 +23,26 @@ export const AUTH_MESSAGES = {
 /** Seconds taken off Google's expiry so a token is never used in its last minute. */
 const EXPIRY_MARGIN_SECONDS = 60;
 
+/** Topbar label when the first name is unknown (profile not granted or lookup failed). */
+export const SIGNED_IN_LABEL = 'Signed in';
+
 /**
- * Google sign-in with the GIS token flow (US-05). The access token lives in a
- * private field (memory only, never browser storage) and is read only by
- * `core/sheets` through `accessToken()`.
+ * Google sign-in with the GIS token flow (US-05) plus sign-out and the first
+ * name (US-07, D1). The access token lives in a private field (memory only,
+ * never browser storage) and is read only by `core/sheets` through
+ * `accessToken()`. The first name is memory-only too.
  */
 @Injectable({ providedIn: 'root' })
 export class Auth {
   private readonly config = inject(AppConfig);
   private readonly loadGis = inject(GIS_LOADER);
+  private readonly profile = inject(UserProfileReader);
 
   private readonly statusSignal = signal<AuthStatus>('signed-out');
   private readonly errorSignal = signal<string | null>(null);
   private readonly expiresAtSignal = signal<number | null>(null);
   private readonly gisReadySignal = signal(false);
+  private readonly firstNameSignal = signal<string | null>(null);
 
   readonly status = this.statusSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
@@ -42,11 +50,17 @@ export class Auth {
   readonly expiresAt = this.expiresAtSignal.asReadonly();
   /** True once the GIS script has loaded and the token client exists. */
   readonly gisReady = this.gisReadySignal.asReadonly();
+  /** The signed-in person's first name, or null until (or unless) Google returns it. */
+  readonly firstName = this.firstNameSignal.asReadonly();
+  /** What the topbar shows: the first name, else "Signed in". */
+  readonly userLabel = computed(() => this.firstNameSignal() ?? SIGNED_IN_LABEL);
 
   private token: string | null = null;
   private oauth2: GisOAuth2 | null = null;
   private client: GisTokenClient | null = null;
   private preparing: Promise<void> | null = null;
+  /** Bumped whenever the session ends, so a profile lookup that finishes later is discarded. */
+  private session = 0;
 
   /** Loads GIS and creates the token client. Safe to call repeatedly; Retry calls it again. */
   prepare(): Promise<void> {
@@ -58,7 +72,7 @@ export class Auth {
         this.oauth2 = oauth2;
         this.client = oauth2.initTokenClient({
           client_id: this.config.clientId(),
-          scope: SHEETS_SCOPE,
+          scope: REQUESTED_SCOPES,
           callback: (response) => this.onTokenResponse(response),
           error_callback: (error) => this.onClientError(error),
         });
@@ -99,6 +113,24 @@ export class Auth {
     }
   }
 
+  /**
+   * Signs out (US-07): revokes the token with Google (not awaited, so a slow or
+   * failing revoke never keeps anyone signed in), then forgets the session. The
+   * redirects return to `/sign-in`; `SheetsStore` clears its data.
+   */
+  signOut(): void {
+    const token = this.token;
+    if (token !== null && this.oauth2 !== null) {
+      try {
+        this.oauth2.revoke(token);
+      } catch {
+        // Best effort: the local sign-out below always happens.
+      }
+    }
+    this.clearSession();
+    this.errorSignal.set(null);
+  }
+
   /** Called by `core/sheets` on HTTP 401: forget the token and ask the user to sign in again. */
   markExpired(): void {
     this.clearSession();
@@ -132,6 +164,16 @@ export class Auth {
     this.expiresAtSignal.set(Date.now() + (lifetimeSeconds - EXPIRY_MARGIN_SECONDS) * 1000);
     this.errorSignal.set(null);
     this.statusSignal.set('signed-in');
+    void this.loadFirstName(response.access_token);
+  }
+
+  /** Background lookup; the topbar shows "Signed in" until (or unless) it succeeds. */
+  private async loadFirstName(token: string): Promise<void> {
+    const session = this.session;
+    const name = await this.profile.firstName(token);
+    if (session === this.session) {
+      this.firstNameSignal.set(name);
+    }
   }
 
   private onClientError(error: GisClientError): void {
@@ -146,8 +188,10 @@ export class Auth {
   }
 
   private clearSession(): void {
+    this.session++;
     this.token = null;
     this.expiresAtSignal.set(null);
+    this.firstNameSignal.set(null);
     this.statusSignal.set('signed-out');
   }
 }

@@ -4,7 +4,7 @@ import { Auth } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
 import { LoadedProduct, isEditable } from '@core/models/product';
 import { mapSheet } from './data-mapping';
-import { SheetLoadError } from './sheet-load-error';
+import { SheetLoadError, combineLoadErrors } from './sheet-load-error';
 import { pairSheets, pairingCounts } from './sheet-pairing';
 import { SheetsReader } from './sheets-reader';
 
@@ -26,10 +26,13 @@ export class SheetsStore {
   private readonly fetchedAtSignal = signal<Date | null>(null);
   private readonly masterSignal = signal<readonly LoadedProduct[]>([]);
   private readonly drTrustSignal = signal<readonly LoadedProduct[]>([]);
+  private readonly noAccessSignal = signal(false);
 
   readonly loading = this.loadingSignal.asReadonly();
-  /** A message naming the failing sheet, or null. */
+  /** A message naming every failing sheet, or null. */
   readonly error = this.errorSignal.asReadonly();
+  /** True when the last load failed because the account cannot open at least one sheet (US-32). */
+  readonly noAccess = this.noAccessSignal.asReadonly();
   /** When both sheets last loaded successfully; null until then. */
   readonly fetchedAt = this.fetchedAtSignal.asReadonly();
   readonly master = this.masterSignal.asReadonly();
@@ -72,30 +75,37 @@ export class SheetsStore {
     const drTrust = this.config.sheet('dr-trust');
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
+    this.noAccessSignal.set(false);
 
     try {
-      const [masterRows, drTrustRows] = await Promise.all([
+      // Wait for both, so a failure names every sheet that failed (US-32).
+      const [masterRead, drTrustRead] = await Promise.allSettled([
         this.reader.read(master),
         this.reader.read(drTrust),
       ]);
-      const masterProducts = mapSheet(master, masterRows);
-      const drTrustProducts = mapSheet(drTrust, drTrustRows);
       if (generation !== this.generation) {
         return;
       }
+      if (masterRead.status === 'rejected' || drTrustRead.status === 'rejected') {
+        this.clearData();
+        this.showFailures(
+          [masterRead, drTrustRead].flatMap((r) => (r.status === 'rejected' ? [r.reason] : [])),
+        );
+        return;
+      }
+      // Map both before setting either, so a column error in one never leaves the other shown.
+      const masterProducts = mapSheet(master, masterRead.value);
+      const drTrustProducts = mapSheet(drTrust, drTrustRead.value);
       this.masterSignal.set(masterProducts);
       this.drTrustSignal.set(drTrustProducts);
       this.fetchedAtSignal.set(new Date());
-    } catch (error) {
+    } catch (mappingError) {
+      // A missing or duplicated column (US-09): nothing has been set yet.
       if (generation !== this.generation) {
         return;
       }
       this.clearData();
-      // An expired session is handled by Auth (back to sign-in), not shown here.
-      const expired = error instanceof SheetLoadError && error.kind === 'expired';
-      this.errorSignal.set(
-        expired ? null : error instanceof SheetLoadError ? error.message : GENERIC_ERROR,
-      );
+      this.showFailures([mappingError]);
     } finally {
       if (generation === this.generation) {
         this.loadingSignal.set(false);
@@ -103,10 +113,23 @@ export class SheetsStore {
     }
   }
 
+  /** All-or-nothing: data is already cleared; this only sets the message and the no-access flag. */
+  private showFailures(failures: readonly unknown[]): void {
+    const loadErrors = failures.filter((f): f is SheetLoadError => f instanceof SheetLoadError);
+    if (loadErrors.length < failures.length) {
+      this.errorSignal.set(GENERIC_ERROR);
+      return;
+    }
+    // An expired session yields null: Auth sends the user back to sign-in.
+    this.errorSignal.set(combineLoadErrors(loadErrors));
+    this.noAccessSignal.set(loadErrors.some((e) => e.kind === 'access'));
+  }
+
   private reset(): void {
     this.generation++;
     this.clearData();
     this.errorSignal.set(null);
+    this.noAccessSignal.set(false);
     this.loadingSignal.set(false);
   }
 

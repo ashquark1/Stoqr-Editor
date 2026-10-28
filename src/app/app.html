@@ -1,5 +1,13 @@
 <header class="stoqr-topbar">
   <stoqr-logo [inline]="true" />
+  @if (auth.status() === 'signed-in') {
+    <div class="app-user">
+      <span class="app-user__name">{{ auth.userLabel() }}</span>
+      <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="auth.signOut()">
+        Sign out
+      </button>
+    </div>
+  }
 </header>
 
 <main class="app-content">

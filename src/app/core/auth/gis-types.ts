@@ -32,10 +32,18 @@ export interface GisTokenClient {
   requestAccessToken(): void;
 }
 
+/** Passed to `revoke`'s callback. */
+export interface GisRevocationResponse {
+  readonly successful: boolean;
+  readonly error?: string;
+}
+
 /** `google.accounts.oauth2`. */
 export interface GisOAuth2 {
   initTokenClient(config: GisTokenClientConfig): GisTokenClient;
   hasGrantedAllScopes(response: GisTokenResponse, firstScope: string, ...rest: string[]): boolean;
+  /** Revokes an access token (and the grants behind it) with Google. */
+  revoke(accessToken: string, done?: (response: GisRevocationResponse) => void): void;
 }
 
 /** The global the GIS script defines once loaded. */

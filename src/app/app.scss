@@ -7,6 +7,23 @@
   background: var(--color-paper);
 }
 
+// Signed-in user, pushed to the right end of the topbar.
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-inline-start: auto;
+  min-width: 0;
+}
+
+.app-user__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
 // Gutters match the theme's page shell: 24px mobile, 40px tablet, 64px desktop.
 .app-content,
 .app-footer {
