@@ -29,6 +29,10 @@
           <div class="stoqr-field__label">Status</div>
           <div class="stoqr-field__value"><stoqr-status-badge [status]="row.product.status" /></div>
         </div>
+        <div class="stoqr-field">
+          <div class="stoqr-field__label">Sync</div>
+          <div class="stoqr-field__value"><stoqr-sync-badge [kind]="search.selectedSyncBadge()" /></div>
+        </div>
       </div>
     </div>
 

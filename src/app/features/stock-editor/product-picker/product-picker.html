@@ -39,6 +39,7 @@
             <span class="picker__stock">
               <span class="picker__qty">Qty {{ display(row.product.stockQty) }}</span>
               <stoqr-badge [status]="row.product.stockStatus" />
+              <stoqr-sync-badge [kind]="search.syncBadgeOf(row.ref)" />
               <stoqr-status-badge [status]="row.product.status" />
             </span>
           </button>

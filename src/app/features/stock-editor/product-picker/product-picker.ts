@@ -6,6 +6,7 @@ import { MAX_SHOWN, ProductSearchStore } from '@core/search/product-search-store
 import { Badge } from '@shared/ui/badge/badge';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { StatusBadge } from '@shared/ui/status-badge/status-badge';
+import { SyncBadge } from '@shared/ui/sync-badge/sync-badge';
 import { displayValue } from '@shared/util/display-value';
 
 /**
@@ -15,7 +16,7 @@ import { displayValue } from '@shared/util/display-value';
  */
 @Component({
   selector: 'app-product-picker',
-  imports: [Badge, EmptyState, ReactiveFormsModule, StatusBadge],
+  imports: [Badge, EmptyState, ReactiveFormsModule, StatusBadge, SyncBadge],
   templateUrl: './product-picker.html',
   styleUrl: './product-picker.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

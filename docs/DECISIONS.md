@@ -224,6 +224,13 @@
 - Decision: the temporary load-check view is removed; its counts return with data health (US-31).
 - Consequence: each load creates fresh row refs, so any Retry/reload clears the selection (cautious: never points at stale data).
 
+## 2026-10-28: Sync badge — "out of sync" means stock qty differs [confirmed]
+
+- Decision (owner): a LINKED product is "Out of sync" when its stock qty differs between the sheets. Other differing fields do not count (Dr Trust is also edited by hand; details edits write only changed fields).
+- Decision: display only. `syncBadges()` (`core/sheets/sync-badge.ts`) is built on `syncStatuses()`; pairing and `editability()` are unchanged, and an out-of-sync product stays editable. `linkedQtyDiffers()` is the single "quantities differ" rule, shared with the summary's Dr Trust qty note.
+- Decision: a blank/invalid qty (`null`) counts as a value: null vs null is in sync; null vs a number is out of sync.
+- Decision: `<stoqr-sync-badge>` reuses the outlined `.stoqr-status-badge` pill with component-scoped token colours (theme not edited). Blocked is filled so it never looks like the outlined Discontinued pill; Out of sync uses crimson text (amber text fails contrast). The text label carries the meaning.
+
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
 - Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).

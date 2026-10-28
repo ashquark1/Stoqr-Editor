@@ -6,6 +6,7 @@ import { Editability, editability } from '@core/sheets/editability';
 import { RowRef } from '@core/sheets/row-ref';
 import { syncStatuses } from '@core/sheets/sheet-pairing';
 import { SheetsStore } from '@core/sheets/sheets-store';
+import { SyncBadgeKind, linkedQtyDiffers, syncBadges } from '@core/sheets/sync-badge';
 import { filterProducts, tokenize } from './product-matcher';
 import { SearchValidation } from './search-validation';
 
@@ -62,17 +63,31 @@ export class ProductSearchStore {
     return ref === null ? null : (this.sheets.master().find((row) => row.ref === ref) ?? null);
   });
 
-  /** The selected product's Dr Trust row when the two are linked by SKU. */
-  readonly selectedLink = computed<LoadedProduct | null>(() => {
+  private readonly selectedPair = computed(() => {
     const ref = this.selectedRefSignal();
-    return this.sheets.pairing().linked.find((pair) => pair.master.ref === ref)?.drTrust ?? null;
+    return this.sheets.pairing().linked.find((pair) => pair.master.ref === ref) ?? null;
   });
 
-  /** True when the selected product is linked and the two sheets hold different quantities. */
+  /** The selected product's Dr Trust row when the two are linked by SKU. */
+  readonly selectedLink = computed<LoadedProduct | null>(() => this.selectedPair()?.drTrust ?? null);
+
+  /** True when the selected product is linked and the sheets hold different quantities (same rule as the badge). */
   readonly drTrustQtyDiffers = computed(() => {
-    const master = this.selected();
-    const drTrust = this.selectedLink();
-    return master !== null && drTrust !== null && master.product.stockQty !== drTrust.product.stockQty;
+    const pair = this.selectedPair();
+    return pair !== null && linkedQtyDiffers(pair);
+  });
+
+  /** Sync badge per master row (US-37). */
+  private readonly badges = computed(() => syncBadges(this.sheets.pairing()));
+
+  /** The badge for one master row; for templates (reads the computed map). */
+  syncBadgeOf(ref: RowRef): SyncBadgeKind | undefined {
+    return this.badges().get(ref);
+  }
+
+  readonly selectedSyncBadge = computed<SyncBadgeKind | undefined>(() => {
+    const row = this.selected();
+    return row === null ? undefined : this.badges().get(row.ref);
   });
 
   readonly selectedEditability = computed<Editability | null>(() => {

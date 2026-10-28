@@ -5,6 +5,7 @@ import { LoadedProduct } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { BLOCKED_SKU_REASON, Editability } from '@core/sheets/editability';
+import { SyncBadgeKind } from '@core/sheets/sync-badge';
 import {
   DR_TRUST_SHEET,
   MASTER_SHEET,
@@ -24,11 +25,13 @@ describe('ProductSummary', () => {
   const selectedLink = signal<LoadedProduct | null>(null);
   const drTrustQtyDiffers = signal(false);
   const selectedEditability = signal<Editability | null>({ editable: true, reasons: [] });
+  const selectedSyncBadge = signal<SyncBadgeKind | undefined>('master-only');
   const search = {
     selected,
     selectedLink,
     drTrustQtyDiffers,
     selectedEditability,
+    selectedSyncBadge,
     clearSelection: vi.fn(),
   };
   let fixture: ComponentFixture<ProductSummary>;
@@ -45,6 +48,7 @@ describe('ProductSummary', () => {
     selectedLink.set(null);
     drTrustQtyDiffers.set(false);
     selectedEditability.set({ editable: true, reasons: [] });
+    selectedSyncBadge.set('master-only');
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [ProductSummary],
@@ -66,11 +70,17 @@ describe('ProductSummary', () => {
     expect(el.querySelector('.summary__blocked')).toBeNull();
   });
 
-  it('notes the Dr Trust quantity when the linked sheets differ', () => {
+  it('notes the Dr Trust quantity when the linked sheets differ, with the Out of sync badge', () => {
     selectedLink.set(link);
     drTrustQtyDiffers.set(true);
+    selectedSyncBadge.set('out-of-sync');
     fixture.detectChanges();
     expect(el.querySelector('.summary__note')?.textContent?.trim()).toBe('Dr Trust sheet has 9.');
+    expect(fieldValue('Sync')).toBe('Out of sync');
+  });
+
+  it('shows the sync badge as a field (US-37)', () => {
+    expect(fieldValue('Sync')).toBe('Master only');
   });
 
   it('lists why a product cannot be edited', () => {

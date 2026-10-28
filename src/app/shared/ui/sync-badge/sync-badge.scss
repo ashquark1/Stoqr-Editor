@@ -1,0 +1,31 @@
+// Pill shape comes from the theme's `.stoqr-status-badge`; only the four
+// sync colours live here, as tokens (the copied theme file is not edited).
+:host {
+  display: inline-flex;
+}
+
+.sync-badge--linked {
+  background: var(--color-dew);
+  border-color: var(--color-pine);
+  color: var(--color-pine);
+}
+
+.sync-badge--master-only {
+  background: var(--color-unknown-bg);
+  border-color: var(--color-unknown);
+  color: var(--color-ink-mid);
+}
+
+// Crimson text, not amber: amber text on its light fill is below WCAG AA.
+.sync-badge--out-of-sync {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning);
+  color: var(--color-error);
+}
+
+// Filled, so it never looks like the outlined Discontinued status pill.
+.sync-badge--blocked {
+  background: var(--color-error-bg);
+  border-color: var(--color-error-border);
+  color: var(--color-error);
+}

@@ -21,6 +21,7 @@ describe('ProductPicker', () => {
     totalMatches: computed(() => matches().length),
     shown: computed(() => matches().slice(0, 20)),
     selected,
+    syncBadgeOf: vi.fn(() => 'linked' as const),
     setQuery: vi.fn((q: string) => query.set(q)),
     select: vi.fn(),
   };
@@ -76,6 +77,14 @@ describe('ProductPicker', () => {
     expect([...buttons].map((b) => b.querySelector('.picker__name')?.textContent?.trim())).toEqual(['Strip 0', 'Strip 1']);
     buttons[1].click();
     expect(search.select).toHaveBeenCalledWith(matches()[1].ref);
+  });
+
+  it('shows each result’s sync badge (US-37)', () => {
+    matches.set(rows(2));
+    type('strip');
+    const badges = [...el.querySelectorAll('.picker__result stoqr-sync-badge')].map((b) => b.textContent?.trim());
+    expect(badges).toEqual(['Linked', 'Linked']);
+    expect(search.syncBadgeOf).toHaveBeenCalledWith(matches()[0].ref);
   });
 
   it('says how many are hidden when more than 20 match', () => {

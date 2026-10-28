@@ -115,6 +115,25 @@ describe('ProductSearchStore', () => {
       store.select(master()[2].ref);
       expect(store.selectedLink()).toBeNull();
       expect(store.drTrustQtyDiffers()).toBe(false);
+      expect(store.selectedSyncBadge()).toBe('master-only');
+    });
+
+    it('rule: the quantity note and the sync badge always agree (US-37)', () => {
+      store.select(master()[0].ref);
+      expect(store.drTrustQtyDiffers()).toBe(true);
+      expect(store.selectedSyncBadge()).toBe('out-of-sync');
+
+      drTrust.set(drTrustRows({ 'product name': 'Pulse Oximeter (DT copy)', sku: 'dt-po', 'stock qty': 10 }));
+      expect(store.drTrustQtyDiffers()).toBe(false);
+      expect(store.selectedSyncBadge()).toBe('linked');
+    });
+
+    it('gives every master row a badge for the result list', () => {
+      expect(master().map((row) => store.syncBadgeOf(row.ref))).toEqual([
+        'out-of-sync',
+        'master-only',
+        'master-only',
+      ]);
     });
 
     it('a blocked SKU is selectable but not editable, with the reason', () => {
