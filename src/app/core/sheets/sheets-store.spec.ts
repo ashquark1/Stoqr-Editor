@@ -50,6 +50,25 @@ describe('SheetsStore', () => {
     expect(store.error()).toBeNull();
   });
 
+  it('pairs the loaded sheets by SKU, and empties the pairing on sign-out', async () => {
+    respond({
+      master: async () => sheetValues(sheetRow({ id: 'm1', sku: 'A' }), sheetRow({ id: 'm2', sku: 'B' })),
+      'dr-trust': async () => sheetValues(sheetRow({ id: 'd1', sku: ' a ' }), sheetRow({ id: 'd2', sku: 'C' })),
+    });
+    await store.ensureLoaded();
+    expect(store.pairingCounts()).toEqual({
+      linked: 1,
+      masterOnly: 1,
+      blockedSkus: 0,
+      blockedRows: 0,
+      unmatchedDrTrust: 1,
+    });
+
+    status.set('signed-out');
+    TestBed.tick();
+    expect(store.pairing()).toEqual({ linked: [], masterOnly: [], blocked: [], orphans: [] });
+  });
+
   describe('rule: all-or-nothing', () => {
     it('shows no data when one sheet fails to load, naming that sheet', async () => {
       respond({

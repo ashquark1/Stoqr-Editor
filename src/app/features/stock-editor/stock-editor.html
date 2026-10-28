@@ -17,6 +17,12 @@
       Master: {{ store.master().length }} products · Dr Trust: {{ store.drTrust().length }} products ·
       {{ store.flaggedCount() }} flagged
     </p>
+    @let pairing = store.pairingCounts();
+    <p class="load-check__counts load-check__pairing">
+      Linked {{ pairing.linked }} · Master only {{ pairing.masterOnly }} · Blocked
+      {{ pairing.blockedSkus }} SKUs ({{ pairing.blockedRows }} rows) · Unmatched Dr Trust
+      {{ pairing.unmatchedDrTrust }}
+    </p>
 
     <div class="load-check__switch" role="group" aria-label="Sheet">
       @for (sheet of config.sheets(); track sheet.key) {

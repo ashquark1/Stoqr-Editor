@@ -19,6 +19,13 @@ describe('StockEditor (load-check view)', () => {
   const master = signal<readonly LoadedProduct[]>([]);
   const drTrust = signal<readonly LoadedProduct[]>([]);
   const flaggedCount = signal(0);
+  const pairingCounts = signal({
+    linked: 0,
+    masterOnly: 0,
+    blockedSkus: 0,
+    blockedRows: 0,
+    unmatchedDrTrust: 0,
+  });
   const store = {
     loading,
     error,
@@ -26,6 +33,7 @@ describe('StockEditor (load-check view)', () => {
     master,
     drTrust,
     flaggedCount,
+    pairingCounts,
     ensureLoaded: vi.fn(() => Promise.resolve()),
     reload: vi.fn(() => Promise.resolve()),
   };
@@ -100,6 +108,14 @@ describe('StockEditor (load-check view)', () => {
     fixture.detectChanges();
     expect(names()).toEqual(['Nebulizer']);
     expect(button('Dr Trust')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows the SKU pairing counts, with blocked as SKUs and rows', () => {
+    pairingCounts.set({ linked: 3, masterOnly: 4, blockedSkus: 1, blockedRows: 2, unmatchedDrTrust: 5 });
+    loaded();
+    expect(el.querySelector('.load-check__pairing')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Linked 3 · Master only 4 · Blocked 1 SKUs (2 rows) · Unmatched Dr Trust 5',
+    );
   });
 
   it('shows the flag text for a row that is not editable', () => {

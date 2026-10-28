@@ -5,6 +5,7 @@ import { AppConfig } from '@core/config/app-config';
 import { LoadedProduct, isEditable } from '@core/models/product';
 import { mapSheet } from './data-mapping';
 import { SheetLoadError } from './sheet-load-error';
+import { pairSheets, pairingCounts } from './sheet-pairing';
 import { SheetsReader } from './sheets-reader';
 
 const GENERIC_ERROR = "Couldn't load the products. Please try again.";
@@ -37,6 +38,9 @@ export class SheetsStore {
   readonly flaggedCount = computed(
     () => [...this.master(), ...this.drTrust()].filter((p) => !isEditable(p)).length,
   );
+  /** Rows paired across the two sheets by SKU (US-30); follows the loaded data. */
+  readonly pairing = computed(() => pairSheets(this.master(), this.drTrust()));
+  readonly pairingCounts = computed(() => pairingCounts(this.pairing()));
 
   /** Bumped on every reset so a load that finishes after sign-out is discarded. */
   private generation = 0;

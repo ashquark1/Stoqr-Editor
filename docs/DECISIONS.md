@@ -100,7 +100,7 @@
 - Requirement [confirmed]: the owner edits two spreadsheets — the master (all brands) and a separate spreadsheet FILE holding only Dr Trust products. Dr Trust products exist in both and are also edited directly in each. Stock changes AND all detail edits made in the app must be applied to both. Rows are matched by SKU (the sheet-local `id` values differ between the files).
 - Decision [confirmed]: the app loads both spreadsheets, each with its own spreadsheet ID and tab, from environment config as a list of sheet definitions (`master`, `dr-trust`), with separate test and production IDs.
 - Constraint: Google cannot write to two spreadsheets atomically. A linked write is two requests; the app reports success only when BOTH are confirmed.
-- Decision [proposed] — pairing: SKU is normalised (trimmed, case-insensitive). A product is "linked" when its SKU appears exactly once in each sheet. Master-only products (other brands) are edited in master only. The picker is driven by the master sheet.
+- Decision [confirmed 2026-10-28 — see SKU pairing rules] — pairing: SKU is normalised (trimmed, case-insensitive). A product is "linked" when its SKU appears exactly once in each sheet. Master-only products (other brands) are edited in master only. The picker is driven by the master sheet.
 - Decision [proposed] — data health: a duplicate SKU in either sheet blocks that product (not editable) with a message. Dr Trust rows with no master match, and master Dr Trust products missing from the Dr Trust sheet, are shown as warnings and are not synced.
 - Decision [confirmed 2026-10-27] — quantity mismatches are ALWAYS overridden: if a linked product's stock qty differs between the sheets, there is no reconcile step and nothing is blocked. The approved final quantity is written to BOTH sheets, replacing whatever the Dr Trust sheet held.
 - Decision [proposed] — base quantity: the adjuster's "current qty" and the add/subtract maths use the MASTER's quantity (the picker is driven by master). When the Dr Trust quantity differs, the review step shows a non-blocking note ("Dr Trust currently has X; it will be set to Y") so the overwrite is never invisible.
@@ -194,6 +194,15 @@
 - Decision: `RowRef` carries only the sheet key; the sheet-local `id` is held in a module `WeakMap`, so it never appears on the object or in its JSON. `createRowRef` / `rowRefId` / `new RowRef` are for `core/sheets` only (architecture rule).
 - Decision: `FIELD_LABELS` is a typed `Record<keyof Product, label>` (replaces V1's field list), so a new `Product` field without a label fails to compile.
 - Decision: V1's badge helpers were copied without filter code: `core/stock-adjust/stock-status-display.ts` and `core/models/product-status.ts`; `shared/util/display-value.ts` copied as is.
+
+## 2026-10-28: SKU pairing rules [confirmed]
+
+- Decision: one pure function, `pairSheets(master, drTrust)` in `core/sheets/sheet-pairing.ts`; inputs never mutated, input order kept, refs carried through untouched. Never compares `id`, `RowRef`, row number or name (rule test: different ids → same pairing).
+- Decision: the normaliser is trim + lowercase only — no punctuation, inner-space or leading-zero rewriting. So `123` and `00123` do not pair; US-31 will surface such rows.
+- Decision: a SKU appearing more than once in EITHER sheet is blocked, and every row carrying it in both sheets is blocked; blocked rows are never orphans.
+- Decision: a blank SKU never pairs and never counts as a duplicate: master → master-only (`hasSku` false, for a "no SKU" note), Dr Trust → unmatched.
+- Decision: pairing keeps loader issues; a linked pair does not make a flagged row editable. Later, "editable" = no issues AND not blocked.
+- Decision: `SheetsStore` exposes `pairing` and `pairingCounts` as computed signals; the load-check page shows "Blocked N SKUs (M rows)" (owner choice) so totals reconcile.
 
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)

@@ -42,9 +42,15 @@ Rule-level:
 - Input arrays are not mutated.
 
 ## Acceptance Checks
-- [ ] All behavior rules hold
-- [ ] Edge cases have tests
-- [ ] Counts on the load-check view reconcile with the TEST sheets
-- [ ] No new libraries
-- [ ] docs/DECISIONS.md updated: normaliser choice; "blocked rows are not orphans"; empty-SKU handling
-- [ ] docs/projectmap.md updated (`sheet-pairing.ts` landed)
+- [x] All behavior rules hold (rule tests, 2026-10-28)
+- [x] Edge cases have tests
+- [ ] Counts on the load-check view reconcile with the TEST sheets, and the owner spot-checks 3 SKUs (OWNER CHECK, pending: needs sign-in)
+- [x] No new libraries
+- [x] docs/DECISIONS.md updated: normaliser choice; "blocked rows are not orphans"; empty-SKU handling
+- [x] docs/projectmap.md updated (`sheet-pairing.ts` landed)
+
+## Built differently from plan (2026-10-28)
+- The "no SKU" note is the `hasSku(loaded)` helper; `masterOnly` stays a plain `LoadedProduct[]` as specified.
+- `pairingCounts(result)` was added (and a `pairingCounts` computed signal on `SheetsStore`) so counting happens outside the template.
+- The load-check line reads "Linked N · Master only N · Blocked N SKUs (M rows) · Unmatched Dr Trust N" (owner choice: SKUs and rows).
+- Blocked groups are ordered by first appearance, master rows before Dr Trust rows; `sku` is the normalised SKU.
