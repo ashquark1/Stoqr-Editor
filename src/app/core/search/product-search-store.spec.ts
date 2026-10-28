@@ -27,6 +27,7 @@ describe('ProductSearchStore', () => {
   let master: WritableSignal<readonly LoadedProduct[]>;
   let drTrust: WritableSignal<readonly LoadedProduct[]>;
   let status: WritableSignal<AuthStatus>;
+  let sessionId: WritableSignal<number>;
   let store: ProductSearchStore;
 
   const names = (rows: readonly LoadedProduct[]) => rows.map((r) => r.product.productName);
@@ -46,11 +47,12 @@ describe('ProductSearchStore', () => {
       ),
     );
     status = signal<AuthStatus>('signed-in');
+    sessionId = signal(1);
     const pairing = computed(() => pairSheets(master(), drTrust()));
     TestBed.configureTestingModule({
       providers: [
         { provide: SheetsStore, useValue: { master, drTrust, pairing } },
-        { provide: Auth, useValue: { status } },
+        { provide: Auth, useValue: { status, sessionId } },
       ],
     });
     store = TestBed.inject(ProductSearchStore);
@@ -157,13 +159,23 @@ describe('ProductSearchStore', () => {
       expect(store.selectedEditability()).toBeNull();
     });
 
-    it('clears the query and selection on sign-out', () => {
+    it('clears the query and selection when a new session starts (sign-out or another account)', () => {
       store.setQuery('oximeter');
       store.select(master()[0].ref);
       status.set('signed-out');
+      sessionId.update((id) => id + 1);
       TestBed.tick();
       expect(store.query()).toBe('');
       expect(store.selected()).toBeNull();
+    });
+
+    it('rule: expiry keeps the query and selection (US-06)', () => {
+      store.setQuery('oximeter');
+      store.select(master()[0].ref);
+      status.set('expired');
+      TestBed.tick();
+      expect(store.query()).toBe('oximeter');
+      expect(store.selected()?.product.productName).toBe('Pulse Oximeter');
     });
   });
 });

@@ -1,0 +1,37 @@
+@if (auth.expiryWarning()) {
+  <stoqr-toast
+    variant="warning"
+    title="Your session ends in 5 minutes"
+    message="Stay signed in to keep working without interruption."
+    actionLabel="Stay signed in"
+    [autoDismissMs]="0"
+    (retry)="auth.renew()"
+    (dismiss)="auth.dismissExpiryWarning()"
+  />
+}
+
+<stoqr-modal [open]="auth.expiredDialogOpen()" header="Session expired" [dismissable]="false">
+  <div class="session">
+    <p class="session__text">Your work is kept. Continue to keep working.</p>
+    @if (auth.renewalError(); as message) {
+      <p class="session__error" role="alert">{{ message }}</p>
+    }
+    <div class="session__actions">
+      <button
+        type="button"
+        class="stoqr-btn stoqr-btn--primary"
+        [disabled]="auth.status() === 'renewing'"
+        (click)="auth.renew()"
+      >
+        @if (auth.status() === 'renewing') {
+          Continuing…
+        } @else {
+          Continue
+        }
+      </button>
+      <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="auth.signOut()">
+        Sign out
+      </button>
+    </div>
+  </div>
+</stoqr-modal>

@@ -40,6 +40,36 @@ describe('Toast', () => {
     expect(dismissed).toBe(true);
   });
 
+  it('defaults to the error variant, announced assertively', () => {
+    const fixture = create();
+    fixture.detectChanges();
+    const card = fixture.nativeElement.querySelector('.stoqr-toast');
+    expect(card.classList).toContain('stoqr-toast--error');
+    expect(card.getAttribute('role')).toBe('alert');
+  });
+
+  it('supports a warning variant with its own action label (US-06)', () => {
+    const fixture = create('Stay signed in to keep working.');
+    fixture.componentRef.setInput('variant', 'warning');
+    fixture.componentRef.setInput('actionLabel', 'Stay signed in');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const card = el.querySelector('.stoqr-toast');
+    expect(card?.classList).toContain('stoqr-toast--warning');
+    expect(card?.getAttribute('role')).toBe('status');
+    expect(el.querySelector('.stoqr-toast__retry')?.textContent?.trim()).toBe('Stay signed in');
+  });
+
+  it('never auto-dismisses when autoDismissMs is 0', () => {
+    const fixture = create();
+    fixture.componentRef.setInput('autoDismissMs', 0);
+    let dismissed = false;
+    fixture.componentInstance.dismiss.subscribe(() => (dismissed = true));
+    fixture.detectChanges();
+    vi.advanceTimersByTime(60 * 60 * 1000);
+    expect(dismissed).toBe(false);
+  });
+
   it('auto-dismisses after the timeout (AC-04)', () => {
     const fixture = create();
     let dismissed = false;

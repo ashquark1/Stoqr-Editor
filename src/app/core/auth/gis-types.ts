@@ -28,8 +28,13 @@ export interface GisTokenClientConfig {
   readonly error_callback?: (error: GisClientError) => void;
 }
 
+/** Per-request overrides. `prompt: ''` asks Google not to show the account chooser or consent again. */
+export interface GisTokenRequestOverrides {
+  readonly prompt?: string;
+}
+
 export interface GisTokenClient {
-  requestAccessToken(): void;
+  requestAccessToken(overrides?: GisTokenRequestOverrides): void;
 }
 
 /** Passed to `revoke`'s callback. */

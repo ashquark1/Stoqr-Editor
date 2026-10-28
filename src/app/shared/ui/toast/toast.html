@@ -1,9 +1,13 @@
-<div class="stoqr-toast stoqr-toast--error" role="alert" aria-live="assertive">
+<div
+  [class]="'stoqr-toast stoqr-toast--' + variant()"
+  [attr.role]="variant() === 'error' ? 'alert' : 'status'"
+  [attr.aria-live]="variant() === 'error' ? 'assertive' : 'polite'"
+>
   <div class="stoqr-toast__content">
     <div class="stoqr-toast__title">{{ title() }}</div>
     <div class="stoqr-toast__body">{{ message() }}</div>
     <button type="button" class="stoqr-toast__retry" (click)="onRetry()">
-      Retry
+      {{ actionLabel() }}
     </button>
   </div>
   <button

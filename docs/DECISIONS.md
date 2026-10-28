@@ -167,7 +167,7 @@
 - Decision: only `core/auth/` touches GIS. Local types (`gis-types.ts`), no types package. The script is injected by `GIS_LOADER` (an InjectionToken, faked in tests).
 - Decision: the script loads at startup in the background (not awaited), so `requestAccessToken()` runs inside the user's click and the popup is not blocked; the button stays disabled until it loads. Offline, the app still renders and offers Retry.
 - Decision: scope is `spreadsheets` only (`SHEETS_SCOPE`). Superseded 2026-10-28 by D1: `userinfo.profile` added for the first name.
-- Decision: the token is a private field read only by `core/sheets` via `accessToken()`; `expiresAt` = now + `expires_in` − 60 s. `markExpired()` (for 401s) clears it with "Your session expired. Please sign in again."
+- Decision: the token is a private field read only by `core/sheets` via `accessToken()`; `expiresAt` = now + `expires_in` − 60 s. `markExpired()` (for 401s) clears it with "Your session expired. Please sign in again." Superseded 2026-10-28 by US-06: expiry keeps the session and asks the user to Continue; `core/sheets` uses `freshToken()`.
 - Finding (verified 2026-10-28): GIS enables granular consent, so users can untick the Sheets permission; `hasGrantedAllScopes` treats that as denied.
 
 ## 2026-10-28: Auth redirects live in one place [confirmed]
@@ -230,6 +230,15 @@
 - Decision: display only. `syncBadges()` (`core/sheets/sync-badge.ts`) is built on `syncStatuses()`; pairing and `editability()` are unchanged, and an out-of-sync product stays editable. `linkedQtyDiffers()` is the single "quantities differ" rule, shared with the summary's Dr Trust qty note.
 - Decision: a blank/invalid qty (`null`) counts as a value: null vs null is in sync; null vs a number is out of sync.
 - Decision: `<stoqr-sync-badge>` reuses the outlined `.stoqr-status-badge` pill with component-scoped token colours (theme not edited). Blocked is filled so it never looks like the outlined Discontinued pill; Out of sync uses crimson text (amber text fails contrast). The text label carries the meaning.
+
+## 2026-10-28: Session renewal — expiry keeps the work (US-06) [confirmed]
+
+- Decision: expiry is no longer sign-out. New Auth statuses `expired` (token gone, work kept) and `renewing`; expiry (session clock, `expiresAt` passed, or HTTP 401) forgets ONLY the token. Data, search, selection and the first name stay; there is no redirect. Only Sign out or a page reload returns to sign-in.
+- Decision: a session clock (reset on every token): 5 minutes before `expiresAt` a warning offers Stay signed in (owner choice); at `expiresAt` a non-dismissable "Session expired" dialog offers Continue or Sign out. Renewal needs one click (browsers only allow Google's popup from a click) and uses `prompt: ''`.
+- Decision: `Auth.freshToken()` is the only way `core/sheets` gets a token: immediate when valid; otherwise it waits for the renewal and resolves with the new token; it rejects on sign-out. `SheetsReader` retries a 401 once after renewal, so an interrupted load finishes after Continue; a load interrupted beyond that offers Retry.
+- Decision: `Auth.sessionId` changes only on a sign-in from signed out, on sign-out, and when renewal brings a DIFFERENT account (Google's `sub` from userinfo; fallback: first name, weaker). Stores reset on it; `SheetsStore` reloads for the new account. One person's work never carries into another's session.
+- Decision: wrappers extended, not forked: `<stoqr-toast>` gains `variant` (`error`/`warning`), `actionLabel`, and `autoDismissMs = 0` meaning never; `<stoqr-modal>` (copied from V1) gains `dismissable` (default `true`). The prompts live in `features/session/` and are `@defer`red until someone has a session, keeping the first load under the 500 kB budget (the dialog library is a ~126 kB lazy chunk).
+- Note: found while building — a 401 can land while a warning-started renewal is open, so "renewal in progress" is tracked with a flag, not inferred from the status.
 
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)

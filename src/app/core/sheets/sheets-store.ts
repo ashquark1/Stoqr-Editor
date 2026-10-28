@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { Auth } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
@@ -9,6 +9,7 @@ import { pairSheets, pairingCounts } from './sheet-pairing';
 import { SheetsReader } from './sheets-reader';
 
 const GENERIC_ERROR = "Couldn't load the products. Please try again.";
+export const INTERRUPTED_ERROR = 'Loading was interrupted by the session ending. Please retry.';
 
 /**
  * Both sheets, loaded once per session after sign-in (US-08). All-or-nothing:
@@ -45,19 +46,34 @@ export class SheetsStore {
   readonly pairing = computed(() => pairSheets(this.master(), this.drTrust()));
   readonly pairingCounts = computed(() => pairingCounts(this.pairing()));
 
-  /** Bumped on every reset so a load that finishes after sign-out is discarded. */
+  /** Bumped on every reset so a load that finishes after a new session starts is discarded. */
   private generation = 0;
+  /** True once a page has asked for the sheets in this session (so a new session reloads them). */
+  private requested = false;
 
   constructor() {
+    // A new session (sign-out, or a different account on renewal) clears everything; expiry
+    // does not, so work survives renewal (US-06). A different account reloads the sheets.
+    let lastSession = this.auth.sessionId();
     effect(() => {
-      if (this.auth.status() === 'signed-out') {
-        this.reset();
+      const session = this.auth.sessionId();
+      if (session === lastSession) {
+        return;
       }
+      lastSession = session;
+      untracked(() => {
+        const wasRequested = this.requested;
+        this.reset();
+        if (wasRequested && this.auth.status() === 'signed-in') {
+          void this.ensureLoaded();
+        }
+      });
     });
   }
 
   /** Loads both sheets unless they are loaded or loading. Called by the page on open. */
   ensureLoaded(): Promise<void> {
+    this.requested = true;
     if (this.fetchedAtSignal() !== null || this.loadingSignal()) {
       return Promise.resolve();
     }
@@ -120,12 +136,17 @@ export class SheetsStore {
       this.errorSignal.set(GENERIC_ERROR);
       return;
     }
-    // An expired session yields null: Auth sends the user back to sign-in.
-    this.errorSignal.set(combineLoadErrors(loadErrors));
+    // An expired session yields null when the user has signed out (they are on the sign-in
+    // screen). If they still have a session (e.g. a second 401 after renewal), offer Retry.
+    const message = combineLoadErrors(loadErrors);
+    this.errorSignal.set(
+      message === null && loadErrors.length > 0 && this.auth.hasSession() ? INTERRUPTED_ERROR : message,
+    );
     this.noAccessSignal.set(loadErrors.some((e) => e.kind === 'access'));
   }
 
   private reset(): void {
+    this.requested = false;
     this.generation++;
     this.clearData();
     this.errorSignal.set(null);

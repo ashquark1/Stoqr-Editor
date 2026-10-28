@@ -28,8 +28,9 @@ interface ValueRange {
 /**
  * Reads a whole tab of one spreadsheet with the signed-in user's token. GET
  * only: the only file that may send a mutating request is `sheets-writer.ts`.
- * Failures become a `SheetLoadError` naming the sheet; a 401 also signs the
- * user out via `Auth.markExpired()`.
+ * Failures become a `SheetLoadError` naming the sheet. A token that expires —
+ * before the call or as a 401 — waits for the user to renew (US-06) and the
+ * GET is retried once, so an interrupted load finishes after Continue.
  */
 @Injectable({ providedIn: 'root' })
 export class SheetsReader {
@@ -37,33 +38,51 @@ export class SheetsReader {
   private readonly auth = inject(Auth);
 
   async read(sheet: SheetDefinition): Promise<CellValue[][] | undefined> {
-    const token = this.auth.accessToken();
-    const expiresAt = this.auth.expiresAt();
-    if (token === null || (expiresAt !== null && Date.now() >= expiresAt)) {
-      this.auth.markExpired();
-      throw new SheetLoadError(sheet.label, 'expired', AUTH_MESSAGES.expired);
-    }
-
-    const url = `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values/${tabRange(sheet.tab)}`;
     try {
-      const response = await firstValueFrom(
-        this.http.get<ValueRange>(url, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: READ_PARAMS,
-        }),
-      );
-      return response.values;
+      return await this.get(sheet, await this.token(sheet));
     } catch (error) {
-      throw this.toLoadError(sheet, error);
+      if (!isUnauthorized(error)) {
+        throw error instanceof SheetLoadError ? error : this.toLoadError(sheet, error);
+      }
+      this.auth.markExpired();
     }
+    // One retry after renewal; a second 401 is reported as an expired session.
+    try {
+      return await this.get(sheet, await this.token(sheet));
+    } catch (error) {
+      if (isUnauthorized(error)) {
+        this.auth.markExpired();
+        throw expiredError(sheet);
+      }
+      throw error instanceof SheetLoadError ? error : this.toLoadError(sheet, error);
+    }
+  }
+
+  /** Waits for a valid token (renewal included); a session that ends instead is "expired". */
+  private async token(sheet: SheetDefinition): Promise<string> {
+    try {
+      return await this.auth.freshToken();
+    } catch {
+      throw expiredError(sheet);
+    }
+  }
+
+  private async get(sheet: SheetDefinition, token: string): Promise<CellValue[][] | undefined> {
+    const url = `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values/${tabRange(sheet.tab)}`;
+    const response = await firstValueFrom(
+      this.http.get<ValueRange>(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: READ_PARAMS,
+      }),
+    );
+    return response.values;
   }
 
   private toLoadError(sheet: SheetDefinition, error: unknown): SheetLoadError {
     const status = error instanceof HttpErrorResponse ? error.status : 0;
     switch (status) {
       case 401:
-        this.auth.markExpired();
-        return new SheetLoadError(sheet.label, 'expired', AUTH_MESSAGES.expired);
+        return expiredError(sheet);
       case 403:
         return new SheetLoadError(sheet.label, 'access', noAccessMessage([sheet.label]));
       case 404:
@@ -84,4 +103,12 @@ export class SheetsReader {
       `Couldn't load ${sheet.label}. Check your connection and try again.`,
     );
   }
+}
+
+function isUnauthorized(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 401;
+}
+
+function expiredError(sheet: SheetDefinition): SheetLoadError {
+  return new SheetLoadError(sheet.label, 'expired', AUTH_MESSAGES.expired);
 }

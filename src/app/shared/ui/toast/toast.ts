@@ -8,10 +8,10 @@ import {
 } from '@angular/core';
 
 /**
- * Reusable error toast — fixed top-center, branded (`.stoqr-toast`), with a
- * Retry action and a close button. Announces itself to screen readers
- * (`role="alert"` + `aria-live="assertive"`) and auto-dismisses after a timeout
- * (cleared on manual dismiss/retry/destroy). Generic: any feature can show one.
+ * Reusable toast — fixed top-center, branded (`.stoqr-toast`), with one action
+ * button and a close button. `error` (default) announces itself assertively;
+ * `warning` politely. Auto-dismisses after `autoDismissMs` (0 = never), cleared
+ * on manual dismiss/action/destroy. Generic: any feature can show one.
  */
 @Component({
   selector: 'stoqr-toast',
@@ -22,6 +22,11 @@ import {
 export class Toast implements OnInit, OnDestroy {
   readonly message = input.required<string>();
   readonly title = input("Couldn't load products");
+  /** `error` (default) or `warning`; maps to the theme's `.stoqr-toast--*` variants. */
+  readonly variant = input<'error' | 'warning'>('error');
+  /** Label of the action button; emits `retry` when clicked. */
+  readonly actionLabel = input('Retry');
+  /** Milliseconds before dismissing itself; 0 keeps it until the user acts. */
   readonly autoDismissMs = input(5000);
 
   readonly retry = output<void>();
@@ -30,7 +35,9 @@ export class Toast implements OnInit, OnDestroy {
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   ngOnInit(): void {
-    this.timer = setTimeout(() => this.dismiss.emit(), this.autoDismissMs());
+    if (this.autoDismissMs() > 0) {
+      this.timer = setTimeout(() => this.dismiss.emit(), this.autoDismissMs());
+    }
   }
 
   ngOnDestroy(): void {

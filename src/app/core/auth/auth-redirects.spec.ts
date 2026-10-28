@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   WritableSignal,
+  computed,
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -38,7 +39,14 @@ describe('auth guards and redirects', () => {
           { path: 'sign-in', component: SignInStub, canActivate: [redirectIfSignedIn] },
         ]),
         provideAuthRedirects(),
-        { provide: Auth, useValue: { status, prepare } },
+        {
+          provide: Auth,
+          useValue: {
+            status,
+            prepare,
+            hasSession: computed(() => ['signed-in', 'expired', 'renewing'].includes(status())),
+          },
+        },
       ],
     });
     router = TestBed.inject(Router);
@@ -70,6 +78,24 @@ describe('auth guards and redirects', () => {
     status.set('signed-out'); // e.g. Auth.markExpired() after a 401
     await settle();
     expect(router.url).toBe('/sign-in');
+  });
+
+  it('rule: an expired or renewing session stays on the page (US-06)', async () => {
+    status.set('signed-in');
+    await router.navigateByUrl('/');
+    expect(router.url).toBe('/');
+
+    status.set('expired');
+    await settle();
+    expect(router.url).toBe('/');
+
+    status.set('renewing');
+    await settle();
+    expect(router.url).toBe('/');
+
+    // Typed directly while expired: the guard still lets the user in.
+    await router.navigateByUrl('/');
+    expect(router.url).toBe('/');
   });
 
   it('does not navigate while a sign-in is in progress', async () => {

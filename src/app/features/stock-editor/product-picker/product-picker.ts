@@ -34,5 +34,12 @@ export class ProductPicker {
 
   constructor() {
     effect(() => this.search.setQuery(this.typed()));
+    // When the store clears the query (a new session), clear the box too.
+    effect(() => {
+      const query = this.search.query();
+      if (query !== this.queryControl.value) {
+        this.queryControl.setValue(query, { emitEvent: false });
+      }
+    });
   }
 }

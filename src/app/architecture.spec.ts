@@ -125,8 +125,10 @@ describe('auth rules (US-05)', () => {
     expect(offenders((f) => !inAuth(f), /google\.accounts|accounts\.google\.com/)).toEqual([]);
   });
 
-  it('accessToken() is called only from core/auth or core/sheets', () => {
-    expect(offenders((f) => isTs(f) && !inAuth(f) && !inSheets(f), /\.accessToken\(/)).toEqual([]);
+  it('tokens (freshToken / accessToken) are requested only from core/auth or core/sheets', () => {
+    expect(
+      offenders((f) => isTs(f) && !inAuth(f) && !inSheets(f), /\.(?:freshToken|accessToken)\(/),
+    ).toEqual([]);
   });
 
   it('core/auth and core/sheets never use browser storage or cookies', () => {

@@ -96,8 +96,13 @@ export class ProductSearchStore {
   });
 
   constructor() {
+    // A new session (sign-out, or a different account on renewal) clears the search; expiry
+    // does not, so the selection survives renewal (US-06).
+    let lastSession = this.auth.sessionId();
     effect(() => {
-      if (this.auth.status() === 'signed-out') {
+      const session = this.auth.sessionId();
+      if (session !== lastSession) {
+        lastSession = session;
         this.querySignal.set('');
         this.selectedRefSignal.set(null);
       }

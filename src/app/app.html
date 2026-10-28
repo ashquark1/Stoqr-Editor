@@ -1,6 +1,6 @@
 <header class="stoqr-topbar">
   <stoqr-logo [inline]="true" />
-  @if (auth.status() === 'signed-in') {
+  @if (auth.hasSession()) {
     <div class="app-user">
       <span class="app-user__name">{{ auth.userLabel() }}</span>
       <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="auth.signOut()">
@@ -13,6 +13,14 @@
 <main class="app-content">
   <router-outlet />
 </main>
+
+<!--
+  Session warning and "Session expired" dialog, on every page (US-06). Deferred so the
+  dialog library loads only once someone has a session, keeping the first load small.
+-->
+@defer (when auth.hasSession()) {
+  <app-session-prompts />
+}
 
 <!-- Which spreadsheets this build talks to (US-04). LIVE uses the warning pill. -->
 <footer class="app-footer">

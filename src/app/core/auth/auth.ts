@@ -4,9 +4,14 @@ import { AppConfig } from '@core/config/app-config';
 import { REQUESTED_SCOPES, SHEETS_SCOPE } from './auth-scope';
 import { GIS_LOADER } from './gis-loader';
 import { GisClientError, GisOAuth2, GisTokenClient, GisTokenResponse } from './gis-types';
-import { UserProfileReader } from './user-profile';
+import { UserProfile, UserProfileReader } from './user-profile';
 
-export type AuthStatus = 'signed-out' | 'signing-in' | 'signed-in';
+/**
+ * `expired`: the token is gone but the session (data, search, work) is kept
+ * until the user renews or signs out. `renewing`: Continue was clicked and
+ * Google's popup is open (US-06).
+ */
+export type AuthStatus = 'signed-out' | 'signing-in' | 'signed-in' | 'expired' | 'renewing';
 
 /** Friendly messages shown to staff. Exported for tests. */
 export const AUTH_MESSAGES = {
@@ -18,34 +23,60 @@ export const AUTH_MESSAGES = {
   failed: "Google sign-in didn't complete. Please try again.",
   scriptFailed: "Couldn't reach Google sign-in. Check your connection, then retry.",
   expired: 'Your session expired. Please sign in again.',
+  renewCancelled: 'Renewal was cancelled. Continue to keep working.',
 } as const;
 
 /** Seconds taken off Google's expiry so a token is never used in its last minute. */
 const EXPIRY_MARGIN_SECONDS = 60;
 
+/** How long before expiry the "session ends soon" warning appears. */
+export const EXPIRY_WARNING_MS = 5 * 60 * 1000;
+
 /** Topbar label when the first name is unknown (profile not granted or lookup failed). */
 export const SIGNED_IN_LABEL = 'Signed in';
 
+/** Thrown by `freshToken()` when the session ends (sign-out) instead of being renewed. */
+export class SessionEndedError extends Error {
+  constructor() {
+    super('The session ended before a token was available.');
+    this.name = 'SessionEndedError';
+  }
+}
+
+interface TokenWaiter {
+  readonly resolve: (token: string) => void;
+  readonly reject: (error: SessionEndedError) => void;
+}
+
 /**
- * Google sign-in with the GIS token flow (US-05) plus sign-out and the first
- * name (US-07, D1). The access token lives in a private field (memory only,
- * never browser storage) and is read only by `core/sheets` through
- * `accessToken()`. The first name is memory-only too.
+ * Google sign-in with the GIS token flow (US-05), sign-out and the first name
+ * (US-07, D1), and in-place renewal (US-06). The access token lives in a
+ * private field (memory only, never browser storage); `core/sheets` gets it
+ * only through `freshToken()`. Expiry never clears work: only sign-out, or a
+ * different account on renewal, starts a new `sessionId`.
  */
 @Injectable({ providedIn: 'root' })
 export class Auth {
   private readonly config = inject(AppConfig);
   private readonly loadGis = inject(GIS_LOADER);
-  private readonly profile = inject(UserProfileReader);
+  private readonly profiles = inject(UserProfileReader);
 
   private readonly statusSignal = signal<AuthStatus>('signed-out');
   private readonly errorSignal = signal<string | null>(null);
+  private readonly renewalErrorSignal = signal<string | null>(null);
   private readonly expiresAtSignal = signal<number | null>(null);
+  private readonly expiringSoonSignal = signal(false);
   private readonly gisReadySignal = signal(false);
   private readonly firstNameSignal = signal<string | null>(null);
+  private readonly sessionIdSignal = signal(0);
+  /** Where a renewal started: the dialog (`expired`) or the early warning (`signed-in`). */
+  private readonly renewOriginSignal = signal<'signed-in' | 'expired'>('expired');
 
   readonly status = this.statusSignal.asReadonly();
+  /** Sign-in screen message, or null. */
   readonly error = this.errorSignal.asReadonly();
+  /** Message inside the "Session expired" dialog after a failed renewal, or null. */
+  readonly renewalError = this.renewalErrorSignal.asReadonly();
   /** Epoch ms after which the token should be treated as expired (60s margin included). */
   readonly expiresAt = this.expiresAtSignal.asReadonly();
   /** True once the GIS script has loaded and the token client exists. */
@@ -54,13 +85,39 @@ export class Auth {
   readonly firstName = this.firstNameSignal.asReadonly();
   /** What the topbar shows: the first name, else "Signed in". */
   readonly userLabel = computed(() => this.firstNameSignal() ?? SIGNED_IN_LABEL);
+  /**
+   * Changes on a sign-in from signed out, on sign-out, and when renewal brings
+   * a different account — never on expiry or a same-account renewal. Stores
+   * that hold work reset when it changes.
+   */
+  readonly sessionId = this.sessionIdSignal.asReadonly();
+  /** Someone is using the app: signed in, or expired/renewing with their work kept. */
+  readonly hasSession = computed(() => {
+    const status = this.statusSignal();
+    return status === 'signed-in' || status === 'expired' || status === 'renewing';
+  });
+  /** Show the "session ends in 5 minutes" warning. */
+  readonly expiryWarning = computed(
+    () => this.expiringSoonSignal() && this.statusSignal() === 'signed-in',
+  );
+  /** Show the blocking "Session expired" dialog. */
+  readonly expiredDialogOpen = computed(() => {
+    const status = this.statusSignal();
+    return status === 'expired' || (status === 'renewing' && this.renewOriginSignal() === 'expired');
+  });
 
   private token: string | null = null;
+  private accountId: string | null = null;
   private oauth2: GisOAuth2 | null = null;
   private client: GisTokenClient | null = null;
   private preparing: Promise<void> | null = null;
-  /** Bumped whenever the session ends, so a profile lookup that finishes later is discarded. */
-  private session = 0;
+  private waiters: TokenWaiter[] = [];
+  /** True from `renew()` until Google answers; the status alone cannot tell (a 401 may land meanwhile). */
+  private renewInFlight = false;
+  private warningTimer: ReturnType<typeof setTimeout> | undefined;
+  private expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Bumped whenever a token is replaced or dropped, so a late profile lookup is discarded. */
+  private tokenGeneration = 0;
 
   /** Loads GIS and creates the token client. Safe to call repeatedly; Retry calls it again. */
   prepare(): Promise<void> {
@@ -114,9 +171,32 @@ export class Auth {
   }
 
   /**
+   * Renews the session in place (US-06), from a click on Continue (expired) or
+   * Stay signed in (the early warning). `prompt: ''` lets Google skip the
+   * account chooser and consent when nothing changed. Ignored otherwise.
+   */
+  renew(): void {
+    const status = this.statusSignal();
+    const fromWarning = status === 'signed-in' && this.expiringSoonSignal();
+    if (this.client === null || (status !== 'expired' && !fromWarning)) {
+      return;
+    }
+    this.renewOriginSignal.set(fromWarning ? 'signed-in' : 'expired');
+    this.renewalErrorSignal.set(null);
+    this.renewInFlight = true;
+    this.statusSignal.set('renewing');
+    this.client.requestAccessToken({ prompt: '' });
+  }
+
+  /** Hides the early warning until the next token (the dialog still appears at expiry). */
+  dismissExpiryWarning(): void {
+    this.expiringSoonSignal.set(false);
+  }
+
+  /**
    * Signs out (US-07): revokes the token with Google (not awaited, so a slow or
-   * failing revoke never keeps anyone signed in), then forgets the session. The
-   * redirects return to `/sign-in`; `SheetsStore` clears its data.
+   * failing revoke never keeps anyone signed in), then ends the session. Waiting
+   * requests are rejected; the redirects return to `/sign-in`.
    */
   signOut(): void {
     const token = this.token;
@@ -127,26 +207,56 @@ export class Auth {
         // Best effort: the local sign-out below always happens.
       }
     }
-    this.clearSession();
+    this.endSession();
     this.errorSignal.set(null);
   }
 
-  /** Called by `core/sheets` on HTTP 401: forget the token and ask the user to sign in again. */
+  /**
+   * The token has expired (clock, `expiresAt` passed, or HTTP 401). Forgets
+   * ONLY the token; data, search, work and the name are kept, and the
+   * "Session expired" dialog asks the user to Continue (US-06).
+   */
   markExpired(): void {
-    this.clearSession();
-    this.errorSignal.set(AUTH_MESSAGES.expired);
+    const status = this.statusSignal();
+    if (status !== 'signed-in' && status !== 'renewing') {
+      return;
+    }
+    this.dropToken();
+    if (this.renewInFlight) {
+      // A renewal started from the warning is still open: keep waiting for it,
+      // but show the dialog if it fails, since the token is now gone.
+      this.renewOriginSignal.set('expired');
+      return;
+    }
+    this.statusSignal.set('expired');
   }
 
   clearError(): void {
     this.errorSignal.set(null);
   }
 
-  /** The bearer token for Sheets API calls. For `core/sheets` only (architecture rule). */
-  accessToken(): string | null {
-    return this.token;
+  /**
+   * A valid bearer token for Sheets API calls; for `core/sheets` only
+   * (architecture rule). Resolves at once when the token is valid; otherwise
+   * the session expires (if it has not already) and this waits until the user
+   * renews. Rejects with `SessionEndedError` when the session ends instead.
+   */
+  freshToken(): Promise<string> {
+    const expiresAt = this.expiresAtSignal();
+    if (this.token !== null && (expiresAt === null || Date.now() < expiresAt)) {
+      return Promise.resolve(this.token);
+    }
+    this.markExpired();
+    const status = this.statusSignal();
+    if (status !== 'expired' && status !== 'renewing') {
+      return Promise.reject(new SessionEndedError());
+    }
+    return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
   }
 
   private onTokenResponse(response: GisTokenResponse): void {
+    const renewing = this.renewInFlight;
+    this.renewInFlight = false;
     const granted =
       response.error === undefined &&
       response.access_token !== undefined &&
@@ -154,44 +264,125 @@ export class Auth {
       this.oauth2.hasGrantedAllScopes(response, SHEETS_SCOPE);
 
     if (!granted || response.access_token === undefined) {
-      this.clearSession();
+      // Refused (or Sheets unticked): no access any more, so the session ends.
+      this.endSession();
       this.errorSignal.set(AUTH_MESSAGES.denied);
       return;
     }
 
-    const lifetimeSeconds = Number(response.expires_in ?? 0);
-    this.token = response.access_token;
-    this.expiresAtSignal.set(Date.now() + (lifetimeSeconds - EXPIRY_MARGIN_SECONDS) * 1000);
+    this.setToken(response.access_token, Number(response.expires_in ?? 0));
     this.errorSignal.set(null);
+    this.renewalErrorSignal.set(null);
     this.statusSignal.set('signed-in');
-    void this.loadFirstName(response.access_token);
+
+    if (renewing) {
+      const waiters = this.waiters;
+      this.waiters = [];
+      waiters.forEach((w) => w.resolve(response.access_token ?? ''));
+    } else {
+      this.sessionIdSignal.update((id) => id + 1);
+    }
+    void this.loadProfile(response.access_token, renewing);
   }
 
-  /** Background lookup; the topbar shows "Signed in" until (or unless) it succeeds. */
-  private async loadFirstName(token: string): Promise<void> {
-    const session = this.session;
-    const name = await this.profile.firstName(token);
-    if (session === this.session) {
-      this.firstNameSignal.set(name);
+  /**
+   * Background lookup of who signed in. After a renewal, a different person
+   * (account id, else first name) starts a new session so one person's work
+   * never carries into another's.
+   */
+  private async loadProfile(token: string, renewal: boolean): Promise<void> {
+    const generation = this.tokenGeneration;
+    const profile = await this.profiles.profile(token);
+    if (generation !== this.tokenGeneration) {
+      return;
     }
+    if (renewal && this.isDifferentPerson(profile)) {
+      this.sessionIdSignal.update((id) => id + 1);
+    }
+    this.accountId = profile?.id ?? null;
+    this.firstNameSignal.set(profile?.firstName ?? null);
+  }
+
+  private isDifferentPerson(profile: UserProfile | null): boolean {
+    if (profile === null) {
+      return false;
+    }
+    if (this.accountId !== null && profile.id !== null) {
+      return this.accountId !== profile.id;
+    }
+    // Weaker fallback when Google gives no account id: compare first names.
+    const before = this.firstNameSignal();
+    return before !== null && profile.firstName !== null && before !== profile.firstName;
   }
 
   private onClientError(error: GisClientError): void {
-    this.clearSession();
-    this.errorSignal.set(
+    const message =
       error.type === 'popup_closed'
         ? AUTH_MESSAGES.cancelled
         : error.type === 'popup_failed_to_open'
           ? AUTH_MESSAGES.popupBlocked
-          : AUTH_MESSAGES.failed,
-    );
+          : AUTH_MESSAGES.failed;
+
+    if (this.renewInFlight) {
+      this.renewInFlight = false;
+      // The work is still there: go back to where the renewal started.
+      const origin = this.renewOriginSignal();
+      this.statusSignal.set(origin === 'signed-in' && this.token !== null ? 'signed-in' : 'expired');
+      this.renewalErrorSignal.set(
+        error.type === 'popup_closed' ? AUTH_MESSAGES.renewCancelled : message,
+      );
+      return;
+    }
+    this.statusSignal.set('signed-out');
+    this.errorSignal.set(message);
   }
 
-  private clearSession(): void {
-    this.session++;
+  private setToken(token: string, lifetimeSeconds: number): void {
+    this.clearTimers();
+    this.tokenGeneration++;
+    this.token = token;
+    const expiresAt = Date.now() + (lifetimeSeconds - EXPIRY_MARGIN_SECONDS) * 1000;
+    this.expiresAtSignal.set(expiresAt);
+    this.expiringSoonSignal.set(false);
+
+    const untilWarning = expiresAt - EXPIRY_WARNING_MS - Date.now();
+    if (untilWarning > 0) {
+      this.warningTimer = setTimeout(() => this.expiringSoonSignal.set(true), untilWarning);
+    } else {
+      this.expiringSoonSignal.set(true);
+    }
+    this.expiryTimer = setTimeout(() => this.markExpired(), Math.max(0, expiresAt - Date.now()));
+  }
+
+  private dropToken(): void {
+    this.clearTimers();
+    this.tokenGeneration++;
     this.token = null;
     this.expiresAtSignal.set(null);
+    this.expiringSoonSignal.set(false);
+  }
+
+  /** Sign-out (or refused access): forget everyone and everything; reject waiting requests. */
+  private endSession(): void {
+    const hadSession = this.hasSession();
+    this.renewInFlight = false;
+    this.dropToken();
+    this.accountId = null;
     this.firstNameSignal.set(null);
+    this.renewalErrorSignal.set(null);
     this.statusSignal.set('signed-out');
+    const waiters = this.waiters;
+    this.waiters = [];
+    waiters.forEach((w) => w.reject(new SessionEndedError()));
+    if (hadSession) {
+      this.sessionIdSignal.update((id) => id + 1);
+    }
+  }
+
+  private clearTimers(): void {
+    clearTimeout(this.warningTimer);
+    clearTimeout(this.expiryTimer);
+    this.warningTimer = undefined;
+    this.expiryTimer = undefined;
   }
 }

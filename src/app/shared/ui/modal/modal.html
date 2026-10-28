@@ -1,0 +1,15 @@
+<p-dialog
+  [visible]="open()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [blockScroll]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="dismissable()"
+  [closeOnEscape]="dismissable()"
+  [dismissableMask]="dismissable()"
+  [header]="header()"
+  styleClass="stoqr-modal-dialog"
+>
+  <ng-content />
+</p-dialog>

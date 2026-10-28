@@ -1,4 +1,4 @@
-import { WritableSignal, signal } from '@angular/core';
+import { WritableSignal, computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Mock } from 'vitest';
 
@@ -7,15 +7,22 @@ import { SheetDefinition } from '@core/config/app-environment';
 import { CellValue } from './data-mapping';
 import { SheetLoadError } from './sheet-load-error';
 import { SheetsReader } from './sheets-reader';
-import { SheetsStore } from './sheets-store';
+import { INTERRUPTED_ERROR, SheetsStore } from './sheets-store';
 import { HEADER, sheetRow, sheetValues } from './testing/sheet-fixtures';
 
 type Read = (sheet: SheetDefinition) => Promise<CellValue[][] | undefined>;
 
 describe('SheetsStore', () => {
   let status: WritableSignal<AuthStatus>;
+  let sessionId: WritableSignal<number>;
   let read: Mock<Read>;
   let store: SheetsStore;
+
+  /** What Auth does on sign-out: signed out, and a new session id. */
+  function signOut(): void {
+    status.set('signed-out');
+    sessionId.update((id) => id + 1);
+  }
 
   const masterRows = sheetValues(sheetRow({ id: 'm1' }), sheetRow({ id: 'm2', 'stock qty': -1 }));
   const drTrustRows = sheetValues(sheetRow({ id: 'd1' }));
@@ -26,11 +33,13 @@ describe('SheetsStore', () => {
 
   beforeEach(() => {
     status = signal<AuthStatus>('signed-in');
+    sessionId = signal(1);
+    const hasSession = computed(() => ['signed-in', 'expired', 'renewing'].includes(status()));
     read = vi.fn<Read>();
     TestBed.configureTestingModule({
       providers: [
         { provide: SheetsReader, useValue: { read } },
-        { provide: Auth, useValue: { status } },
+        { provide: Auth, useValue: { status, sessionId, hasSession } },
       ],
     });
     store = TestBed.inject(SheetsStore);
@@ -64,7 +73,7 @@ describe('SheetsStore', () => {
       unmatchedDrTrust: 1,
     });
 
-    status.set('signed-out');
+    signOut();
     TestBed.tick();
     expect(store.pairing()).toEqual({ linked: [], masterOnly: [], blocked: [], orphans: [] });
   });
@@ -176,9 +185,10 @@ describe('SheetsStore', () => {
     expect(store.master()).toHaveLength(2);
   });
 
-  it('shows no error panel for an expired session (Auth sends the user to sign-in)', async () => {
+  it('shows no error panel when the session ended during the load (user is on sign-in)', async () => {
     respond({
       master: async () => {
+        status.set('signed-out');
         throw new SheetLoadError('Master', 'expired', 'expired');
       },
     });
@@ -187,11 +197,52 @@ describe('SheetsStore', () => {
     expect(store.master()).toEqual([]);
   });
 
+  it('offers Retry when a load was interrupted but the user still has a session', async () => {
+    respond({
+      master: async () => {
+        throw new SheetLoadError('Master', 'expired', 'expired');
+      },
+    });
+    await store.ensureLoaded();
+    expect(store.error()).toBe(INTERRUPTED_ERROR);
+  });
+
+  describe('session renewal (US-06)', () => {
+    it('rule: expiry keeps the loaded data (the session id does not change)', async () => {
+      respond({ master: async () => masterRows, 'dr-trust': async () => drTrustRows });
+      await store.ensureLoaded();
+      status.set('expired');
+      TestBed.tick();
+      expect(store.master()).toHaveLength(2);
+      expect(store.fetchedAt()).not.toBeNull();
+    });
+
+    it('a different account on renewal resets and reloads both sheets', async () => {
+      respond({ master: async () => masterRows, 'dr-trust': async () => drTrustRows });
+      await store.ensureLoaded();
+      expect(read).toHaveBeenCalledTimes(2);
+
+      sessionId.update((id) => id + 1); // Auth: renewed as someone else, still signed in
+      TestBed.tick();
+      await Promise.resolve();
+      expect(read).toHaveBeenCalledTimes(4);
+    });
+
+    it('sign-out resets without reloading', async () => {
+      respond({ master: async () => masterRows, 'dr-trust': async () => drTrustRows });
+      await store.ensureLoaded();
+      signOut();
+      TestBed.tick();
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(store.master()).toEqual([]);
+    });
+  });
+
   it('clears all data when the user signs out', async () => {
     respond({ master: async () => masterRows, 'dr-trust': async () => drTrustRows });
     await store.ensureLoaded();
 
-    status.set('signed-out');
+    signOut();
     TestBed.tick();
     expect(store.master()).toEqual([]);
     expect(store.drTrust()).toEqual([]);
@@ -206,7 +257,7 @@ describe('SheetsStore', () => {
     });
     const pending = store.ensureLoaded();
 
-    status.set('signed-out');
+    signOut();
     TestBed.tick();
     finish(masterRows);
     await pending;

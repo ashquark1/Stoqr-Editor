@@ -23,10 +23,10 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** clamping silently; decimals; computing the written value from anything but the re-read sheet value + approved delta.
 
 ### Auth (Google sign-in) — cross-cutting
-- **Owns:** Google Identity Services token flow, the in-memory access token, sign-in status and the first name (memory only; D1: profile scope, no email), expiry (~1 hour) and re-sign-in prompts, sign-out (revokes the token), and auth-driven navigation (guards + redirects).
+- **Owns:** Google Identity Services token flow, the in-memory access token, sign-in status and the first name (memory only; D1: profile scope, no email), expiry (~1 hour) with in-place renewal (session clock, `expired`/`renewing` statuses, `freshToken()`, `sessionId`; US-06), sign-out (revokes the token), and auth-driven navigation (guards + redirects).
 - **Does NOT own:** any sheet reads/writes (it only supplies the token).
 - **Code lives in:** `src/app/core/auth/` — `gis-types.ts`, `gis-loader.ts`, `auth-scope.ts`, `auth.ts`, `user-profile.ts`, `auth-guards.ts`, `auth-redirects.ts`, `testing/fake-gis.ts`.
-- **The rule:** tokens in memory only; the app is unusable until signed in; 401/403 surface as clear messages (expired session / no edit access to the sheet).
+- **The rule:** tokens in memory only; the app is unusable until signed in; expiry never clears work (only sign-out or another account does); 403 surfaces as a clear "no access" message naming the sheet.
 - **Forbidden:** persisting tokens; embedding secrets or API keys; components touching GIS directly.
 
 ### Data Source (Google Sheets API v4) — cross-cutting
@@ -48,10 +48,15 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Code lives in:** `src/app/features/sign-in/`.
 - **The rule:** reads `Auth` signals and calls its methods; no logic, no navigation.
 
+### Session (UI / feature)
+- **Owns:** the "session ends in 5 minutes" warning and the non-dismissable "Session expired" dialog (US-06).
+- **Code lives in:** `src/app/features/session/` (`session-prompts.*`), rendered once in the app shell inside `@defer (when auth.hasSession())`.
+- **The rule:** reads `Auth` signals and calls `renew()`, `signOut()`, `dismissExpiryWarning()`; no logic.
+
 ### Stock Editor (UI / feature) — cross-cutting
 - **Owns:** the single page: product picker (search-as-you-type), quantity adjuster, review & approve panel, and the details form (grouped: Product / Stock / Pricing / Additional — same groups as V1, `id` excluded, Stock Qty read-only, Stock Status read-only/derived, Created At read-only, Last Updated app-stamped), including the changed-fields diff before save.
 - **Does NOT own:** fetching, mapping, quantity maths, or write rules (services own those).
-- **Code lives in:** `src/app/features/stock-editor/` (landed: `stock-editor.*` (the page: loading/error/empty states, picker + summary), `product-picker/`, `product-summary/`; planned: `quantity-adjuster/`, `review-panel/`, `details-form/`; the temporary load-check view was removed in US-12), consuming `shared/ui/` wrappers. Landed: `<stoqr-logo>`, `<stoqr-toast>`, `<stoqr-loading-overlay>`, `<stoqr-empty-state>`, `<stoqr-badge>`, `<stoqr-status-badge>`, `<stoqr-sync-badge>`, `shared/util/display-value.ts`, and `provideStoqrUi()` (the only PrimeNG registration). Planned: `<stoqr-modal>` (when a story needs it). Search rules are V1's, copied unchanged into `src/app/core/search/` (`search-fields.ts`, `product-matcher.ts`, `search-validation.ts`), with all search/selection state in `product-search-store.ts`.
+- **Code lives in:** `src/app/features/stock-editor/` (landed: `stock-editor.*` (the page: loading/error/empty states, picker + summary), `product-picker/`, `product-summary/`; planned: `quantity-adjuster/`, `review-panel/`, `details-form/`; the temporary load-check view was removed in US-12), consuming `shared/ui/` wrappers. Landed: `<stoqr-logo>`, `<stoqr-toast>`, `<stoqr-loading-overlay>`, `<stoqr-empty-state>`, `<stoqr-badge>`, `<stoqr-status-badge>`, `<stoqr-sync-badge>`, `<stoqr-modal>` (from V1, plus `dismissable`), `<stoqr-toast>` (plus `variant`, `actionLabel`, never-dismiss), `shared/util/display-value.ts`, and `provideStoqrUi()` (the only PrimeNG registration). Search rules are V1's, copied unchanged into `src/app/core/search/` (`search-fields.ts`, `product-matcher.ts`, `search-validation.ts`), with all search/selection state in `product-search-store.ts`.
 - **The rule:** components hold view state as signals only and render via the `shared/ui` kit; Reactive Forms for inputs.
 - **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
 

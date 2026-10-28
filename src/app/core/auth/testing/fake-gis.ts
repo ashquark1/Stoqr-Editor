@@ -3,6 +3,7 @@ import {
   GisOAuth2,
   GisTokenClient,
   GisTokenClientConfig,
+  GisTokenRequestOverrides,
   GisTokenResponse,
 } from '../gis-types';
 
@@ -15,6 +16,8 @@ import {
 export class FakeGis implements GisOAuth2 {
   config: GisTokenClientConfig | null = null;
   requests = 0;
+  /** Overrides passed to each `requestAccessToken` call (undefined for a plain sign-in). */
+  readonly requestOverrides: (GisTokenRequestOverrides | undefined)[] = [];
   /** What `hasGrantedAllScopes` returns: false simulates an unticked Sheets permission. */
   grantAll = true;
   /** Scopes passed to each `hasGrantedAllScopes` call. */
@@ -25,7 +28,12 @@ export class FakeGis implements GisOAuth2 {
 
   initTokenClient(config: GisTokenClientConfig): GisTokenClient {
     this.config = config;
-    return { requestAccessToken: () => this.requests++ };
+    return {
+      requestAccessToken: (overrides) => {
+        this.requests++;
+        this.requestOverrides.push(overrides);
+      },
+    };
   }
 
   hasGrantedAllScopes(_response: GisTokenResponse, ...scopes: string[]): boolean {
