@@ -116,3 +116,65 @@ describe('architecture rules', () => {
     expect(offenders(isTs, /@NgModule\s*\(/)).toEqual([]);
   });
 });
+
+describe('environment config rules (US-04)', () => {
+  const ENV_DIR = 'src/environments/';
+  const DEV_FILE = `${ENV_DIR}environment.development.ts`;
+  const LIVE_FILE = `${ENV_DIR}environment.ts`;
+
+  function envFile(path: string): SourceFile {
+    const file = files.find((f) => f.path === path);
+    if (file === undefined) {
+      throw new Error(`${path} is missing`);
+    }
+    return file;
+  }
+
+  /** All `name: '<value>'` values in a file, in order. */
+  function values(file: SourceFile, name: string): string[] {
+    return [...file.code.matchAll(new RegExp(`${name}:\\s*'([^']*)'`, 'g'))].map((m) => m[1]);
+  }
+
+  /** Google spreadsheet IDs are 44 characters of [A-Za-z0-9_-]; letters and digits both occur. */
+  function idLikeTokens(text: string): string[] {
+    return (text.match(/[A-Za-z0-9_-]+/g) ?? []).filter(
+      (t) => t.length === 44 && /\d/.test(t) && /[A-Za-z]/.test(t),
+    );
+  }
+
+  it('@env is imported only by core/config/app-config.ts', () => {
+    const envImport = /from\s*['"]@env\//;
+    expect(
+      offenders((f) => isTs(f) && f.path !== 'src/app/core/config/app-config.ts', envImport),
+    ).toEqual([]);
+  });
+
+  it('no spreadsheet ID appears outside src/environments', () => {
+    const leaks = files
+      .filter((f) => !f.path.startsWith(ENV_DIR) && idLikeTokens(f.text).length > 0)
+      .map((f) => f.path);
+    expect(leaks).toEqual([]);
+  });
+
+  it.each([DEV_FILE, LIVE_FILE])('%s defines exactly master and dr-trust', (path) => {
+    const file = envFile(path);
+    expect(values(file, 'key').sort()).toEqual(['dr-trust', 'master']);
+    expect(values(file, 'spreadsheetId').map(idLikeTokens)).toEqual([
+      [expect.any(String)],
+      [expect.any(String)],
+    ]);
+  });
+
+  it('TEST and LIVE files share no spreadsheet ID', () => {
+    const testIds = values(envFile(DEV_FILE), 'spreadsheetId');
+    const liveIds = values(envFile(LIVE_FILE), 'spreadsheetId');
+    expect(testIds.filter((id) => liveIds.includes(id))).toEqual([]);
+  });
+
+  it('development file is TEST; default file is LIVE', () => {
+    expect(envFile(DEV_FILE).code).toMatch(/production:\s*false/);
+    expect(values(envFile(DEV_FILE), 'mode')).toEqual(['test']);
+    expect(envFile(LIVE_FILE).code).toMatch(/production:\s*true/);
+    expect(values(envFile(LIVE_FILE), 'mode')).toEqual(['live']);
+  });
+});

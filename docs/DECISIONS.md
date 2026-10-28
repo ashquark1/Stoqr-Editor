@@ -140,6 +140,28 @@
 
 - Decision: the Sprint 1 scaffold copies `logo`, `loading-overlay`, `empty-state` and `toast`. `badge` and `status-badge` move to US-08: in V1 they import V1 core helpers (`@core/stock-status`, and `@core/product-status` with its `Product` model and filter logic), which should not enter V2 before its own domain exists.
 
+## 2026-10-28: Environment config — typed files, one reader, checked at startup [confirmed]
+
+- Decision: `src/environments/environment.development.ts` (TEST) and `environment.ts` (LIVE) hold values only; types live in `core/config/app-environment.ts`. `AppConfig` (`core/config/app-config.ts`) is the only file that imports `@env/*` and exposes read-only signals (`mode`, `isLive`, `clientId`, `sheets`, `sheet(key)`).
+- Decision: `validateEnvironment` runs at startup and throws a message listing every problem: wrong sheet count, duplicate or missing `master`/`dr-trust`, blank ID/tab/label/Client ID, and `production` disagreeing with `mode` (added beyond the spec as a guard against half-edited files).
+- Decision: the `ng test` target is pinned to `stoqr-editor:build:development`. Angular already defaults to it; pinning stops a future default change from silently running tests against LIVE. Proved by `app-config.spec.ts` (`mode() === 'test'`).
+- Verified 2026-10-28: the production bundle contains the LIVE master ID and not the TEST one.
+
+## 2026-10-28: Footer mode badge reuses `.stoqr-badge` [confirmed]
+
+- Decision: TEST = `stoqr-badge--unknown` (grey), LIVE = `stoqr-badge--low-stock` (amber), per Q-G3 reuse.
+- Trade-off: the classes are named for stock status, so the LIVE colour follows the Low Stock colour if the theme changes it.
+- Consequence: on the deployed app every staff member always sees an amber LIVE pill. Confirm at US-27.
+
+## 2026-10-28: Tab ranges are fully percent-encoded [confirmed]
+
+- Decision: `tabRange(tab)` (`core/sheets/a1-range.ts`) single-quotes the tab, doubles inner apostrophes, and percent-encodes everything including `'` (which `encodeURIComponent` leaves alone), e.g. `Ash's Stock` → `%27Ash%27%27s%20Stock%27`.
+
+## 2026-10-28: Claude deny rule for environment files [confirmed]
+
+- Decision: `.claude/settings.json` denies `Edit(/src/environments/**)` and `Edit(src/environments/**)`. An `Edit` rule covers every file-writing tool (a `Write(...)` rule is not matched). Verified: an edit attempt was refused.
+- Consequence: changing an ID or the Client ID needs the owner (edit by hand, or lift the rule for that change).
+
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
 - D1: add identity scopes (`openid email profile`) so the signed-in name can be shown? Default: no. Decide before Sprint 2.

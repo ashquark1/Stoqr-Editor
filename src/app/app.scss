@@ -27,12 +27,25 @@
 }
 
 .app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   padding-block: var(--space-3);
   border-top: var(--border-thin);
+  background: var(--color-white);
   font-size: var(--text-small);
   color: var(--color-ink-light);
+}
 
-  &:empty {
-    display: none;
-  }
+.app-footer__mode {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+// Separator dot before each sheet label: `TEST · Master (Sheet1) · Dr Trust (Sheet1)`.
+.app-footer__sheet::before {
+  content: '·';
+  margin-inline-end: var(--space-2);
 }

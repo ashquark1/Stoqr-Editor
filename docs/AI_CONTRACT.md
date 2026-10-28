@@ -41,6 +41,7 @@
 
 ### Linked Sheets (master + Dr Trust)
 - Rule: the app edits two spreadsheets — the master (all brands) and a separate Dr Trust spreadsheet. Both are described in environment config (`master`, `dr-trust`), each with a test and a production ID. Spreadsheet IDs appear nowhere else.
+- Rule: only `core/config/app-config.ts` imports `@env/*`. Everything else (auth, sheets, UI) reads config through `AppConfig`. Enforced by `architecture.spec.ts`, along with: no 44-character spreadsheet ID outside `src/environments/`, the TEST and LIVE files share no ID, and the development file is `mode: 'test'`.
 - Rule: rows are paired by normalised SKU (trimmed, case-insensitive). A product is "linked" only when its SKU appears exactly once in each sheet. Sheet-local `id` values are NEVER compared or matched across sheets and never leave `core/sheets/`.
 - Rule: a linked product is always written to BOTH sheets in one approved action, by `SheetsWriter` only. Success is reported only when both writes are API-confirmed. A partial failure names the sheet that was updated and the one that was not, and offers a retry; it is never reported as success and never swallowed.
 - Rule: writes use ABSOLUTE final values (re-read value ± approved delta), so retrying is idempotent. Before writing, both rows are re-read and checked (both sheet-local `id`s, and the master quantity the user reviewed); before a retry the failed row is re-read again.

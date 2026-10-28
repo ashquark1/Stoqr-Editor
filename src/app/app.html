@@ -6,5 +6,16 @@
   <router-outlet />
 </main>
 
-<!-- Footer slot: US-04 adds the environment mode and sheet labels. -->
-<footer class="app-footer"></footer>
+<!-- Which spreadsheets this build talks to (US-04). LIVE uses the warning pill. -->
+<footer class="app-footer">
+  <span
+    class="stoqr-badge app-footer__mode"
+    [class.stoqr-badge--low-stock]="config.isLive()"
+    [class.stoqr-badge--unknown]="!config.isLive()"
+  >
+    <span class="stoqr-badge__dot"></span>{{ config.mode() }}
+  </span>
+  @for (sheet of config.sheets(); track sheet.key) {
+    <span class="app-footer__sheet">{{ sheet.label }} ({{ sheet.tab }})</span>
+  }
+</footer>

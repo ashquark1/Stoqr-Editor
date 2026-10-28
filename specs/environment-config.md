@@ -42,10 +42,18 @@ The app needs the Google Client ID and two sheet definitions (master, Dr Trust).
 - Range builder: plain tab, tab with space, tab with apostrophe.
 
 ## Acceptance Checks
-- [ ] All behavior rules hold
-- [ ] `npm start` footer shows `TEST` and both sheet labels; production build (`npm run build`) config resolves to LIVE
-- [ ] `ng test` resolves to TEST (proved by the rule test)
-- [ ] `.claude/settings.json` deny rule for `src/environments/*` added after the files were created
-- [ ] No IDs outside `src/environments/`
-- [ ] Verified against TEST sheets only
-- [ ] docs/DECISIONS.md updated (test-target pinning; mode badge)
+- [x] All behavior rules hold
+- [x] `npm start` footer shows `TEST` and both sheet labels; production build (`npm run build`) config resolves to LIVE (bundle holds the LIVE master ID, not the TEST one)
+- [x] `ng test` resolves to TEST (proved by the rule test in `app-config.spec.ts`)
+- [x] `.claude/settings.json` deny rule for `src/environments/*` added after the files were created; an edit attempt was refused
+- [x] No IDs outside `src/environments/` (rule test; planted leak caught)
+- [x] Verified against TEST sheets only (no sheet access in this story; the LIVE build was never served)
+- [x] docs/DECISIONS.md updated (test-target pinning; mode badge)
+
+## Built differently from plan (2026-10-28)
+- Deny rule uses `Edit(/src/environments/**)` and `Edit(src/environments/**)`: an `Edit` rule covers every file-writing tool, and a `Write(...)` rule is not matched.
+- The range builder is `tabRange(tab)` in `core/sheets/a1-range.ts`; it also percent-encodes `'` (which `encodeURIComponent` leaves alone).
+- `validateEnvironment` also rejects `production` disagreeing with `mode`.
+- The footer mode badge reuses `.stoqr-badge` (`--unknown` for TEST, `--low-stock` for LIVE); TEST/LIVE are shown in capitals by CSS.
+- The LIVE badge style is checked in `app.spec.ts` with a stand-in `AppConfig`, not by serving a LIVE build.
+- Edge case "development file edited to a LIVE ID" was proved by planting it; the rule test failed and the file was restored byte-for-byte.

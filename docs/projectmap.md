@@ -32,9 +32,16 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 ### Data Source (Google Sheets API v4) — cross-cutting
 - **Owns:** all communication with the two spreadsheets (master + Dr Trust, defined in `src/environments/`) via `HttpClient`: loading both sheets, header-label→column resolution per sheet, SKU pairing of rows into linked products (plus data-health results: duplicate SKUs, orphans, quantity drift), locating each row by its sheet-local `id`, the pre-write re-read guard on both rows, dual writes with partial-failure reporting and idempotent retry, targeted cell writes (quantity + derived Stock Status + Last Updated), 429 retry with backoff, and exposing results as signals (`loading`, `saving`, `error`, `fetchedAt`).
 - **Does NOT own:** quantity maths, form state, or UI.
-- **Code lives in (planned):** `src/app/core/sheets/` — `sheets-reader.ts`, `sheets-writer.ts` (the ONLY file that issues a mutating request), `field-map.ts`, `data-mapping.ts`, `sheet-pairing.ts` (pure SKU pairing + data-health). Spreadsheet IDs live in `src/environments/` as a list of sheet definitions.
+- **Code lives in:** `src/app/core/sheets/` — landed: `a1-range.ts` (`tabRange`). Planned: `sheets-reader.ts`, `sheets-writer.ts` (the ONLY file that issues a mutating request), `field-map.ts`, `data-mapping.ts`, `sheet-pairing.ts` (pure SKU pairing + data-health). Spreadsheet IDs live in `src/environments/` as a list of sheet definitions.
 - **The rule:** this is the ONLY place `HttpClient` is used. Writes only after approval, only allowlisted columns, only exact cells, success shown only after API confirmation.
 - **Forbidden:** gviz; writing formulas, `id`, or `Created At`; clearing/overwriting ranges; any mutating request outside `SheetsWriter`.
+
+### Config — cross-cutting
+- **Owns:** the environment shape (`SheetDefinition`, `AppEnvironment`), startup validation, and read access to the Client ID and the two sheet definitions.
+- **Does NOT own:** the values themselves (`src/environments/`, off-limits) or any Google call.
+- **Code lives in:** `src/app/core/config/` — `app-environment.ts` (types + `validateEnvironment`), `app-config.ts` (the only `@env` reader).
+- **The rule:** everything else reads config through `AppConfig`.
+- **Forbidden:** importing `@env/*` anywhere else; spreadsheet IDs outside `src/environments/`.
 
 ### Stock Editor (UI / feature) — cross-cutting
 - **Owns:** the single page: product picker (search-as-you-type), quantity adjuster, review & approve panel, and the details form (grouped: Product / Stock / Pricing / Additional — same groups as V1, `id` excluded, Stock Qty read-only, Stock Status read-only/derived, Created At read-only, Last Updated app-stamped), including the changed-fields diff before save.
@@ -44,7 +51,7 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
 
 ### App shell & architecture rules — cross-cutting
-- **Owns:** the page frame (topbar with the logo, routed content area, footer slot) and the contract rule tests.
+- **Owns:** the page frame (topbar with the logo, routed content area, footer showing the TEST/LIVE mode and both sheet labels from `AppConfig`) and the contract rule tests.
 - **Code lives in:** `src/app/app.*` (shell; no logic), `src/app/app.config.ts` (providers), `src/app/app.routes.ts`, `src/app/architecture.spec.ts` (scans `src/` and asserts AI_CONTRACT rules).
 - **The rule:** when the contract gains a rule that can be checked by reading source, add it to `architecture.spec.ts`.
 
