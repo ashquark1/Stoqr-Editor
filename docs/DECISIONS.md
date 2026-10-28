@@ -179,6 +179,22 @@
 - Decision: errors show in the existing toast (title "Couldn't sign in", Retry → `Auth.retry()`, 8 s auto-dismiss). Trade-off: the message disappears on its own; the button stays usable.
 - Decision: the sign-in screen is its own feature, `src/app/features/sign-in/` (owner choice), so V2 has two feature folders.
 
+## 2026-10-28: Loading both sheets — Sheets API values.get, all-or-nothing [confirmed]
+
+- Decision: `GET …/values/{tabRange(tab)}` with `majorDimension=ROWS`, `valueRenderOption=UNFORMATTED_VALUE`, `dateTimeRenderOption=FORMATTED_STRING`. The reader skips the call (and marks the session expired) when there is no token or `expiresAt` has passed.
+- Decision: both sheets load in parallel, once per session (`SheetsStore.ensureLoaded`); data is set only when both load and map. Any failure shows no data and a message naming the sheet, with Retry. The store clears on sign-out; a load finishing after sign-out is discarded.
+- Decision: errors — 401 → back to sign-in; 403 → no access to <sheet>; 400 "Unable to parse range" → tab not found; 404 → spreadsheet not found; 429/5xx/network → generic. No automatic retry yet (US-11).
+- Decision: an empty tab (no values) counts as missing every column; a header-only tab is zero products.
+- Decision: the load-check page shows errors in a persistent panel (empty-state + Retry), not the toast, which auto-dismisses.
+- Deferred (owner choice): the Phase 0 raw-value check moved to after sign-in; the page shows MRP, tax rate and last updated for it. Pending.
+
+## 2026-10-28: Row issues and the opaque RowRef [confirmed]
+
+- Decision: a row with a blank `id` (`missing-id`), an `id` repeated in its sheet (`duplicate-id`), or a stock qty that is not a whole number ≥ 0 — blank included (`invalid-quantity`, owner-approved) — is loaded and shown but not editable. Other number fields that are blank or non-numeric load as `null` with no flag (V1 rule). Only required headers are checked for duplicates; unknown extra columns are ignored.
+- Decision: `RowRef` carries only the sheet key; the sheet-local `id` is held in a module `WeakMap`, so it never appears on the object or in its JSON. `createRowRef` / `rowRefId` / `new RowRef` are for `core/sheets` only (architecture rule).
+- Decision: `FIELD_LABELS` is a typed `Record<keyof Product, label>` (replaces V1's field list), so a new `Product` field without a label fails to compile.
+- Decision: V1's badge helpers were copied without filter code: `core/stock-adjust/stock-status-display.ts` and `core/models/product-status.ts`; `shared/util/display-value.ts` copied as is.
+
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
 - D1: add identity scopes (`openid email profile`) so the signed-in name can be shown? Default: no. Decide before Sprint 2.

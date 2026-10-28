@@ -11,14 +11,14 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 ### Products
 - **Owns:** the typed `Product` model, row→model mapping by header label, the opaque `RowRef` (wraps the internal `id`), and the field allowlist (which columns are editable).
 - **Does NOT own:** quantity maths (Stock domain), HTTP/auth (Data Source, Auth), rendering (UI).
-- **Code lives in (planned):** `src/app/core/models/product.ts`, `src/app/core/sheets/field-map.ts` (label ↔ column), `src/app/core/sheets/data-mapping.ts`.
+- **Code lives in:** `src/app/core/models/product.ts` (+ `product-status.ts`, display only), `src/app/core/sheets/field-map.ts` (label ↔ field), `data-mapping.ts`, `row-ref.ts`.
 - **The rule:** the sheet is the single source of truth; `id` never leaves `core/sheets/` except as an opaque `RowRef`.
 - **Forbidden:** `id` on `Product` or in any form/template; creating or deleting rows; transforming fields inline in templates.
 
 ### Stock & Inventory Levels
 - **Owns:** `proposeQuantity` (pure: current ± amount, whole numbers, blocks < 0), `deriveStockStatus` (pure: quantity + Low Stock Threshold → `In Stock` / `Low Stock` / `Out of Stock`; Stock Status is typed text in the sheet so the app keeps it in step), the adjuster state (mode add/subtract, amount, proposed quantity), the review/approve state machine, and the low-stock warning preview.
 - **Does NOT own:** the write itself (Data Source) or product identity (Products).
-- **Code lives in (planned):** `src/app/core/stock-adjust/` (`stock-adjust.ts` pure functions, `stock-adjust-store.ts` signal state).
+- **Code lives in:** `src/app/core/stock-adjust/` — landed: `stock-status-display.ts` (display only). Planned: `stock-adjust.ts` (pure functions), `stock-adjust-store.ts` (signal state).
 - **The rule:** quantity changes only via adjuster → review → approve; the proposed value is computed in exactly one place.
 - **Forbidden:** clamping silently; decimals; computing the written value from anything but the re-read sheet value + approved delta.
 
@@ -32,7 +32,7 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 ### Data Source (Google Sheets API v4) — cross-cutting
 - **Owns:** all communication with the two spreadsheets (master + Dr Trust, defined in `src/environments/`) via `HttpClient`: loading both sheets, header-label→column resolution per sheet, SKU pairing of rows into linked products (plus data-health results: duplicate SKUs, orphans, quantity drift), locating each row by its sheet-local `id`, the pre-write re-read guard on both rows, dual writes with partial-failure reporting and idempotent retry, targeted cell writes (quantity + derived Stock Status + Last Updated), 429 retry with backoff, and exposing results as signals (`loading`, `saving`, `error`, `fetchedAt`).
 - **Does NOT own:** quantity maths, form state, or UI.
-- **Code lives in:** `src/app/core/sheets/` — landed: `a1-range.ts` (`tabRange`). Planned: `sheets-reader.ts`, `sheets-writer.ts` (the ONLY file that issues a mutating request), `field-map.ts`, `data-mapping.ts`, `sheet-pairing.ts` (pure SKU pairing + data-health). Spreadsheet IDs live in `src/environments/` as a list of sheet definitions.
+- **Code lives in:** `src/app/core/sheets/` — landed: `a1-range.ts` (`tabRange`), `field-map.ts`, `data-mapping.ts`, `row-ref.ts`, `sheet-load-error.ts`, `sheets-reader.ts` (GET only), `sheets-store.ts` (both sheets as signals), `testing/sheet-fixtures.ts`. Planned: `sheets-writer.ts` (the ONLY file that issues a mutating request), `sheet-pairing.ts` (pure SKU pairing + data-health). Spreadsheet IDs live in `src/environments/` as a list of sheet definitions.
 - **The rule:** this is the ONLY place `HttpClient` is used. Writes only after approval, only allowlisted columns, only exact cells, success shown only after API confirmation.
 - **Forbidden:** gviz; writing formulas, `id`, or `Created At`; clearing/overwriting ranges; any mutating request outside `SheetsWriter`.
 
@@ -51,7 +51,7 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 ### Stock Editor (UI / feature) — cross-cutting
 - **Owns:** the single page: product picker (search-as-you-type), quantity adjuster, review & approve panel, and the details form (grouped: Product / Stock / Pricing / Additional — same groups as V1, `id` excluded, Stock Qty read-only, Stock Status read-only/derived, Created At read-only, Last Updated app-stamped), including the changed-fields diff before save.
 - **Does NOT own:** fetching, mapping, quantity maths, or write rules (services own those).
-- **Code lives in:** `src/app/features/stock-editor/` (landed: `stock-editor.ts`, a "Signed in" placeholder until US-08; planned: `product-picker/`, `quantity-adjuster/`, `review-panel/`, `details-form/`), consuming `shared/ui/` wrappers. Landed: `<stoqr-logo>`, `<stoqr-toast>`, `<stoqr-loading-overlay>`, `<stoqr-empty-state>`, and `provideStoqrUi()` (the only PrimeNG registration). Planned: `<stoqr-badge>`, `<stoqr-status-badge>` (US-08), `<stoqr-modal>` (when a story needs it). Search rules reuse V1's `product-matcher` approach (`src/app/core/search/`, planned).
+- **Code lives in:** `src/app/features/stock-editor/` (landed: `stock-editor.*`, the TEMPORARY load-check view until US-12/13; planned: `product-picker/`, `quantity-adjuster/`, `review-panel/`, `details-form/`), consuming `shared/ui/` wrappers. Landed: `<stoqr-logo>`, `<stoqr-toast>`, `<stoqr-loading-overlay>`, `<stoqr-empty-state>`, `<stoqr-badge>`, `<stoqr-status-badge>`, `shared/util/display-value.ts`, and `provideStoqrUi()` (the only PrimeNG registration). Planned: `<stoqr-modal>` (when a story needs it). Search rules reuse V1's `product-matcher` approach (`src/app/core/search/`, planned).
 - **The rule:** components hold view state as signals only and render via the `shared/ui` kit; Reactive Forms for inputs.
 - **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
 

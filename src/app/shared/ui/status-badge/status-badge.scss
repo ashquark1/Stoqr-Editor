@@ -1,0 +1,5 @@
+// Pill styling lives in the theme (`.stoqr-status-badge*`, token-based).
+// This component only needs host layout — no duplicated colour/spacing values.
+:host {
+  display: inline-flex;
+}

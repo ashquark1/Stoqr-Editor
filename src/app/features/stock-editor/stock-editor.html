@@ -1,0 +1,79 @@
+<section class="load-check">
+  <header class="load-check__header">
+    <h1 class="load-check__title">Products</h1>
+    <p class="load-check__note">Temporary read-only check of both sheets. Editing arrives in Sprint 2.</p>
+  </header>
+
+  @if (store.loading()) {
+    <stoqr-loading-overlay label="Loading both sheets…" />
+  } @else if (store.error(); as message) {
+    <stoqr-empty-state [message]="message">
+      <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="store.reload()">
+        Retry
+      </button>
+    </stoqr-empty-state>
+  } @else if (store.fetchedAt()) {
+    <p class="load-check__counts">
+      Master: {{ store.master().length }} products · Dr Trust: {{ store.drTrust().length }} products ·
+      {{ store.flaggedCount() }} flagged
+    </p>
+
+    <div class="load-check__switch" role="group" aria-label="Sheet">
+      @for (sheet of config.sheets(); track sheet.key) {
+        <button
+          type="button"
+          class="stoqr-btn stoqr-btn--sm"
+          [class.stoqr-btn--primary]="selected() === sheet.key"
+          [class.stoqr-btn--ghost]="selected() !== sheet.key"
+          [attr.aria-pressed]="selected() === sheet.key"
+          (click)="selected.set(sheet.key)"
+        >
+          {{ sheet.label }}
+        </button>
+      }
+    </div>
+
+    @if (rows().length === 0) {
+      <stoqr-empty-state message="No products in this sheet." />
+    } @else {
+      <div class="stoqr-table-wrap">
+        <table class="stoqr-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Brand</th>
+              <th>SKU</th>
+              <th>Qty</th>
+              <th>Stock status</th>
+              <th>Status</th>
+              <th>MRP</th>
+              <th>Tax rate</th>
+              <th>Last updated</th>
+              <th>Flags</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.ref) {
+              <tr>
+                <td class="td-name">{{ display(row.product.productName) }}</td>
+                <td>{{ display(row.product.brand) }}</td>
+                <td class="td-mono">{{ display(row.product.sku) }}</td>
+                <td class="td-number">{{ display(row.product.stockQty) }}</td>
+                <td><stoqr-badge [status]="row.product.stockStatus" /></td>
+                <td><stoqr-status-badge [status]="row.product.status" /></td>
+                <td class="td-number">{{ display(row.product.mrp) }}</td>
+                <td class="td-number">{{ display(row.product.taxRate) }}</td>
+                <td class="td-timestamp">{{ display(row.product.lastUpdated) }}</td>
+                <td class="load-check__flags">
+                  @for (issue of row.issues; track issue) {
+                    <span>{{ issueLabels[issue] }}</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

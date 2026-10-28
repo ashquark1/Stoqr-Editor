@@ -1,0 +1,5 @@
+// Badge pill styling lives in the theme (`.stoqr-badge*`, token-based, WCAG-AA).
+// This component only needs host layout — no duplicated colour/spacing values.
+:host {
+  display: inline-flex;
+}

@@ -139,6 +139,30 @@ describe('auth rules (US-05)', () => {
   });
 });
 
+describe('sheets data-access rules (US-08)', () => {
+  const inSheets = (f: SourceFile) => f.path.startsWith('src/app/core/sheets/');
+
+  it('only sheets-writer.ts may send a mutating request (PUT/POST/PATCH/DELETE)', () => {
+    // Only files that do HTTP are checked, so e.g. Map.delete() elsewhere is not a false alarm.
+    const doesHttp = (f: SourceFile) =>
+      f.code.includes('@angular/common/http') || /\bfetch\s*\(/.test(f.code);
+    const mutating =
+      /\.(?:put|post|patch|delete)\s*[<(]|['"](?:PUT|POST|PATCH|DELETE)['"]|\bmethod\s*:\s*['"](?!GET)/;
+    expect(
+      offenders(
+        (f) => isTs(f) && doesHttp(f) && f.path !== 'src/app/core/sheets/sheets-writer.ts',
+        mutating,
+      ),
+    ).toEqual([]);
+  });
+
+  it('RowRef internals (createRowRef, rowRefId, new RowRef) are used only in core/sheets', () => {
+    expect(
+      offenders((f) => isTs(f) && !inSheets(f), /\bcreateRowRef\s*\(|\browRefId\s*\(|new\s+RowRef\s*\(/),
+    ).toEqual([]);
+  });
+});
+
 describe('environment config rules (US-04)', () => {
   const ENV_DIR = 'src/environments/';
   const DEV_FILE = `${ENV_DIR}environment.development.ts`;

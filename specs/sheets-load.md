@@ -54,10 +54,21 @@ Rule-level:
 Case tests: edge cases above; error-mapping table.
 
 ## Acceptance Checks
-- [ ] All behavior rules hold
-- [ ] Both TEST sheets load and the counts equal each sheet's data row count (owner checks)
-- [ ] Renaming a header in a scratch copy produces the named-column error (owner checks on a throwaway copy, never LIVE)
-- [ ] Edge cases have tests
-- [ ] No writes issued; verified against TEST sheets only
-- [ ] No new libraries
-- [ ] docs/DECISIONS.md updated (render options chosen, issue flags, all-or-nothing load); docs/projectmap.md updated
+- [x] All behavior rules hold (unit and architecture rule tests, 2026-10-28)
+- [ ] Both TEST sheets load and the counts equal each sheet's data row count (OWNER CHECK, pending: needs sign-in)
+- [ ] Renaming a header in a scratch copy produces the named-column error (OWNER CHECK, pending; throwaway copy, never LIVE). Covered by unit tests meanwhile.
+- [x] Edge cases have tests
+- [x] No writes issued (GET only; architecture rule); verified against TEST sheets only (no LIVE build served)
+- [x] No new libraries
+- [x] docs/DECISIONS.md updated (render options chosen, issue flags, all-or-nothing load); docs/projectmap.md updated
+
+## Built differently from plan (2026-10-28)
+- Phase 0 (raw-value check) deferred to after sign-in, owner choice. PENDING: tax rate as 18 vs 0.18, SKU/packing as text, Last updated format, any blank or duplicate `id`. The load-check table shows MRP, tax rate and last updated for this.
+- A blank stock qty is flagged `invalid-quantity` (owner-approved), not just non-integers and negatives.
+- Errors on the load-check page use a persistent panel (`<stoqr-empty-state>` + Retry), not the auto-dismissing toast.
+- The reader checks `expiresAt` before calling the API and marks the session expired without a request.
+- The store clears on sign-out and discards a load that finishes after sign-out (generation counter).
+- `RowRef` holds the `id` in a module `WeakMap`; `createRowRef`/`rowRefId`/`new RowRef` are restricted to `core/sheets` by an architecture rule.
+- The field map is a typed `FIELD_LABELS` record (compile-time completeness) instead of V1's field-definition list.
+- `badge` and `status-badge` (deferred from US-01) landed here, with display-only helpers in `core/stock-adjust/stock-status-display.ts` and `core/models/product-status.ts`; `shared/util/display-value.ts` copied from V1.
+- The mutating-request rule checks every file that does HTTP and allows only `sheets-writer.ts`.

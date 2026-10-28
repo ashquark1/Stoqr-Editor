@@ -20,6 +20,7 @@
 - Owner: `core/sheets/` (mapping, field map) + the `Product` model (`src/app/core/models/`).
 - Rule: the Google Sheet is the single source of truth. Columns are mapped by header LABEL, never by position. Edits are field-level and go through the allowlist.
 - Rule: the internal `id` column NEVER appears on the `Product` model, in a form control, template, or any feature-visible signal. It exists only inside `core/sheets/` and travels to features as an opaque `RowRef` that features pass back unchanged. It is never displayed and never editable.
+- Rule: `createRowRef`, `rowRefId` and `new RowRef` are used only in `core/sheets/` (enforced by `architecture.spec.ts`).
 - Rule: rows are located by `id` on every write — never by a remembered row number.
 - Forbidden: hardcoding products in components; transforming fields inline in templates; adding or deleting rows (V2 edits existing rows only).
 
@@ -34,6 +35,7 @@
 - Forbidden: writing quantity without approval; writing a value computed from anything but the freshly re-read sheet value + the approved delta; writing a quantity without its derived Stock Status in the same request.
 
 ### Writes (cross-cutting)
+- Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.
 - Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.
 - Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet or whole-row ranges — target exact cells only. Legacy rows whose Last Updated cell holds a formula get a static value only when that row is edited; no bulk conversion.
 - Request only the Sheets scope (`spreadsheets`). Do not add scopes (e.g. `email`) without a logged decision.

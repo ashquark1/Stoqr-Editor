@@ -1,0 +1,36 @@
+.load-check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.load-check__title {
+  margin: 0;
+}
+
+.load-check__note,
+.load-check__counts {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-ink-light);
+}
+
+.load-check__counts {
+  color: var(--color-ink-mid);
+}
+
+.load-check__switch {
+  display: flex;
+  gap: var(--space-2);
+}
+
+// Crimson, not amber: amber text on white is below WCAG AA at this size.
+.load-check__flags {
+  color: var(--color-error);
+  font-size: var(--text-small);
+  white-space: nowrap;
+
+  span {
+    display: block;
+  }
+}
