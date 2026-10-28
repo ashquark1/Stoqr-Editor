@@ -37,6 +37,9 @@
 
 ### Writes (cross-cutting)
 - Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.
+- Rule: changes reach `SheetsWriter` only as an `ApprovedChange` from `approve()` (`core/sheets/approval.ts`), which only `core/stock-adjust/` and `core/details/` may call (enforced by `architecture.spec.ts`). Never construct, cast or fake an approval.
+- Rule: values are sent `RAW`; the typed-input option may not appear in source (enforced). Stock Status and Last Updated are filled in only by the writer — callers never pass them.
+- Rule: the writer re-reads the tab, finds the row by `id`, re-checks every reviewed value, and reports `written` only when Google echoes every cell it was sent.
 - Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.
 - Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet or whole-row ranges — target exact cells only. Legacy rows whose Last Updated cell holds a formula get a static value only when that row is edited; no bulk conversion.
 - Request only `spreadsheets` and `userinfo.profile` (first name only, D1). Do not add scopes (e.g. `email`, `openid`) without a logged decision. Sign-in must never depend on the profile scope, and the name lives in memory only.

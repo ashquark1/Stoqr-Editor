@@ -28,6 +28,7 @@
 
 - Fact (Google Sheets API usage-limits page, checked 2026-10-21): standard use is free; quotas are 300 reads and 300 writes per project per minute, and 60 of each per user per minute; exceeding returns HTTP 429. The same page says charges for exceeding quota are planned to start later in 2026 — re-check before launch.
 - Decision: stay far below quota — load the sheet once per session, re-read only the single target row at approval time, retry 429s with exponential backoff.
+- Update 2026-10-28 (US-10): each write re-reads the WHOLE tab of its sheet (one extra read per sheet per write), because the row must be found by `id` and the headers re-checked; still far below the quotas.
 
 ## 2026-10-21: Read via Sheets API, not gviz [confirmed]
 
@@ -58,7 +59,7 @@
 - Finding: the sheet's Last Updated column is `=NOW()`, which recalculates continuously, so for those rows it shows the current time rather than when a product changed.
 - Decision: the app stamps a real, static timestamp on every approved quantity change and details edit, displayed as `dd/MM/yyyy HH:mm:ss` (e.g. `27/10/2026 14:26:03`). Existing rows are NOT bulk-converted or touched; a row's Last Updated cell is replaced with a static value only when that row is edited through the app. V1 keeps working (it only displays the text).
 - Consequence: until a row is edited, its Last Updated keeps behaving as before (a `=NOW()` row keeps showing the current time). This is the owner's choice; revisit if it causes confusion.
-- Decision [proposed]: write the timestamp as a date-time serial number (days since 1899-12-30, from the user's local wall-clock time) with `USER_ENTERED`, so it is a real date in the sheet and the column's `dd/MM/yyyy HH:mm:ss` format applies. Writing the text `27/10/2026 …` instead would be misread under a US-locale spreadsheet or stored as plain text. Verify the column's number format at M1.
+- Decision [confirmed 2026-10-28 — sent RAW, see SheetsWriter; the `USER_ENTERED` part is superseded]: write the timestamp as a date-time serial number (days since 1899-12-30, from the user's local wall-clock time) with `USER_ENTERED`, so it is a real date in the sheet and the column's `dd/MM/yyyy HH:mm:ss` format applies. Writing the text `27/10/2026 …` instead would be misread under a US-locale spreadsheet or stored as plain text. Verify the column's number format at M1.
 - Assumption: all staff work in the same time zone (IST).
 
 ## 2026-10-27: Stock Status is typed text, so the app derives and writes it [confirmed]
@@ -240,7 +241,18 @@
 - Decision: wrappers extended, not forked: `<stoqr-toast>` gains `variant` (`error`/`warning`), `actionLabel`, and `autoDismissMs = 0` meaning never; `<stoqr-modal>` (copied from V1) gains `dismissable` (default `true`). The prompts live in `features/session/` and are `@defer`red until someone has a session, keeping the first load under the 500 kB budget (the dialog library is a ~126 kB lazy chunk).
 - Note: found while building — a 401 can land while a warning-started renewal is open, so "renewal in progress" is tracked with a flag, not inferred from the status.
 
+## 2026-10-28: SheetsWriter — one guarded path for every change (US-10) [confirmed]
+
+- Decision: `SheetsWriter.write(sheet, approved)` (`core/sheets/sheets-writer.ts`) is the only code that changes a spreadsheet. One row in one sheet per call, parameterised by the sheet definition; linked (both-sheet) writes are US-33 and call it once per sheet.
+- Decision: approval cannot be faked. The writer accepts only an `ApprovedChange`, which only `approve()` (`core/sheets/approval.ts`) can create, using a module-private key; `isGenuine()` rejects lookalikes. `approve()` refuses empty changes, `id`/`createdAt`/`stockStatus`/`lastUpdated`, and a qty that is not a whole number ≥ 0. Only the review steps (`core/stock-adjust/`, `core/details/`) may call it (architecture rule).
+- Decision: every write re-reads the whole tab, re-resolves headers by label, finds the row by its sheet-local `id` (exactly once; never a remembered row number), and re-checks every value the user reviewed. Any difference is a conflict with the fresh product; nothing is sent.
+- Decision: exact single cells only, all in ONE `values:batchUpdate` per spreadsheet. The writer fills in what only the app writes: Last Updated on every write (date serial), and Stock Status via `deriveStockStatus` whenever qty or threshold changes.
+- Decision: success only after confirmation — the request asks for the written values back (unformatted, dates as serials), and `written` is returned only when every cell echoes the value sent (numbers within a tiny tolerance, so a rounded date serial is not a false failure).
+- Decision: a 401 waits for renewal and redoes the whole write once, re-read and re-check included (safe: absolute values). A session ended instead fails as `expired`. Every other error fails, naming the sheet; never success.
+- Decision [confirmed for now; revisit]: values are sent `RAW`, so text is stored as text and no formula can be written; the typed-input option may not appear in source (architecture rule). This supersedes the earlier proposal to send values as if typed.
+
 ## Open Questions
+- Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
 - Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).
 

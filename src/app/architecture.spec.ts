@@ -145,9 +145,11 @@ describe('sheets data-access rules (US-08)', () => {
   const inSheets = (f: SourceFile) => f.path.startsWith('src/app/core/sheets/');
 
   it('only sheets-writer.ts may send a mutating request (PUT/POST/PATCH/DELETE)', () => {
-    // Only files that do HTTP are checked, so e.g. Map.delete() elsewhere is not a false alarm.
+    // Only app files that do HTTP are checked, so e.g. Map.delete() elsewhere is not a false
+    // alarm; spec files may assert on request methods.
     const doesHttp = (f: SourceFile) =>
-      f.code.includes('@angular/common/http') || /\bfetch\s*\(/.test(f.code);
+      !f.path.endsWith('.spec.ts') &&
+      (f.code.includes('@angular/common/http') || /\bfetch\s*\(/.test(f.code));
     const mutating =
       /\.(?:put|post|patch|delete)\s*[<(]|['"](?:PUT|POST|PATCH|DELETE)['"]|\bmethod\s*:\s*['"](?!GET)/;
     expect(
@@ -162,6 +164,23 @@ describe('sheets data-access rules (US-08)', () => {
     expect(
       offenders((f) => isTs(f) && !inSheets(f), /\bcreateRowRef\s*\(|\browRefId\s*\(|new\s+RowRef\s*\(/),
     ).toEqual([]);
+  });
+});
+
+describe('write rules (US-10)', () => {
+  const isAppCode = (f: SourceFile) => isTs(f) && !f.path.endsWith('.spec.ts');
+
+  it('approve() is called only by the review steps (core/stock-adjust, core/details) and approval.ts', () => {
+    const allowed = (f: SourceFile) =>
+      f.path.startsWith('src/app/core/stock-adjust/') ||
+      f.path.startsWith('src/app/core/details/') ||
+      f.path === 'src/app/core/sheets/approval.ts';
+    expect(offenders((f) => isAppCode(f) && !allowed(f), /\bapprove\s*\(/)).toEqual([]);
+  });
+
+  it('values are never sent as typed input (RAW only; no formula can be written)', () => {
+    const typedInput = new RegExp(['USER', 'ENTERED'].join('_'));
+    expect(offenders(isTs, typedInput, 'text')).toEqual([]);
   });
 });
 
