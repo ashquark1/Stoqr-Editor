@@ -1,0 +1,38 @@
+@use 'breakpoints' as bp;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--color-paper);
+}
+
+// Gutters match the theme's page shell: 24px mobile, 40px tablet, 64px desktop.
+.app-content,
+.app-footer {
+  padding-inline: var(--space-6);
+
+  @include bp.from(tablet) {
+    padding-inline: var(--space-10);
+  }
+
+  @include bp.from(desktop) {
+    padding-inline: var(--space-16);
+  }
+}
+
+.app-content {
+  flex: 1;
+  padding-block: var(--space-6);
+}
+
+.app-footer {
+  padding-block: var(--space-3);
+  border-top: var(--border-thin);
+  font-size: var(--text-small);
+  color: var(--color-ink-light);
+
+  &:empty {
+    display: none;
+  }
+}

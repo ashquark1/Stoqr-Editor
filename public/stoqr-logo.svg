@@ -1,0 +1,27 @@
+<svg width="100%" viewBox="0 0 680 580" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Stoqr four-leaf clover cross logo</title>
+  <desc>Four heart-shaped leaves with tips meeting at center, no veins.</desc>
+
+  <!-- RIGHT -->
+  <g transform="translate(340,265) rotate(90)">
+    <path fill="#1A7A4A" d="M 0 0 C -38 -38,-115 -88,-115 -170 C -115 -248,-55 -262, 0 -232 C 55 -262,115 -248,115 -170 C 115 -88,38 -38, 0 0 Z"/>
+  </g>
+
+  <!-- LEFT -->
+  <g transform="translate(340,265) rotate(-90)">
+    <path fill="#1A7A4A" d="M 0 0 C -38 -38,-115 -88,-115 -170 C -115 -248,-55 -262, 0 -232 C 55 -262,115 -248,115 -170 C 115 -88,38 -38, 0 0 Z"/>
+  </g>
+
+  <!-- BOTTOM -->
+  <g transform="translate(340,265) rotate(0)">
+    <path fill="#1A7A4A" d="M 0 0 C -38 -38,-115 -88,-115 -170 C -115 -248,-55 -262, 0 -232 C 55 -262,115 -248,115 -170 C 115 -88,38 -38, 0 0 Z"/>
+  </g>
+
+  <!-- TOP -->
+  <g transform="translate(340,265) rotate(180)">
+    <path fill="#1A7A4A" d="M 0 0 C -38 -38,-115 -88,-115 -170 C -115 -248,-55 -262, 0 -232 C 55 -262,115 -248,115 -170 C 115 -88,38 -38, 0 0 Z"/>
+  </g>
+
+  <!-- STEM -->
+  <path fill="none" stroke="#1A7A4A" stroke-width="4" stroke-linecap="round" d="M 340 265 Q 333 330 324 352"/>
+</svg>

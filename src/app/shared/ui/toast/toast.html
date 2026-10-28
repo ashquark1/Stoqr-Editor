@@ -1,0 +1,17 @@
+<div class="stoqr-toast stoqr-toast--error" role="alert" aria-live="assertive">
+  <div class="stoqr-toast__content">
+    <div class="stoqr-toast__title">{{ title() }}</div>
+    <div class="stoqr-toast__body">{{ message() }}</div>
+    <button type="button" class="stoqr-toast__retry" (click)="onRetry()">
+      Retry
+    </button>
+  </div>
+  <button
+    type="button"
+    class="toast-close"
+    aria-label="Dismiss"
+    (click)="onClose()"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+  </button>
+</div>

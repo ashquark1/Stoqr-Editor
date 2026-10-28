@@ -9,7 +9,8 @@
 - No `any`, no `@ts-ignore`, no `@ts-nocheck`. Strict mode stays on. Fix the type, don't silence it.
 - Standalone components only. No NgModules. Components use `ChangeDetectionStrategy.OnPush`.
 - No external validation, UI, or CSS framework added without an explicit decision logged in DECISIONS.md (Q-G2: use proper framework guidelines, not one-off dependencies). The approved component library is PrimeNG (styled mode, `StoqrPreset`); the design system is first-party Stoqr SCSS.
-- Features must consume the `shared/ui` wrappers, never PrimeNG `p-*` components directly. Vendor coupling lives only inside `src/app/shared/ui/`.
+- Features must consume the `shared/ui` wrappers, never PrimeNG `p-*` components directly. Vendor coupling lives only inside `src/app/shared/ui/`. This includes setup: PrimeNG is registered only through `provideStoqrUi()`; never import `primeng/*` or `@primeuix/*` in `app.config.ts` or anywhere else outside `shared/ui` (the design-system files in `src/styles/` are the only other exception).
+- Node APIs (`node:*`, `process`) are for spec files only; `@types/node` is enabled only in `tsconfig.spec.json`. Never add it to the app tsconfig.
 - No secrets in the repo or in browser storage. The OAuth client ID is public by design but is off-limits config; access tokens live in memory only (never `localStorage`/`sessionStorage`). No API keys, service-account keys, or client secrets — ever.
 
 ## Domain Rules

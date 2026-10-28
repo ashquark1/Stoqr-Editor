@@ -15,12 +15,12 @@ The repo holds governance docs only; nothing is scaffolded. Every later story ne
 - Node 22 (`nvm use 22.22.3`). Angular 21, TypeScript strict (`strict`, `strictTemplates`), standalone components only, `ChangeDetectionStrategy.OnPush` as the schematic default, SCSS.
 - Dependencies match V1 so the two apps stay in step: `@angular/*` ^21.2, `@angular/cdk` ^21.2, `primeng` ^21.1.9, `@primeuix/themes` ^2.0.3, `rxjs` ~7.8, `tslib`; dev: `@angular/build`, `@angular/cli`, `@angular/compiler-cli`, `typescript` ~5.9, `vitest` ^4, `jsdom` ^28, `prettier`. Anything else needs a DECISIONS.md entry and owner approval.
 - npm scripts exactly as CLAUDE.md: `start`, `build`, `watch`, `test` (plus `ng`).
-- `angular.json` mirrors V1: `stylePreprocessorOptions.includePaths: ["src/styles"]`, `public/` assets, `src/styles.scss` as the global style, production budgets, a `development` configuration with the environment `fileReplacements` (see `specs/environment-config.md`).
+- `angular.json` mirrors V1: `stylePreprocessorOptions.includePaths: ["src/styles"]`, `public/` assets, `src/styles.scss` as the global style, production budgets, a `development` configuration. The environment `fileReplacements` are added in US-04, once `src/environments/*` exists (pointing at missing files would break the dev build; see `specs/environment-config.md`).
 - Path aliases in `tsconfig`: `@core/*`, `@shared/*`, `@features/*`, `@styles/*`, `@env/*`.
 - Structure: `src/app/core/` (auth, sheets, models, stock-adjust, config), `src/app/shared/` (`ui/`, `util/`, `models/`), `src/app/features/stock-editor/`, `src/styles/`. Create folders only when a file lands in them.
 - Design system is COPIED from V1 (`Desktop\Stoqr\V1\frontend\src\styles\`): `stoqr-theme.scss`, `_breakpoints.scss`, `_primeng-overrides.scss`, `brand-tokens.ts`, `primeng-preset.ts`, and `public/stoqr-logo.svg`; `src/styles.scss` as in V1. Do not edit token values.
 - Component SCSS uses `var(--token)` only: no hex, font family or spacing literals. Mobile-first with the `from()` mixin; never `max-width`.
-- `shared/ui` wrappers copied from V1 now (only what Sprint 1 uses): `logo`, `badge`, `status-badge`, `loading-overlay`, `empty-state`, `toast`. Copy `modal`, `data-table`, `toggle`, `filter-select` later, when a story needs them. PrimeNG is imported only inside `src/app/shared/ui/`.
+- `shared/ui` wrappers copied from V1 now: `logo`, `loading-overlay`, `empty-state`, `toast`. `badge` and `status-badge` move to US-08 (in V1 they import V1 core helpers). Copy `modal`, `data-table`, `toggle`, `filter-select` later, when a story needs them. PrimeNG is imported only inside `src/app/shared/ui/`, including its registration: `app.config.ts` calls `provideStoqrUi()` from `shared/ui`.
 - Do NOT copy V1's `src/environments/*`: V1's development file points at a LIVE V2 spreadsheet.
 - `app-root` is a shell: topbar with the logo, a content area, and a footer slot (filled by US-04). No business logic.
 
@@ -38,19 +38,25 @@ The repo holds governance docs only; nothing is scaffolded. Every later story ne
 ## Test Plan
 Rule-level tests (a single `architecture.spec.ts` scanning source files):
 - No `primeng` import and no `<p-` template tag outside `src/app/shared/ui/`.
-- No `max-width` in any `.scss`.
+- No `max-width` media query in any `.scss` (the `max-width` CSS property is allowed).
 - No hex color literal in component `.scss` (files under `src/app/`).
-- No `@ts-ignore`, `@ts-nocheck` or `: any` in `.ts` files.
+- No `@ts-ignore`, `@ts-nocheck` or `any` type in `.ts` files.
 - No `.subscribe(` in component files.
 - `HttpClient` imported only under `src/app/core/sheets/` (and `core/auth/` if ever needed).
-Plus the copied wrapper specs from V1.
+- Every component uses OnPush; no `@NgModule` (added in Phase 2 design).
+- Code rules ignore comments; the `@ts-ignore` rule reads the raw text.
+Plus the copied wrapper specs from V1. Reading files needs Node types: `@types/node` is enabled for spec files only (`tsconfig.spec.json`).
 
 ## Acceptance Checks
-- [ ] Clean checkout: install, build, typecheck and test pass
-- [ ] App opens at http://localhost:4200 showing the Stoqr topbar and logo; Lora, DM Sans and DM Mono render
-- [ ] Layout is correct at 360px (mobile-first, `min-width` only)
-- [ ] Architecture rule tests present and passing
-- [ ] No libraries beyond the list above
-- [ ] `CLAUDE.md`, `docs/`, `specs/` untouched except as noted below
-- [ ] docs/DECISIONS.md updated: record the scaffold choices and the font-loading finding; close the Open Questions now answered by the owner (test copies received; both sheets share headers with unique SKUs; owner has shared both test sheets as Editor); mark the "IDs supplied so far are PRODUCTION" entry as resolved
-- [ ] docs/projectmap.md "Last updated" refreshed; code paths marked as scaffolded where files now exist
+- [x] Clean checkout: install, build, typecheck and test pass (2026-10-28: 4 files / 18 tests)
+- [x] App opens at http://localhost:4200 showing the Stoqr topbar and logo; Lora, DM Sans and DM Mono render
+- [x] Layout is correct at 360px (mobile-first, `min-width` only); also checked at 1024px
+- [x] Architecture rule tests present and passing; each rule fails on a planted violation
+- [x] No libraries beyond the list above, except `@types/node` (dev, types only; approved by the owner and logged in DECISIONS.md)
+- [x] `CLAUDE.md`, `docs/`, `specs/` untouched except as noted below
+- [x] docs/DECISIONS.md updated: record the scaffold choices and the font-loading finding; close the Open Questions now answered by the owner (test copies received; both sheets share headers with unique SKUs; owner has shared both test sheets as Editor); mark the "IDs supplied so far are PRODUCTION" entry as resolved
+- [x] docs/projectmap.md "Last updated" refreshed; code paths marked as scaffolded where files now exist
+
+## Follow-ups found during the build
+- `logo.scss` (copied from V1) uses `gap: 6px`, a spacing literal with no matching token (brand spec: 6px inline gap). Decide: add a token to both apps, or accept it as a brand exception.
+- The toast's default title is V1's "Couldn't load products"; US-08 passes its own.

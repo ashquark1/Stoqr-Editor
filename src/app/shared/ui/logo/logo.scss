@@ -1,0 +1,31 @@
+:host {
+  display: inline-flex;
+}
+
+// Hero lockup: mark stacked above the wordmark, centered.
+.stoqr-logo {
+  flex-direction: column;
+  text-align: center;
+  gap: var(--space-2);
+}
+
+.stoqr-logo__mark {
+  // currentColor drives the mark; Pine on light, Sage on dark (token-driven).
+  color: var(--color-pine);
+  transition: width var(--transition-fast), height var(--transition-fast);
+}
+
+// Wordmark adapts to the colour scheme (Ink → Paper in dark) rather than the
+// fixed Forest the theme sets, so it stays legible on dark backgrounds.
+:host .stoqr-logo__wordmark {
+  color: var(--color-ink);
+  transition: font-size var(--transition-fast);
+}
+
+// Active lockup: small mark to the left of the wordmark.
+.stoqr-logo--inline {
+  flex-direction: row;
+  text-align: left;
+  align-items: center;
+  gap: 6px;
+}

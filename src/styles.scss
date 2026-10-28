@@ -1,0 +1,5 @@
+/* Global styles. Design tokens, base styles, and component classes come from
+   the Stoqr design system. Component SCSS must reference tokens via var(--token)
+   only — never hardcode hex/font/spacing values. */
+@use './styles/stoqr-theme' as *;
+@use './styles/primeng-overrides' as *;

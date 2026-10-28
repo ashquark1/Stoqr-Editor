@@ -89,6 +89,7 @@
 
 ## 2026-10-27: Test sheets are required; IDs supplied so far are PRODUCTION [confirmed]
 
+- RESOLVED 2026-10-27: test copies of both sheets received (IDs differ from production) and shared as Editor with the owner and staff. The remaining rule is unchanged: development and tests use TEST IDs only.
 - Fact (2026-10-27): the master and Dr Trust spreadsheet IDs the owner supplied are both PRODUCTION sheets (the master is the one V1 reads). Test copies of both are still needed; the owner earlier mentioned a duplicate master copy, but its ID has not been supplied, and no Dr Trust test copy is confirmed.
 - Rule: development, tests and any write testing use TEST copies only (IDs in `src/environments/environment.development.ts`). Production IDs go only in `src/environments/environment.ts`, which is used by an explicit production build.
 - Consequence: no write feature is built or run until both test copies exist and their IDs are in the development config. Read-only work (scaffold, sign-in, loading, pairing) may start earlier, using placeholders for the development IDs.
@@ -113,8 +114,37 @@
 - Cost: linked writes roughly double API calls; still far below the quotas.
 - Testing: needs a duplicate of the Dr Trust sheet as well as the master test copy.
 
+## 2026-10-28: Scaffold mirrors V1 by hand; lockfile seeded from V1 [confirmed]
+
+- Decision: the project config (`package.json`, `tsconfig*.json`, `angular.json`, `.prettierrc`, `.editorconfig`) is copied from V1 and renamed `stoqr-editor`, instead of running `ng new`. `package-lock.json` is seeded from V1's so both apps resolve identical versions. New components default to OnPush in the schematics.
+- Reason: V1 is a proven Angular 21 + Vitest setup; no starter files to delete; no risk to `.git` or `.gitignore` in a non-empty repo.
+
+## 2026-10-28: Fonts load from Google Fonts at runtime [confirmed]
+
+- Finding: `stoqr-theme.scss` (copied from V1) loads Lora, DM Sans and DM Mono via `@import url(fonts.googleapis.com…)`. All three verified loading on 2026-10-28.
+- Consequence: needs internet (otherwise falls back to Georgia / system-ui), and Google sees page loads. Same as V1. Revisit if self-hosting the fonts is wanted.
+
+## 2026-10-28: PrimeNG is registered through `provideStoqrUi()` in shared/ui [confirmed]
+
+- Decision: `src/app/shared/ui/provide-stoqr-ui.ts` wraps `providePrimeNG` with `StoqrPreset` and the CSS layer. `app.config.ts` calls it rather than importing `primeng/config` (which V1 does).
+- Reason: keeps every PrimeNG import inside `shared/ui`, so the US-03 rule test needs no exceptions.
+
+## 2026-10-28: Architecture rules are tests that read the source tree; `@types/node` added [confirmed]
+
+- Decision: `src/app/architecture.spec.ts` reads `src/` with `node:fs` and asserts 10 contract rules: PrimeNG/PrimeUIX imports and `<p-` tags only in `shared/ui`; no `@media (max-width…)`; no hex in `src/app` SCSS; no `@ts-ignore`/`@ts-nocheck`; no `any`; no `.subscribe(` in components; `HttpClient` imported only under `core/sheets` or `core/auth`; every component OnPush; no NgModules. Code rules ignore comments. Each rule was checked against a planted violation.
+- Decision: `@types/node` (^22, dev only, types only) is added and enabled only in `tsconfig.spec.json`; the app typecheck still rejects Node APIs (verified).
+- Rejected: hand-written Node types (maintenance); a separate Node script (would change the `npm test` contract).
+- Note: the `max-width` rule targets media queries only. The `max-width` CSS property is allowed (e.g. the 1440px page bound in the brand spec).
+
+## 2026-10-28: Wrappers are copied from V1 when first used [confirmed]
+
+- Decision: the Sprint 1 scaffold copies `logo`, `loading-overlay`, `empty-state` and `toast`. `badge` and `status-badge` move to US-08: in V1 they import V1 core helpers (`@core/stock-status`, and `@core/product-status` with its `Product` model and filter logic), which should not enter V2 before its own domain exists.
+
 ## Open Questions
-- Do both sheets have identical column headers? Are SKUs unique and consistently written (spacing, case) in both?
-- Test copies: received 2026-10-27 (both IDs differ from the production ones). The product tab is named `Sheet1` in all four spreadsheets (confirmed by the owner 2026-10-27); it is still config, not hard-coded. Non-secret config values are kept in the Stoqr project note `claude/stoqr-editor-config-values.md` until the environment files exist.
-- Do all staff have Editor access to both spreadsheets?
+- Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
+- D1: add identity scopes (`openid email profile`) so the signed-in name can be shown? Default: no. Decide before Sprint 2.
 - Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).
+
+## Answered 2026-10-27
+- Both sheets have identical column headers and clean, unique SKUs (owner confirmed).
+- The product tab is named `Sheet1` in all four spreadsheets; it stays config, not hard-coded. Non-secret config values are kept in the Stoqr project note `claude/stoqr-editor-config-values.md` until the environment files exist (US-04).

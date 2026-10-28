@@ -40,7 +40,7 @@ V2 scope: a single-page, frontend-only editor for the Stoqr Google Sheet. Pick a
 - Standalone components only. No NgModules.
 
 ## Off-Limits (never modify without explicit confirmation)
-- `src/environments/*` — spreadsheet ID and Google OAuth client ID (mirror as a deny rule in `.claude/settings.json` at scaffold).
+- `src/environments/*` — spreadsheet ID and Google OAuth client ID (mirror as a deny rule in `.claude/settings.json` in US-04, right after the files are created).
 When other auth or env config is added, list it here and in `.claude/settings.json`.
 
 ## Reference Docs (use @-syntax to load when needed)

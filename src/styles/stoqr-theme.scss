@@ -1,0 +1,904 @@
+// ============================================================
+// STOQR — Design Tokens & SCSS
+// ============================================================
+// Imported once in src/styles.scss:
+//   @use './styles/stoqr-theme' as *;
+//
+// NOTE: This file is the single source of design tokens. Component SCSS must
+// reference tokens via var(--token) / SCSS vars only — never hardcode hex,
+// font, or spacing literals. Breakpoints standardized at 768/1024/1440 to match
+// the mobile-first convention (see src/styles/_breakpoints.scss).
+// ============================================================
+
+// ------------------------------------------------------------
+// Google Fonts
+// ------------------------------------------------------------
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono&display=swap');
+
+
+// ============================================================
+// CSS CUSTOM PROPERTIES (use these in components)
+// ============================================================
+:root {
+
+  // --- Brand greens ---
+  --color-forest:        #0D2B1E;
+  --color-pine:          #1A7A4A;
+  --color-sage:          #2ECC79;
+  --color-mint:          #A8EDCA;
+  --color-dew:           #E8F5EF;
+  --color-paper:         #F4FAF7;
+
+  // --- Neutrals ---
+  --color-ink:           #0F1E18;
+  --color-ink-mid:       #3A4F45;
+  --color-ink-light:     #6B7D74;
+  --color-mist:          #7B9E8D;
+  --color-fog:           #C5D8CE;
+  --color-white:         #FFFFFF;
+
+  // --- Semantic ---
+  --color-success:       #0F7B6C;
+  --color-success-bg:    #E0F5F2;
+  --color-success-border:#8FD8CA;
+  --color-warning:       #E07B2A;
+  --color-warning-bg:    #FDF2E6;
+  --color-warning-border:#F3C898;
+  --color-error:         #C0392B;
+  --color-error-bg:      #FDECEA;
+  --color-error-border:  #E8A9A4;
+  --color-unknown:       #7B9E8D;
+  --color-unknown-bg:    #F0F4F2;
+
+  // --- Typography ---
+  --font-serif:    'Lora', Georgia, 'Times New Roman', serif;
+  --font-sans:     'DM Sans', system-ui, sans-serif;
+  --font-mono:     'DM Mono', 'Courier New', monospace;
+
+  // --- Type scale ---
+  --text-display:  34px;
+  --text-h1:       24px;
+  --text-h2:       18px;
+  --text-h3:       16px;
+  --text-body:     14px;
+  --text-label:    11px;
+  --text-small:    12px;
+  --text-mono:     12px;
+
+  // --- Spacing ---
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-16: 64px;
+
+  // --- Borders ---
+  --radius-sm:   5px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:  10px;
+  --radius-2xl: 12px;
+  --radius-pill: 100px;
+
+  // Shared roundedness for every visibly-bordered rectangular surface (search
+  // bar, buttons, table, panel, dropdowns, toast, modal). One source of truth —
+  // change this alias to restyle all of them at once. Pills/circles opt out.
+  --radius-control: var(--radius-xl);
+
+  --border-thin:  0.5px solid var(--color-fog);
+  --border-input: 1.5px solid var(--color-fog);
+
+  // --- Shadows ---
+  --shadow-search: 0 1px 3px rgba(13,43,30,0.06), 0 4px 12px rgba(13,43,30,0.04);
+  --shadow-modal:  0 8px 32px rgba(13,43,30,0.12), 0 2px 8px rgba(13,43,30,0.06);
+
+  // --- Transitions ---
+  --transition-fast: 150ms ease;
+}
+
+// Dark mode overrides
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper:     #0A1A12;
+    --color-white:     #0D2B1E;
+    --color-ink:       #F4FAF7;
+    --color-ink-mid:   #C5D8CE;
+    --color-ink-light: #7B9E8D;
+    --color-fog:       #1E4A33;
+    --color-dew:       #132B1E;
+    --color-pine:      #2ECC79;
+    --color-sage:      #2ECC79;
+  }
+}
+
+
+// ============================================================
+// SCSS VARIABLES (for use in Angular component stylesheets)
+// ============================================================
+
+// Colors
+$color-forest:        #0D2B1E;
+$color-pine:          #1A7A4A;
+$color-sage:          #2ECC79;
+$color-mint:          #A8EDCA;
+$color-dew:           #E8F5EF;
+$color-paper:         #F4FAF7;
+$color-ink:           #0F1E18;
+$color-ink-mid:       #3A4F45;
+$color-ink-light:     #6B7D74;
+$color-mist:          #7B9E8D;
+$color-fog:           #C5D8CE;
+$color-white:         #FFFFFF;
+$color-success:       #0F7B6C;
+$color-success-bg:    #E0F5F2;
+$color-warning:       #E07B2A;
+$color-warning-bg:    #FDF2E6;
+$color-error:         #C0392B;
+$color-error-bg:      #FDECEA;
+
+// Fonts
+$font-serif: 'Lora', Georgia, 'Times New Roman', serif;
+$font-sans:  'DM Sans', system-ui, sans-serif;
+$font-mono:  'DM Mono', 'Courier New', monospace;
+
+
+// ============================================================
+// BASE STYLES
+// ============================================================
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 { font-size: var(--text-h1); font-weight: 700; color: var(--color-ink); line-height: 1.25; }
+h2 { font-size: var(--text-h2); font-weight: 600; color: var(--color-ink); line-height: 1.3; }
+h3 { font-size: var(--text-h3); font-weight: 600; color: var(--color-ink); line-height: 1.4; }
+
+a {
+  color: var(--color-pine);
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-pine);
+  outline-offset: 2px;
+}
+
+
+// ============================================================
+// COMPONENT: Logo
+// ============================================================
+
+.stoqr-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+
+  &__mark {
+    flex-shrink: 0;
+    // Hero size (initial state)
+    width: 36px;
+    height: 36px;
+  }
+
+  &__wordmark {
+    font-family: var(--font-serif);
+    font-size: var(--text-display);
+    font-weight: 700;
+    color: var(--color-forest);
+    letter-spacing: -1.2px;
+    line-height: 1;
+  }
+
+  &__sub {
+    font-family: var(--font-sans);
+    font-size: var(--text-label);
+    font-weight: 500;
+    color: var(--color-pine);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    display: block;
+    margin-top: 2px;
+  }
+
+  // Inline (search bar) variant
+  &--inline {
+    .stoqr-logo__mark     { width: 16px; height: 16px; }
+    .stoqr-logo__wordmark { font-size: var(--text-body); letter-spacing: -0.3px; }
+    .stoqr-logo__sub      { display: none; }
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Search Bar
+// ============================================================
+
+.stoqr-search {
+  display: flex;
+  align-items: center;
+  background: var(--color-white);
+  border: var(--border-input);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4);
+  gap: var(--space-3);
+  box-shadow: var(--shadow-search);
+  transition: border-color var(--transition-fast);
+
+  &:focus-within {
+    border-color: var(--color-pine);
+  }
+
+  // Hero state
+  &--hero {
+    height: 52px;
+    max-width: 640px;
+    width: 100%;
+  }
+
+  // Inline state (inside top bar)
+  &--inline {
+    height: 44px;
+    flex: 1;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: var(--color-mist);
+    width: 18px;
+    height: 18px;
+  }
+
+  &__input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    color: var(--color-ink);
+    background: transparent;
+
+    &::placeholder {
+      color: var(--color-mist);
+    }
+  }
+
+  &__hint {
+    font-family: var(--font-mono);
+    font-size: var(--text-label);
+    color: var(--color-mist);
+    white-space: nowrap;
+  }
+
+  &__divider {
+    width: 1px;
+    height: 20px;
+    background: var(--color-fog);
+    flex-shrink: 0;
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Stock Status Badge
+// ============================================================
+
+.stoqr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &--in-stock {
+    background: var(--color-success-bg);
+    color: #0A5A50;
+    .stoqr-badge__dot { background: var(--color-success); }
+  }
+
+  &--low-stock {
+    background: var(--color-warning-bg);
+    color: #7A4210;
+    .stoqr-badge__dot { background: var(--color-warning); }
+  }
+
+  &--out-of-stock {
+    background: var(--color-error-bg);
+    color: #7A2020;
+    .stoqr-badge__dot { background: var(--color-error); }
+  }
+
+  &--unknown {
+    background: var(--color-unknown-bg);
+    color: #4A5E55;
+    .stoqr-badge__dot { background: var(--color-unknown); }
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Product Status Badge (US-13)
+// A distinct family from the stock badge: outlined, no status dot, so an
+// Inactive/Discontinued row reads as exceptional rather than as stock state.
+// ============================================================
+
+.stoqr-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+
+  // Inactive: neutral grey, consistent with the Unknown stock badge hue.
+  &--inactive {
+    background: var(--color-unknown-bg);
+    border-color: var(--color-unknown);
+    color: #4A5E55;
+  }
+
+  // Discontinued: muted red — outlined (not filled like Out of Stock), so it
+  // is distinct from and less prominent than the Out-of-Stock badge.
+  &--discontinued {
+    background: transparent;
+    border-color: var(--color-error-border);
+    color: var(--color-error);
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Buttons
+// ============================================================
+
+.stoqr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-4);
+  border-radius: var(--radius-control);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  border: none;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  // Variants
+  &--primary {
+    background: var(--color-pine);
+    color: var(--color-white);
+    &:hover:not(:disabled) { opacity: 0.88; }
+  }
+
+  &--secondary {
+    background: transparent;
+    color: var(--color-pine);
+    border: 1.5px solid var(--color-pine);
+    &:hover:not(:disabled) { background: var(--color-dew); }
+  }
+
+  &--ghost {
+    background: transparent;
+    color: var(--color-ink-mid);
+    border: 0.5px solid var(--color-fog);
+    &:hover:not(:disabled) { background: var(--color-paper); }
+  }
+
+  &--danger {
+    background: transparent;
+    color: var(--color-error);
+    border: 0.5px solid var(--color-error-border);
+    &:hover:not(:disabled) { background: var(--color-error-bg); }
+  }
+
+  // Sizes
+  &--sm {
+    padding: 5px 10px;
+    font-size: var(--text-label);
+    border-radius: var(--radius-sm);
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Results Table
+// ============================================================
+
+.stoqr-table-wrap {
+  overflow-x: auto;
+  border: var(--border-thin);
+  border-radius: var(--radius-control);
+  background: var(--color-white);
+  width: 100%;
+}
+
+.stoqr-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--text-body);
+
+  thead tr {
+    background: var(--color-paper);
+  }
+
+  th {
+    padding: 9px var(--space-3);
+    text-align: left;
+    font-size: var(--text-label);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-light);
+    border-bottom: var(--border-thin);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-bottom: 0.5px solid var(--color-dew);
+    transition: background var(--transition-fast);
+
+    &:last-child { border-bottom: none; }
+    &:hover { background: var(--color-paper); }
+  }
+
+  td {
+    padding: 8px var(--space-3);
+    color: var(--color-ink-mid);
+
+    &.td-name {
+      font-weight: 500;
+      color: var(--color-ink);
+    }
+
+    &.td-mono {
+      font-family: var(--font-mono);
+      font-size: var(--text-mono);
+      color: var(--color-ink-light);
+    }
+
+    &.td-number {
+      font-variant-numeric: tabular-nums;
+    }
+
+    &.td-timestamp {
+      font-size: var(--text-small);
+      color: var(--color-ink-light);
+      white-space: nowrap;
+    }
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Product Detail Modal
+// ============================================================
+
+.stoqr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 43, 30, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+}
+
+.stoqr-modal {
+  background: var(--color-white);
+  border: var(--border-thin);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: var(--shadow-modal);
+
+  &__header {
+    padding: 14px 18px;
+    background: var(--color-paper);
+    border-bottom: var(--border-thin);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  &__header-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    background: var(--color-dew);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-ink);
+    margin: 0;
+  }
+
+  &__meta {
+    font-size: var(--text-label);
+    color: var(--color-ink-light);
+    margin-top: 2px;
+  }
+
+  &__body {
+    padding: 16px 18px;
+  }
+
+  &__close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-ink-light);
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    &:hover { color: var(--color-ink); background: var(--color-dew); }
+  }
+}
+
+.stoqr-field-group {
+  margin-bottom: 14px;
+
+  &__title {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-mist);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 0.5px solid var(--color-dew);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+}
+
+.stoqr-field {
+  &__label {
+    font-size: var(--text-label);
+    color: var(--color-mist);
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  &__value {
+    font-size: var(--text-small);
+    color: var(--color-ink-mid);
+    font-weight: 500;
+
+    &--mono { font-family: var(--font-mono); }
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Toast Notifications
+// ============================================================
+
+.stoqr-toast-container {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 380px;
+  width: 100%;
+}
+
+.stoqr-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 14px;
+  border-radius: var(--radius-control);
+  border: 0.5px solid;
+  font-size: 12px;
+
+  &--error {
+    background: var(--color-error-bg);
+    border-color: var(--color-error-border);
+    color: #7A2020;
+  }
+
+  &--warning {
+    background: var(--color-warning-bg);
+    border-color: var(--color-warning-border);
+    color: #7A4210;
+  }
+
+  &--success {
+    background: var(--color-success-bg);
+    border-color: var(--color-success-border);
+    color: #0A5A50;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  }
+
+  &__content { flex: 1; }
+
+  &__title {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  &__body {
+    opacity: 0.85;
+    line-height: 1.4;
+  }
+
+  &__retry {
+    margin-top: var(--space-2);
+    display: inline-flex;
+    padding: 3px var(--space-2);
+    border-radius: 4px;
+    font-size: var(--text-label);
+    font-weight: 600;
+    background: var(--color-white);
+    border: 0.5px solid var(--color-error-border);
+    color: var(--color-error);
+    cursor: pointer;
+    transition: opacity var(--transition-fast);
+    &:hover { opacity: 0.8; }
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Pagination
+// ============================================================
+
+.stoqr-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-3) 0;
+
+  &__btn {
+    height: 30px;
+    min-width: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    border: 0.5px solid var(--color-fog);
+    background: var(--color-white);
+    color: var(--color-ink-mid);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+
+    &:hover:not(:disabled):not(.stoqr-pagination__btn--active) {
+      background: var(--color-paper);
+      border-color: var(--color-pine);
+    }
+
+    &--active {
+      background: var(--color-pine);
+      color: var(--color-white);
+      border-color: var(--color-pine);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &__sep {
+    color: var(--color-fog);
+    font-size: 12px;
+    padding: 0 2px;
+  }
+
+  &__size-label {
+    font-size: var(--text-label);
+    color: var(--color-ink-light);
+    margin-left: var(--space-3);
+  }
+
+  &__size-select {
+    height: 30px;
+    border: 0.5px solid var(--color-fog);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-2);
+    font-family: var(--font-sans);
+    font-size: var(--text-label);
+    color: var(--color-ink-mid);
+    background: var(--color-white);
+    cursor: pointer;
+    outline: none;
+
+    &:focus { border-color: var(--color-pine); }
+  }
+
+  &__count {
+    font-size: var(--text-label);
+    color: var(--color-ink-light);
+    margin-left: var(--space-2);
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Loading Spinner
+// ============================================================
+
+@keyframes stoqr-spin {
+  to { transform: rotate(360deg); }
+}
+
+.stoqr-spinner {
+  border-radius: 50%;
+  border: 2.5px solid var(--color-fog);
+  border-top-color: var(--color-pine);
+  animation: stoqr-spin 750ms linear infinite;
+  flex-shrink: 0;
+  // Default (button / inline): 14px.
+  width: 14px;
+  height: 14px;
+
+  // Full page: 28px.
+  &--lg {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.stoqr-spinner-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  background: rgba(244, 250, 247, 0.85);
+  z-index: 500;
+
+  &__label {
+    font-size: var(--text-small);
+    color: var(--color-ink-light);
+  }
+}
+
+
+// ============================================================
+// COMPONENT: Refresh Button (state-aware)
+// ============================================================
+
+.stoqr-refresh {
+  @extend .stoqr-btn;
+  @extend .stoqr-btn--secondary;
+
+  &--loading {
+    opacity: 0.65;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+
+// ============================================================
+// LAYOUT: Page shells
+// ============================================================
+
+.stoqr-page {
+  min-height: 100vh;
+  background: var(--color-paper);
+  padding: 0 var(--space-6);
+
+  @media (min-width: 768px)  { padding: 0 var(--space-10); }
+  @media (min-width: 1024px) { padding: 0 var(--space-16); }
+
+  &__inner {
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+}
+
+// Initial state (logo + search bar centered)
+.stoqr-page--initial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+
+  .stoqr-search--hero {
+    margin-top: var(--space-6);
+  }
+}
+
+// Active search state (top bar + results)
+.stoqr-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--color-white);
+  border-bottom: var(--border-thin);
+  padding: var(--space-3) var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  @media (min-width: 768px)  { padding: var(--space-3) var(--space-10); }
+  @media (min-width: 1024px) { padding: var(--space-3) var(--space-16); }
+}
+
+.stoqr-results {
+  padding: var(--space-6) 0;
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  &__count {
+    font-size: var(--text-small);
+    color: var(--color-ink-light);
+  }
+}
