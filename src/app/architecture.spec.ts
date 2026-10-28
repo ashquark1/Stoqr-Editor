@@ -117,6 +117,28 @@ describe('architecture rules', () => {
   });
 });
 
+describe('auth rules (US-05)', () => {
+  const inAuth = (f: SourceFile) => f.path.startsWith('src/app/core/auth/');
+  const inSheets = (f: SourceFile) => f.path.startsWith('src/app/core/sheets/');
+
+  it('Google Identity Services is touched only inside core/auth', () => {
+    expect(offenders((f) => !inAuth(f), /google\.accounts|accounts\.google\.com/)).toEqual([]);
+  });
+
+  it('accessToken() is called only from core/auth or core/sheets', () => {
+    expect(offenders((f) => isTs(f) && !inAuth(f) && !inSheets(f), /\.accessToken\(/)).toEqual([]);
+  });
+
+  it('core/auth and core/sheets never use browser storage or cookies', () => {
+    const storage = /\b(?:localStorage|sessionStorage|indexedDB)\b|document\.cookie/;
+    const offending = offenders(
+      (f) => isTs(f) && (inAuth(f) || inSheets(f)) && !f.path.endsWith('.spec.ts'),
+      storage,
+    );
+    expect(offending).toEqual([]);
+  });
+});
+
 describe('environment config rules (US-04)', () => {
   const ENV_DIR = 'src/environments/';
   const DEV_FILE = `${ENV_DIR}environment.development.ts`;

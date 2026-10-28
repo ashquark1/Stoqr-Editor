@@ -1,0 +1,32 @@
+<section class="sign-in">
+  <div class="sign-in__card">
+    <stoqr-logo />
+    <h1 class="sign-in__title">Sign in to edit stock</h1>
+    <p class="sign-in__hint">Use the Google account that has Editor access to the Stoqr sheets.</p>
+
+    <button
+      type="button"
+      class="stoqr-btn stoqr-btn--primary sign-in__button"
+      [disabled]="!auth.gisReady() || auth.status() === 'signing-in'"
+      (click)="auth.signIn()"
+    >
+      @if (!auth.gisReady()) {
+        Loading Google sign-in…
+      } @else if (auth.status() === 'signing-in') {
+        Signing in…
+      } @else {
+        Sign in with Google
+      }
+    </button>
+  </div>
+</section>
+
+@if (auth.error(); as message) {
+  <stoqr-toast
+    title="Couldn't sign in"
+    [message]="message"
+    [autoDismissMs]="8000"
+    (retry)="auth.retry()"
+    (dismiss)="auth.clearError()"
+  />
+}

@@ -162,6 +162,23 @@
 - Decision: `.claude/settings.json` denies `Edit(/src/environments/**)` and `Edit(src/environments/**)`. An `Edit` rule covers every file-writing tool (a `Write(...)` rule is not matched). Verified: an edit attempt was refused.
 - Consequence: changing an ID or the Client ID needs the owner (edit by hand, or lift the rule for that change).
 
+## 2026-10-28: Google sign-in — GIS token flow, token in memory only [confirmed]
+
+- Decision: only `core/auth/` touches GIS. Local types (`gis-types.ts`), no types package. The script is injected by `GIS_LOADER` (an InjectionToken, faked in tests).
+- Decision: the script loads at startup in the background (not awaited), so `requestAccessToken()` runs inside the user's click and the popup is not blocked; the button stays disabled until it loads. Offline, the app still renders and offers Retry.
+- Decision: scope is `spreadsheets` only (`SHEETS_SCOPE`). Consequence of D1: the app shows "Signed in", never a name or email.
+- Decision: the token is a private field read only by `core/sheets` via `accessToken()`; `expiresAt` = now + `expires_in` − 60 s. `markExpired()` (for 401s) clears it with "Your session expired. Please sign in again."
+- Finding (verified 2026-10-28): GIS enables granular consent, so users can untick the Sheets permission; `hasGrantedAllScopes` treats that as denied.
+
+## 2026-10-28: Auth redirects live in one place [confirmed]
+
+- Decision: `provideAuthRedirects()` (an app initializer) starts the GIS load and follows `Auth.status`: signed out on a protected page → `/sign-in`; signed in on `/sign-in` → home. Route guards cover URLs typed directly. Components never navigate on auth state.
+
+## 2026-10-28: Sign-in errors use `<stoqr-toast>`; second feature folder [confirmed]
+
+- Decision: errors show in the existing toast (title "Couldn't sign in", Retry → `Auth.retry()`, 8 s auto-dismiss). Trade-off: the message disappears on its own; the button stays usable.
+- Decision: the sign-in screen is its own feature, `src/app/features/sign-in/` (owner choice), so V2 has two feature folders.
+
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
 - D1: add identity scopes (`openid email profile`) so the signed-in name can be shown? Default: no. Decide before Sprint 2.

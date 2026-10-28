@@ -23,9 +23,9 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** clamping silently; decimals; computing the written value from anything but the re-read sheet value + approved delta.
 
 ### Auth (Google sign-in) — cross-cutting
-- **Owns:** Google Identity Services token flow, the in-memory access token, signed-in user (email/name), expiry (~1 hour) and re-sign-in prompts, sign-out.
+- **Owns:** Google Identity Services token flow, the in-memory access token, sign-in status (no name/email: D1), expiry (~1 hour) and re-sign-in prompts, sign-out, and auth-driven navigation (guards + redirects).
 - **Does NOT own:** any sheet reads/writes (it only supplies the token).
-- **Code lives in (planned):** `src/app/core/auth/`.
+- **Code lives in:** `src/app/core/auth/` — `gis-types.ts`, `gis-loader.ts`, `auth-scope.ts`, `auth.ts`, `auth-guards.ts`, `auth-redirects.ts`, `testing/fake-gis.ts`.
 - **The rule:** tokens in memory only; the app is unusable until signed in; 401/403 surface as clear messages (expired session / no edit access to the sheet).
 - **Forbidden:** persisting tokens; embedding secrets or API keys; components touching GIS directly.
 
@@ -43,10 +43,15 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **The rule:** everything else reads config through `AppConfig`.
 - **Forbidden:** importing `@env/*` anywhere else; spreadsheet IDs outside `src/environments/`.
 
+### Sign-in (UI / feature)
+- **Owns:** the sign-in screen (logo card, one button, errors in `<stoqr-toast>`).
+- **Code lives in:** `src/app/features/sign-in/`.
+- **The rule:** reads `Auth` signals and calls its methods; no logic, no navigation.
+
 ### Stock Editor (UI / feature) — cross-cutting
 - **Owns:** the single page: product picker (search-as-you-type), quantity adjuster, review & approve panel, and the details form (grouped: Product / Stock / Pricing / Additional — same groups as V1, `id` excluded, Stock Qty read-only, Stock Status read-only/derived, Created At read-only, Last Updated app-stamped), including the changed-fields diff before save.
 - **Does NOT own:** fetching, mapping, quantity maths, or write rules (services own those).
-- **Code lives in:** `src/app/features/stock-editor/` (planned: `product-picker/`, `quantity-adjuster/`, `review-panel/`, `details-form/`), consuming `shared/ui/` wrappers. Landed: `<stoqr-logo>`, `<stoqr-toast>`, `<stoqr-loading-overlay>`, `<stoqr-empty-state>`, and `provideStoqrUi()` (the only PrimeNG registration). Planned: `<stoqr-badge>`, `<stoqr-status-badge>` (US-08), `<stoqr-modal>` (when a story needs it). Search rules reuse V1's `product-matcher` approach (`src/app/core/search/`, planned).
+- **Code lives in:** `src/app/features/stock-editor/` (landed: `stock-editor.ts`, a "Signed in" placeholder until US-08; planned: `product-picker/`, `quantity-adjuster/`, `review-panel/`, `details-form/`), consuming `shared/ui/` wrappers. Landed: `<stoqr-logo>`, `<stoqr-toast>`, `<stoqr-loading-overlay>`, `<stoqr-empty-state>`, and `provideStoqrUi()` (the only PrimeNG registration). Planned: `<stoqr-badge>`, `<stoqr-status-badge>` (US-08), `<stoqr-modal>` (when a story needs it). Search rules reuse V1's `product-matcher` approach (`src/app/core/search/`, planned).
 - **The rule:** components hold view state as signals only and render via the `shared/ui` kit; Reactive Forms for inputs.
 - **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
 

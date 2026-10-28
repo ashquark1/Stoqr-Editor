@@ -22,7 +22,7 @@ V2 scope: a single-page, frontend-only editor for the Stoqr Google Sheet. Pick a
 - Components: standalone, `ChangeDetectionStrategy.OnPush`, signal-based. No NgModules.
 
 ## Project Structure (feature-based, layered)
-- `src/app/core/` — singletons, domain models, auth, data-access (no UI). `src/app/shared/` — reusable presentational kit (`ui/` wraps vendor libs, `util/`, `models/`). `src/app/features/<feature>/` — feature areas (V2 has one: `stock-editor`). `src/styles/` — design system.
+- `src/app/core/` — singletons, domain models, auth, data-access (no UI). `src/app/shared/` — reusable presentational kit (`ui/` wraps vendor libs, `util/`, `models/`). `src/app/features/<feature>/` — feature areas (V2 has two: `sign-in`, `stock-editor`). `src/styles/` — design system.
 - Path aliases: `@core/*`, `@shared/*`, `@features/*`, `@styles/*`, `@env/*`. Wrap third-party libraries in `shared/ui/` so features stay vendor-agnostic.
 
 ## Naming Conventions (Angular 21 style guide)

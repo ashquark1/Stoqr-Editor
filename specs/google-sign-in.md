@@ -48,11 +48,18 @@ Rule-level:
 Case tests: the edge cases above.
 
 ## Acceptance Checks
-- [ ] All behavior rules hold
-- [ ] Owner signs in successfully on localhost:4200 and sees "Signed in"
-- [ ] Cancelling or blocking the popup shows a friendly message and stays signed out
-- [ ] Reload returns to the sign-in screen
-- [ ] No tokens in browser storage (checked in dev tools)
-- [ ] No new libraries
-- [ ] docs/DECISIONS.md updated: no identity scope in Sprint 1 and its consequence (no account name shown); local GIS types
-- [ ] docs/projectmap.md updated if `core/auth` ownership changed
+- [x] All behavior rules hold (unit and architecture rule tests, 2026-10-28)
+- [ ] Owner signs in successfully on localhost:4200 and sees "Signed in" (OWNER CHECK, pending)
+- [x] Cancelling or blocking the popup shows a friendly message and stays signed out (unit tests; blocked popup also seen with the real GIS in the browser pane)
+- [ ] Reload returns to the sign-in screen (OWNER CHECK, pending: needs a real sign-in first)
+- [ ] No tokens in browser storage (checked in dev tools) (OWNER CHECK, pending; storage confirmed empty before and after a blocked sign-in)
+- [x] No new libraries
+- [x] docs/DECISIONS.md updated: no identity scope in Sprint 1 and its consequence (no account name shown); local GIS types
+- [x] docs/projectmap.md updated if `core/auth` ownership changed
+
+## Built differently from plan (2026-10-28)
+- `Auth` also exposes `gisReady` (button disabled until GIS loads) and `retry()` (re-runs whichever step failed), so the sign-in component holds no logic.
+- Redirects live in `provideAuthRedirects()` (an app initializer that also starts the GIS load); guards cover URLs typed directly.
+- Errors reuse `<stoqr-toast>` (title "Couldn't sign in", 8 s auto-dismiss).
+- The loader forgets a failed load and replaces the failed script tag on the next attempt.
+- The sign-in screen lives in its own feature folder, `src/app/features/sign-in/` (owner choice).

@@ -1,0 +1,41 @@
+@use 'breakpoints' as bp;
+
+.sign-in {
+  display: flex;
+  justify-content: center;
+  padding-block: var(--space-8);
+
+  @include bp.from(tablet) {
+    padding-block: var(--space-16);
+  }
+}
+
+.sign-in__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-8) var(--space-6);
+  background: var(--color-white);
+  border: var(--border-thin);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-modal);
+  text-align: center;
+}
+
+.sign-in__title {
+  margin: 0;
+  font-size: var(--text-h2);
+}
+
+.sign-in__hint {
+  margin: 0;
+  color: var(--color-ink-mid);
+}
+
+.sign-in__button {
+  width: 100%;
+  justify-content: center;
+}
