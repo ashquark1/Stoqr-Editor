@@ -1,18 +1,13 @@
-<section class="load-check">
-  <header class="load-check__header">
-    <h1 class="load-check__title">Products</h1>
-    <p class="load-check__note">Temporary read-only check of both sheets. Editing arrives in Sprint 2.</p>
-  </header>
-
-  @if (store.loading()) {
+<section class="stock-editor">
+  @if (sheets.loading()) {
     <stoqr-loading-overlay label="Loading both sheets…" />
-  } @else if (store.error(); as message) {
+  } @else if (sheets.error(); as message) {
     <stoqr-empty-state [message]="message">
-      <div class="load-check__actions">
-        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="store.reload()">
+      <div class="stock-editor__actions">
+        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="sheets.reload()">
           Retry
         </button>
-        @if (store.noAccess()) {
+        @if (sheets.noAccess()) {
           <!-- The usual fix for no access is a different Google account (US-32). -->
           <button type="button" class="stoqr-btn stoqr-btn--secondary" (click)="auth.signOut()">
             Sign out
@@ -20,73 +15,15 @@
         }
       </div>
     </stoqr-empty-state>
-  } @else if (store.fetchedAt()) {
-    <p class="load-check__counts">
-      Master: {{ store.master().length }} products · Dr Trust: {{ store.drTrust().length }} products ·
-      {{ store.flaggedCount() }} flagged
-    </p>
-    @let pairing = store.pairingCounts();
-    <p class="load-check__counts load-check__pairing">
-      Linked {{ pairing.linked }} · Master only {{ pairing.masterOnly }} · Blocked
-      {{ pairing.blockedSkus }} SKUs ({{ pairing.blockedRows }} rows) · Unmatched Dr Trust
-      {{ pairing.unmatchedDrTrust }}
-    </p>
-
-    <div class="load-check__switch" role="group" aria-label="Sheet">
-      @for (sheet of config.sheets(); track sheet.key) {
-        <button
-          type="button"
-          class="stoqr-btn stoqr-btn--sm"
-          [class.stoqr-btn--primary]="selected() === sheet.key"
-          [class.stoqr-btn--ghost]="selected() !== sheet.key"
-          [attr.aria-pressed]="selected() === sheet.key"
-          (click)="selected.set(sheet.key)"
-        >
-          {{ sheet.label }}
-        </button>
-      }
-    </div>
-
-    @if (rows().length === 0) {
-      <stoqr-empty-state message="No products in this sheet." />
+  } @else if (sheets.fetchedAt()) {
+    @if (sheets.master().length === 0) {
+      <stoqr-empty-state message="No products in the master sheet." />
     } @else {
-      <div class="stoqr-table-wrap">
-        <table class="stoqr-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Brand</th>
-              <th>SKU</th>
-              <th>Qty</th>
-              <th>Stock status</th>
-              <th>Status</th>
-              <th>MRP</th>
-              <th>Tax rate</th>
-              <th>Last updated</th>
-              <th>Flags</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of rows(); track row.ref) {
-              <tr>
-                <td class="td-name">{{ display(row.product.productName) }}</td>
-                <td>{{ display(row.product.brand) }}</td>
-                <td class="td-mono">{{ display(row.product.sku) }}</td>
-                <td class="td-number">{{ display(row.product.stockQty) }}</td>
-                <td><stoqr-badge [status]="row.product.stockStatus" /></td>
-                <td><stoqr-status-badge [status]="row.product.status" /></td>
-                <td class="td-number">{{ display(row.product.mrp) }}</td>
-                <td class="td-number">{{ display(row.product.taxRate) }}</td>
-                <td class="td-timestamp">{{ display(row.product.lastUpdated) }}</td>
-                <td class="load-check__flags">
-                  @for (issue of row.issues; track issue) {
-                    <span>{{ issueLabels[issue] }}</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="stock-editor__layout">
+        <app-product-picker class="stock-editor__picker" />
+        @if (search.selected()) {
+          <app-product-summary class="stock-editor__summary" />
+        }
       </div>
     }
   }

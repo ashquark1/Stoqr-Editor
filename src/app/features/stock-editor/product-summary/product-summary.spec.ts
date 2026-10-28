@@ -1,0 +1,92 @@
+import { signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+
+import { LoadedProduct } from '@core/models/product';
+import { ProductSearchStore } from '@core/search/product-search-store';
+import { mapSheet } from '@core/sheets/data-mapping';
+import { BLOCKED_SKU_REASON, Editability } from '@core/sheets/editability';
+import {
+  DR_TRUST_SHEET,
+  MASTER_SHEET,
+  sheetRow,
+  sheetValues,
+} from '@core/sheets/testing/sheet-fixtures';
+import { ProductSummary } from './product-summary';
+
+describe('ProductSummary', () => {
+  const [product] = mapSheet(
+    MASTER_SHEET,
+    sheetValues(sheetRow({ 'product name': 'Pulse Oximeter', brand: 'Dr Trust', sku: 'DT-PO', 'stock qty': 12 })),
+  );
+  const [link] = mapSheet(DR_TRUST_SHEET, sheetValues(sheetRow({ sku: 'DT-PO', 'stock qty': 9 })));
+
+  const selected = signal<LoadedProduct | null>(product);
+  const selectedLink = signal<LoadedProduct | null>(null);
+  const drTrustQtyDiffers = signal(false);
+  const selectedEditability = signal<Editability | null>({ editable: true, reasons: [] });
+  const search = {
+    selected,
+    selectedLink,
+    drTrustQtyDiffers,
+    selectedEditability,
+    clearSelection: vi.fn(),
+  };
+  let fixture: ComponentFixture<ProductSummary>;
+  let el: HTMLElement;
+
+  const fieldValue = (label: string) =>
+    [...el.querySelectorAll('.stoqr-field')]
+      .find((f) => f.querySelector('.stoqr-field__label')?.textContent?.trim() === label)
+      ?.querySelector('.stoqr-field__value')
+      ?.textContent?.trim();
+
+  beforeEach(() => {
+    selected.set(product);
+    selectedLink.set(null);
+    drTrustQtyDiffers.set(false);
+    selectedEditability.set({ editable: true, reasons: [] });
+    vi.clearAllMocks();
+    TestBed.configureTestingModule({
+      imports: [ProductSummary],
+      providers: [{ provide: ProductSearchStore, useValue: search }],
+    });
+    fixture = TestBed.createComponent(ProductSummary);
+    el = fixture.nativeElement;
+    fixture.detectChanges();
+  });
+
+  it('shows name, brand, SKU, qty, stock status and status', () => {
+    expect(el.querySelector('.summary__title')?.textContent?.trim()).toBe('Pulse Oximeter');
+    expect(fieldValue('Brand')).toBe('Dr Trust');
+    expect(fieldValue('SKU')).toBe('DT-PO');
+    expect(fieldValue('Stock qty')).toBe('12');
+    expect(fieldValue('Stock status')).toContain('In Stock');
+    expect(fieldValue('Status')).toBe('Active');
+    expect(el.querySelector('.summary__note')).toBeNull();
+    expect(el.querySelector('.summary__blocked')).toBeNull();
+  });
+
+  it('notes the Dr Trust quantity when the linked sheets differ', () => {
+    selectedLink.set(link);
+    drTrustQtyDiffers.set(true);
+    fixture.detectChanges();
+    expect(el.querySelector('.summary__note')?.textContent?.trim()).toBe('Dr Trust sheet has 9.');
+  });
+
+  it('lists why a product cannot be edited', () => {
+    selectedEditability.set({ editable: false, reasons: [BLOCKED_SKU_REASON] });
+    fixture.detectChanges();
+    expect(el.querySelector('.summary__blocked')?.textContent).toContain(BLOCKED_SKU_REASON);
+  });
+
+  it('Change product clears the selection', () => {
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Change product')?.click();
+    expect(search.clearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders nothing when no product is selected', () => {
+    selected.set(null);
+    fixture.detectChanges();
+    expect(el.querySelector('.summary')).toBeNull();
+  });
+});

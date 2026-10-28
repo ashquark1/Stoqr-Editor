@@ -163,6 +163,17 @@ describe('sheets data-access rules (US-08)', () => {
   });
 });
 
+describe('search rules (US-12)', () => {
+  it('matching and validation are imported only inside core/search', () => {
+    const searchInternals = /from\s*['"](?:@core\/search\/|\.\.?\/(?:[\w.-]+\/)*)(?:product-matcher|search-validation|search-fields)['"]/;
+    // Spec files may import the message constants to assert on them.
+    const isAppCode = (f: SourceFile) => isTs(f) && !f.path.endsWith('.spec.ts');
+    expect(
+      offenders((f) => isAppCode(f) && !f.path.startsWith('src/app/core/search/'), searchInternals),
+    ).toEqual([]);
+  });
+});
+
 describe('environment config rules (US-04)', () => {
   const ENV_DIR = 'src/environments/';
   const DEV_FILE = `${ENV_DIR}environment.development.ts`;

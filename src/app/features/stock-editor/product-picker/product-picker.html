@@ -1,0 +1,49 @@
+<label class="picker__label" for="product-search">Find a product</label>
+<div class="stoqr-search stoqr-search--inline picker__search">
+  <svg class="stoqr-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </svg>
+  <input
+    id="product-search"
+    class="stoqr-search__input"
+    type="search"
+    autocomplete="off"
+    placeholder="Name, SKU, brand or category"
+    [formControl]="queryControl"
+  />
+</div>
+
+@if (!search.selected()) {
+  @if (!search.hasQuery()) {
+    <p class="picker__hint">Search by product name, SKU, brand or category.</p>
+  } @else if (search.message(); as message) {
+    <p class="picker__hint">{{ message }}</p>
+  } @else if (search.totalMatches() === 0) {
+    <stoqr-empty-state message="No products match “{{ search.query().trim() }}”." />
+  } @else {
+    @if (search.totalMatches() > maxShown) {
+      <p class="picker__count">
+        Showing {{ maxShown }} of {{ search.totalMatches() }} — keep typing to narrow
+      </p>
+    }
+    <ul class="picker__results" aria-label="Matching products">
+      @for (row of search.shown(); track row.ref) {
+        <li>
+          <button type="button" class="picker__result" (click)="search.select(row.ref)">
+            <span class="picker__name">{{ display(row.product.productName) }}</span>
+            <span class="picker__meta">
+              {{ display(row.product.brand) }} ·
+              <span class="picker__sku">{{ display(row.product.sku) }}</span>
+            </span>
+            <span class="picker__stock">
+              <span class="picker__qty">Qty {{ display(row.product.stockQty) }}</span>
+              <stoqr-badge [status]="row.product.stockStatus" />
+              <stoqr-status-badge [status]="row.product.status" />
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+}

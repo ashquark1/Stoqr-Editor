@@ -1,43 +1,19 @@
-.load-check {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
+@use 'breakpoints' as bp;
 
-.load-check__title {
-  margin: 0;
-}
-
-.load-check__note,
-.load-check__counts {
-  margin: 0;
-  font-size: var(--text-small);
-  color: var(--color-ink-light);
-}
-
-.load-check__counts {
-  color: var(--color-ink-mid);
-}
-
-.load-check__actions {
+.stock-editor__actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
 }
 
-.load-check__switch {
-  display: flex;
-  gap: var(--space-2);
-}
+// One column on phones; picker and summary side by side from desktop.
+.stock-editor__layout {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
 
-// Crimson, not amber: amber text on white is below WCAG AA at this size.
-.load-check__flags {
-  color: var(--color-error);
-  font-size: var(--text-small);
-  white-space: nowrap;
-
-  span {
-    display: block;
+  @include bp.from(desktop) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }

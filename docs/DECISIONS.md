@@ -215,6 +215,15 @@
 - Decision: `Auth.signOut()` revokes the token with Google (not awaited) and always signs out locally. Trade-off: the next sign-in shows the consent screen again; chosen for shared shop computers.
 - Decision: `SheetsStore` waits for both reads (`Promise.allSettled`); `combineLoadErrors` names every sheet refusing access in one message, else lists each sheet's message; `noAccess` adds Sign out next to Retry. Both sheets are mapped before either is set (all-or-nothing holds).
 
+## 2026-10-28: Product picker — V1 matcher, master only, every status [confirmed]
+
+- Decision: V1's search rules are copied UNCHANGED into `core/search/` (`search-fields.ts`, `product-matcher.ts`, `search-validation.ts` + specs): case-insensitive, every typed word must match; core fields name, brand, SKU and category; size/colour/packing count only alongside a core match, otherwise "Please include a product name or brand in your search." Kept identical so drift from V1 is easy to compare.
+- Decision: the picker lists MASTER products only (Dr Trust rows are never pickable) of EVERY status (owner choice), in sheet order; at most 20 are shown with the total ("keep typing to narrow").
+- Decision: all search and selection state lives in `ProductSearchStore` (query, selected `RowRef`, matches, selected product, its linked Dr Trust row, the quantity-differs note, editability). The query is a Reactive Forms `FormControl` forwarded via `toSignal` + `effect`.
+- Decision: ONE rule decides whether a product may be adjusted or edited: `editability(loaded, syncStatus)` in `core/sheets/editability.ts` — no row issues AND not blocked; it returns the reasons shown in the summary.
+- Decision: the temporary load-check view is removed; its counts return with data health (US-31).
+- Consequence: each load creates fresh row refs, so any Retry/reload clears the selection (cautious: never points at stale data).
+
 ## Open Questions
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
 - Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).

@@ -1,151 +1,120 @@
-import { signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { Auth } from '@core/auth/auth';
 import { LoadedProduct } from '@core/models/product';
+import { ProductSearchStore } from '@core/search/product-search-store';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { SheetsStore } from '@core/sheets/sheets-store';
-import {
-  DR_TRUST_SHEET,
-  MASTER_SHEET,
-  sheetRow,
-  sheetValues,
-} from '@core/sheets/testing/sheet-fixtures';
+import { MASTER_SHEET, sheetRow, sheetValues } from '@core/sheets/testing/sheet-fixtures';
+import { ProductPicker } from './product-picker/product-picker';
+import { ProductSummary } from './product-summary/product-summary';
 import { StockEditor } from './stock-editor';
 
-describe('StockEditor (load-check view)', () => {
+@Component({ selector: 'app-product-picker', template: 'picker', changeDetection: ChangeDetectionStrategy.OnPush })
+class PickerStub {}
+
+@Component({ selector: 'app-product-summary', template: 'summary', changeDetection: ChangeDetectionStrategy.OnPush })
+class SummaryStub {}
+
+describe('StockEditor (page)', () => {
   const loading = signal(false);
   const error = signal<string | null>(null);
+  const noAccess = signal(false);
   const fetchedAt = signal<Date | null>(null);
   const master = signal<readonly LoadedProduct[]>([]);
-  const drTrust = signal<readonly LoadedProduct[]>([]);
-  const flaggedCount = signal(0);
-  const noAccess = signal(false);
-  const auth = { signOut: vi.fn() };
-  const pairingCounts = signal({
-    linked: 0,
-    masterOnly: 0,
-    blockedSkus: 0,
-    blockedRows: 0,
-    unmatchedDrTrust: 0,
-  });
-  const store = {
+  const sheets = {
     loading,
     error,
+    noAccess,
     fetchedAt,
     master,
-    drTrust,
-    flaggedCount,
-    noAccess,
-    pairingCounts,
     ensureLoaded: vi.fn(() => Promise.resolve()),
     reload: vi.fn(() => Promise.resolve()),
   };
+  const selected = signal<LoadedProduct | null>(null);
+  const auth = { signOut: vi.fn() };
   let fixture: ComponentFixture<StockEditor>;
   let el: HTMLElement;
 
-  function loaded(): void {
-    master.set(
-      mapSheet(
-        MASTER_SHEET,
-        sheetValues(sheetRow({ id: 'm1', 'product name': 'Thermometer' }), sheetRow({ id: '' })),
-      ),
-    );
-    drTrust.set(mapSheet(DR_TRUST_SHEET, sheetValues(sheetRow({ id: 'd1', 'product name': 'Nebulizer' }))));
-    flaggedCount.set(1);
+  const button = (label: string) =>
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label);
+
+  function loaded(products = mapSheet(MASTER_SHEET, sheetValues(sheetRow()))): void {
+    master.set(products);
     fetchedAt.set(new Date());
     fixture.detectChanges();
   }
 
-  const names = () => [...el.querySelectorAll('td.td-name')].map((td) => td.textContent?.trim());
-  const button = (label: string) =>
-    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label);
-
   beforeEach(() => {
     loading.set(false);
     error.set(null);
+    noAccess.set(false);
     fetchedAt.set(null);
     master.set([]);
-    drTrust.set([]);
-    flaggedCount.set(0);
-    noAccess.set(false);
+    selected.set(null);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [StockEditor],
       providers: [
-        { provide: SheetsStore, useValue: store },
+        { provide: SheetsStore, useValue: sheets },
+        { provide: ProductSearchStore, useValue: { selected } },
         { provide: Auth, useValue: auth },
       ],
+    });
+    TestBed.overrideComponent(StockEditor, {
+      remove: { imports: [ProductPicker, ProductSummary] },
+      add: { imports: [PickerStub, SummaryStub] },
     });
     fixture = TestBed.createComponent(StockEditor);
     el = fixture.nativeElement;
     fixture.detectChanges();
   });
 
-  it('starts the load when opened', () => {
-    expect(store.ensureLoaded).toHaveBeenCalledTimes(1);
+  it('starts loading both sheets when opened', () => {
+    expect(sheets.ensureLoaded).toHaveBeenCalledTimes(1);
   });
 
   it('shows the loading overlay while loading', () => {
     loading.set(true);
     fixture.detectChanges();
     expect(el.querySelector('stoqr-loading-overlay')).not.toBeNull();
-    expect(el.querySelector('table')).toBeNull();
+    expect(el.querySelector('app-product-picker')).toBeNull();
   });
 
-  it('shows the error with a Retry that reloads, and no data', () => {
-    error.set("You don't have access to Dr Trust.");
+  it('shows the error with Retry, and Sign out only when access is refused', () => {
+    error.set("Couldn't load Master.");
     fixture.detectChanges();
-    expect(el.querySelector('stoqr-empty-state')?.textContent).toContain(
-      "You don't have access to Dr Trust.",
-    );
-    expect(el.querySelector('table')).toBeNull();
+    expect(el.querySelector('stoqr-empty-state')?.textContent).toContain("Couldn't load Master.");
     button('Retry')?.click();
-    expect(store.reload).toHaveBeenCalledTimes(1);
+    expect(sheets.reload).toHaveBeenCalledTimes(1);
     expect(button('Sign out')).toBeUndefined();
-  });
 
-  it('offers Sign out next to Retry when the account has no access (US-32)', () => {
-    error.set("You don't have access to Master or Dr Trust. Ask the owner to share them with you as Editor.");
     noAccess.set(true);
     fixture.detectChanges();
     button('Sign out')?.click();
     expect(auth.signOut).toHaveBeenCalledTimes(1);
-    expect(button('Retry')).toBeDefined();
   });
 
-  it('shows counts and the master table, then switches to Dr Trust', () => {
-    loaded();
-    expect(el.querySelector('.load-check__counts')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Master: 2 products · Dr Trust: 1 products · 1 flagged',
-    );
-    expect(names()).toEqual(['Thermometer', 'BP Monitor']);
-    expect(button('Master')?.getAttribute('aria-pressed')).toBe('true');
+  it('shows an empty state when the master sheet has no products', () => {
+    loaded([]);
+    expect(el.querySelector('stoqr-empty-state')?.textContent).toContain('No products in the master sheet.');
+    expect(el.querySelector('app-product-picker')).toBeNull();
+  });
 
-    button('Dr Trust')?.click();
+  it('shows the picker once loaded, and the summary only after a selection', () => {
+    loaded();
+    expect(el.querySelector('app-product-picker')).not.toBeNull();
+    expect(el.querySelector('app-product-summary')).toBeNull();
+
+    selected.set(master()[0]);
     fixture.detectChanges();
-    expect(names()).toEqual(['Nebulizer']);
-    expect(button('Dr Trust')?.getAttribute('aria-pressed')).toBe('true');
+    expect(el.querySelector('app-product-summary')).not.toBeNull();
   });
 
-  it('shows the SKU pairing counts, with blocked as SKUs and rows', () => {
-    pairingCounts.set({ linked: 3, masterOnly: 4, blockedSkus: 1, blockedRows: 2, unmatchedDrTrust: 5 });
+  it('no longer renders the temporary load-check table', () => {
     loaded();
-    expect(el.querySelector('.load-check__pairing')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Linked 3 · Master only 4 · Blocked 1 SKUs (2 rows) · Unmatched Dr Trust 5',
-    );
-  });
-
-  it('shows the flag text for a row that is not editable', () => {
-    loaded();
-    expect(el.querySelector('tbody tr:nth-child(2) .load-check__flags')?.textContent).toContain(
-      'Not editable: missing id',
-    );
-  });
-
-  it('shows an empty state for a sheet with no products', () => {
-    fetchedAt.set(new Date());
-    fixture.detectChanges();
-    expect(el.querySelector('stoqr-empty-state')?.textContent).toContain('No products in this sheet.');
+    expect(el.querySelector('table')).toBeNull();
+    expect(el.querySelector('.load-check__counts')).toBeNull();
   });
 });

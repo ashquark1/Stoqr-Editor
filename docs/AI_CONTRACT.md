@@ -67,6 +67,7 @@
 - Hardcoding hex colors, font families, or spacing values in component SCSS — use the design tokens (`var(--token)`) / `.stoqr-*` classes from `src/styles/stoqr-theme.scss`.
 - `max-width` media queries. Styling is mobile-first: base = mobile, overrides via `min-width` only (768/1024/1440) using the `from()` mixin in `src/styles/_breakpoints.scss`.
 - Filter/search STATE or logic in components. State lives in services; matching and filtering are pure functions.
+- Matching and query validation are imported only inside `core/search/` (spec files may import message constants); features never filter products themselves. Editability is decided only by `editability()` in `core/sheets/` (enforced by `architecture.spec.ts` for the search imports).
 - Developing or testing writes against the production sheet. Use a duplicate sheet (separate spreadsheet ID per environment).
 
 ## Self-Enforcing Contract

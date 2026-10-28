@@ -1,0 +1,51 @@
+@if (search.selected(); as row) {
+  <article class="summary" aria-live="polite">
+    <header class="summary__header">
+      <h2 class="summary__title">{{ display(row.product.productName) }}</h2>
+      <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="search.clearSelection()">
+        Change product
+      </button>
+    </header>
+
+    <div class="stoqr-field-group">
+      <div class="stoqr-field-group__grid">
+        <div class="stoqr-field">
+          <div class="stoqr-field__label">Brand</div>
+          <div class="stoqr-field__value">{{ display(row.product.brand) }}</div>
+        </div>
+        <div class="stoqr-field">
+          <div class="stoqr-field__label">SKU</div>
+          <div class="stoqr-field__value stoqr-field__value--mono">{{ display(row.product.sku) }}</div>
+        </div>
+        <div class="stoqr-field">
+          <div class="stoqr-field__label">Stock qty</div>
+          <div class="stoqr-field__value summary__qty">{{ display(row.product.stockQty) }}</div>
+        </div>
+        <div class="stoqr-field">
+          <div class="stoqr-field__label">Stock status</div>
+          <div class="stoqr-field__value"><stoqr-badge [status]="row.product.stockStatus" /></div>
+        </div>
+        <div class="stoqr-field">
+          <div class="stoqr-field__label">Status</div>
+          <div class="stoqr-field__value"><stoqr-status-badge [status]="row.product.status" /></div>
+        </div>
+      </div>
+    </div>
+
+    @if (search.drTrustQtyDiffers()) {
+      @if (search.selectedLink(); as link) {
+        <p class="summary__note">Dr Trust sheet has {{ display(link.product.stockQty) }}.</p>
+      }
+    }
+
+    @if (search.selectedEditability(); as check) {
+      @if (!check.editable) {
+        <ul class="summary__blocked" aria-label="Why this product cannot be edited">
+          @for (reason of check.reasons; track reason) {
+            <li>{{ reason }}</li>
+          }
+        </ul>
+      }
+    }
+  </article>
+}

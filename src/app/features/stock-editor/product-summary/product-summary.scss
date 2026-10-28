@@ -1,0 +1,41 @@
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-white);
+  border: var(--border-thin);
+  border-radius: var(--radius-2xl);
+}
+
+.summary__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.summary__title {
+  margin: 0;
+  font-size: var(--text-h3);
+}
+
+.summary__qty {
+  font-size: var(--text-h3);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+}
+
+.summary__note {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-ink-mid);
+}
+
+// Crimson, not amber: amber text on white is below WCAG AA at this size.
+.summary__blocked {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-small);
+  color: var(--color-error);
+}
