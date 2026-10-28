@@ -167,6 +167,19 @@ describe('sheets data-access rules (US-08)', () => {
   });
 });
 
+describe('quantity rules (US-15–17)', () => {
+  it('quantity maths and Stock Status are imported only in core/ (never computed in a component)', () => {
+    const quantityRules =
+      /import\s*(?:type\s*)?\{[^}]*\b(?:proposeQuantity|parseAmount|deriveStockStatus)\b[^}]*\}\s*from/;
+    expect(
+      offenders(
+        (f) => isTs(f) && !f.path.endsWith('.spec.ts') && !f.path.startsWith('src/app/core/'),
+        quantityRules,
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe('write rules (US-10)', () => {
   const isAppCode = (f: SourceFile) => isTs(f) && !f.path.endsWith('.spec.ts');
 

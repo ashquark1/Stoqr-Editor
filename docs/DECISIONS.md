@@ -42,11 +42,11 @@
 - Reason: row numbers shift when rows are sorted or inserted; `id` is stable. Keeping it opaque honours V1's rule that `id` never reaches UI code while still letting V2 write to the right row.
 - Decision: columns are mapped by header label (as in V1), so reordering columns does not corrupt writes.
 
-## 2026-10-21: Quantity rules — whole numbers, never below zero [confirmed], cap [proposed]
+## 2026-10-21: Quantity rules — whole numbers, never below zero [confirmed], cap [confirmed 2026-10-28]
 
 - Decision [confirmed]: whole numbers only (no decimals). The amount is a positive whole number. Subtracting past zero is blocked with a message, not silently clamped.
-- Decision [proposed]: a sanity cap of 1,000,000 on the amount or resulting quantity to catch typos such as an extra zero.
-- Decision [proposed]: show a low-stock warning in the review step when the proposed quantity is below `Low Stock Threshold` (strictly; equal is still In Stock). It uses the same `deriveStockStatus` rule that is written to the sheet (see the 2026-10-27 Stock Status entry), so the preview and the stored value cannot disagree.
+- Decision [confirmed 2026-10-28]: a sanity cap of 1,000,000 on the amount or resulting quantity to catch typos such as an extra zero.
+- Decision [confirmed 2026-10-28; shown live in the adjuster, and again in review]: show a low-stock warning in the review step when the proposed quantity is below `Low Stock Threshold` (strictly; equal is still In Stock). It uses the same `deriveStockStatus` rule that is written to the sheet (see the 2026-10-27 Stock Status entry), so the preview and the stored value cannot disagree.
 
 ## 2026-10-21: Approval flow with a re-read guard [confirmed]
 
@@ -104,7 +104,7 @@
 - Decision [confirmed 2026-10-28 — see SKU pairing rules] — pairing: SKU is normalised (trimmed, case-insensitive). A product is "linked" when its SKU appears exactly once in each sheet. Master-only products (other brands) are edited in master only. The picker is driven by the master sheet.
 - Decision [proposed] — data health: a duplicate SKU in either sheet blocks that product (not editable) with a message. Dr Trust rows with no master match, and master Dr Trust products missing from the Dr Trust sheet, are shown as warnings and are not synced.
 - Decision [confirmed 2026-10-27] — quantity mismatches are ALWAYS overridden: if a linked product's stock qty differs between the sheets, there is no reconcile step and nothing is blocked. The approved final quantity is written to BOTH sheets, replacing whatever the Dr Trust sheet held.
-- Decision [proposed] — base quantity: the adjuster's "current qty" and the add/subtract maths use the MASTER's quantity (the picker is driven by master). When the Dr Trust quantity differs, the review step shows a non-blocking note ("Dr Trust currently has X; it will be set to Y") so the overwrite is never invisible.
+- Decision [confirmed 2026-10-28 for the adjuster; the review note lands in Sprint 3 story B] — base quantity: the adjuster's "current qty" and the add/subtract maths use the MASTER's quantity (the picker is driven by master). When the Dr Trust quantity differs, the review step shows a non-blocking note ("Dr Trust currently has X; it will be set to Y") so the overwrite is never invisible.
 - Decision [proposed] — write sequence: re-read BOTH rows, verify each sheet-local `id` still matches, and verify the master quantity (the base the user reviewed) is unchanged; compute final ABSOLUTE values; write master then Dr Trust. The Dr Trust quantity is not guarded — it is overwritten by design. Absolute values make retries idempotent.
 - Decision [proposed] — partial failure: if one write fails, show which sheet was updated and which was not, and offer Retry. Retry re-reads the failed row, re-verifies its `id` (and, for a master retry, the base quantity), then rewrites the same absolute values. The linked pair is held in memory by row refs, so retry does not depend on SKUs matching. If the user abandons it, the next load flags the product as out of sync.
 - Decision [proposed] — details edits: only CHANGED fields are written, to both sheets. Fields that already differ but were not edited are left alone. Last Updated is stamped on both; Stock Status is derived per sheet from the final qty and that sheet's own threshold.
@@ -250,6 +250,14 @@
 - Decision: success only after confirmation — the request asks for the written values back (unformatted, dates as serials), and `written` is returned only when every cell echoes the value sent (numbers within a tiny tolerance, so a rounded date serial is not a false failure).
 - Decision: a 401 waits for renewal and redoes the whole write once, re-read and re-check included (safe: absolute values). A session ended instead fails as `expired`. Every other error fails, naming the sheet; never success.
 - Decision [confirmed for now; revisit]: values are sent `RAW`, so text is stored as text and no formula can be written; the typed-input option may not appear in source (architecture rule). This supersedes the earlier proposal to send values as if typed.
+
+## 2026-10-28: Quantity adjuster (US-15–17) [confirmed]
+
+- Decision: one pure function computes the new quantity, `proposeQuantity(current, mode, amount)` in `core/stock-adjust/stock-adjust.ts`, with `parseAmount(raw)` for the typed text (blank → nothing yet; whole digits → that number; anything else → not whole). It returns the new whole quantity or a reason it is blocked — not whole, not above 0, below zero ("You can't subtract N: only M in stock."), over the 1,000,000 cap — and never clamps.
+- Decision: the base is the MASTER quantity. The preview status uses `deriveStockStatus` with the master threshold (the writer's rule, so preview and saved value cannot disagree); the low-stock warning shows only when a threshold is set and the new quantity is below it.
+- Decision (owner): Add/Subtract starts unselected; nothing is calculated until one is chosen, so a wrong sign is never applied silently.
+- Decision: state lives in `StockAdjustStore`, which resets whenever the selected product changes or the selection clears (including a new session). The adjuster appears only for editable products (`editability()`).
+- Decision: only `core/` may import `proposeQuantity`, `parseAmount` or `deriveStockStatus` (architecture rule).
 
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

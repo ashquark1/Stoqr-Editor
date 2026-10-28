@@ -1,0 +1,81 @@
+.adjuster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--border-thin);
+}
+
+.adjuster__title {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-light);
+}
+
+.adjuster__modes {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.adjuster__label {
+  font-size: var(--text-small);
+  color: var(--color-ink-mid);
+}
+
+.adjuster__input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: var(--border-input);
+  border-radius: var(--radius-control);
+  transition: border-color var(--transition-fast);
+
+  &:focus {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+    border-color: var(--color-pine);
+  }
+}
+
+.adjuster__result {
+  min-height: var(--space-6);
+}
+
+.adjuster__hint,
+.adjuster__line,
+.adjuster__warning,
+.adjuster__error {
+  margin: 0;
+  font-size: var(--text-small);
+}
+
+.adjuster__hint {
+  color: var(--color-ink-light);
+}
+
+.adjuster__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-ink-mid);
+  font-variant-numeric: tabular-nums;
+}
+
+.adjuster__new {
+  font-size: var(--text-h3);
+  color: var(--color-ink);
+}
+
+// Crimson text, not amber: amber text on white is below WCAG AA at this size.
+.adjuster__warning,
+.adjuster__error {
+  color: var(--color-error);
+}

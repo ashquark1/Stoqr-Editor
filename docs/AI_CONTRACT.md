@@ -29,6 +29,7 @@
 - Owner: `core/stock-adjust/` (pure functions) + the Sheets write service.
 - Rule: quantity is a whole number ≥ 0. The adjustment amount is a positive whole number. The proposed final quantity = current ± amount, computed by ONE pure function (`proposeQuantity`), shown live, and never computed in a component.
 - Rule: a subtraction that would go below 0 is BLOCKED with a clear message — it is never silently clamped.
+- Rule: `proposeQuantity`, `parseAmount` and `deriveStockStatus` are imported only in `core/` (enforced by `architecture.spec.ts`); components only read the store's results. The amount and the resulting quantity are capped at 1,000,000.
 - Rule: quantity changes happen only through the quantity adjuster → review → approve flow. The details form shows Stock Qty read-only.
 - Rule: before writing, re-read the target row, confirm the `id` still matches and the quantity still equals what the user reviewed. If not, abort the write and show the fresh value. No silent overwrite.
 - Rule: Stock Status is typed text in the sheet, so it is DERIVED and written with every quantity change (and whenever Low Stock Threshold is edited) by ONE pure function, `deriveStockStatus(qty, lowStockThreshold)` in `core/stock-adjust/`. It is never typed by the user and never computed in a component. This supersedes V1's "stock status is read verbatim" rule, which applied only to V1's read-only contract.

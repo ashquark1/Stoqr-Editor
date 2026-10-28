@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { LoadedProduct } from '@core/models/product';
@@ -12,7 +12,11 @@ import {
   sheetRow,
   sheetValues,
 } from '@core/sheets/testing/sheet-fixtures';
+import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
 import { ProductSummary } from './product-summary';
+
+@Component({ selector: 'app-quantity-adjuster', template: 'adjuster', changeDetection: ChangeDetectionStrategy.OnPush })
+class AdjusterStub {}
 
 describe('ProductSummary', () => {
   const [product] = mapSheet(
@@ -54,6 +58,10 @@ describe('ProductSummary', () => {
       imports: [ProductSummary],
       providers: [{ provide: ProductSearchStore, useValue: search }],
     });
+    TestBed.overrideComponent(ProductSummary, {
+      remove: { imports: [QuantityAdjuster] },
+      add: { imports: [AdjusterStub] },
+    });
     fixture = TestBed.createComponent(ProductSummary);
     el = fixture.nativeElement;
     fixture.detectChanges();
@@ -83,10 +91,15 @@ describe('ProductSummary', () => {
     expect(fieldValue('Sync')).toBe('Master only');
   });
 
-  it('lists why a product cannot be edited', () => {
+  it('lists why a product cannot be edited, with no adjuster', () => {
     selectedEditability.set({ editable: false, reasons: [BLOCKED_SKU_REASON] });
     fixture.detectChanges();
     expect(el.querySelector('.summary__blocked')?.textContent).toContain(BLOCKED_SKU_REASON);
+    expect(el.querySelector('app-quantity-adjuster')).toBeNull();
+  });
+
+  it('shows the quantity adjuster only for an editable product (US-15)', () => {
+    expect(el.querySelector('app-quantity-adjuster')).not.toBeNull();
   });
 
   it('Change product clears the selection', () => {

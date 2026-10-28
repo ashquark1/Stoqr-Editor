@@ -1,0 +1,61 @@
+<section class="adjuster" aria-labelledby="adjust-title">
+  <h3 id="adjust-title" class="adjuster__title">Adjust stock</h3>
+
+  <div class="adjuster__modes" role="group" aria-label="Add or subtract">
+    <button
+      type="button"
+      class="stoqr-btn stoqr-btn--sm"
+      [class.stoqr-btn--primary]="adjust.mode() === 'add'"
+      [class.stoqr-btn--ghost]="adjust.mode() !== 'add'"
+      [attr.aria-pressed]="adjust.mode() === 'add'"
+      (click)="adjust.setMode('add')"
+    >
+      Add
+    </button>
+    <button
+      type="button"
+      class="stoqr-btn stoqr-btn--sm"
+      [class.stoqr-btn--primary]="adjust.mode() === 'subtract'"
+      [class.stoqr-btn--ghost]="adjust.mode() !== 'subtract'"
+      [attr.aria-pressed]="adjust.mode() === 'subtract'"
+      (click)="adjust.setMode('subtract')"
+    >
+      Subtract
+    </button>
+  </div>
+
+  <label class="adjuster__label" for="adjust-amount">Amount</label>
+  <input
+    id="adjust-amount"
+    class="adjuster__input"
+    type="text"
+    inputmode="numeric"
+    autocomplete="off"
+    placeholder="e.g. 15"
+    [formControl]="amountControl"
+  />
+
+  <div class="adjuster__result" aria-live="polite">
+    @if (adjust.mode() === null) {
+      <p class="adjuster__hint">Choose Add or Subtract.</p>
+    } @else if (adjust.proposal(); as proposal) {
+      @if (proposal.ok) {
+        <p class="adjuster__line">
+          Current <strong>{{ proposal.current }}</strong>
+          <span aria-hidden="true">→</span>
+          <strong>{{ adjust.deltaText() }}</strong>
+          <span aria-hidden="true">→</span>
+          New <strong class="adjuster__new">{{ proposal.proposed }}</strong>
+          @if (adjust.proposedStatus(); as status) {
+            <stoqr-badge [status]="status" />
+          }
+        </p>
+        @if (adjust.lowStockWarning()) {
+          <p class="adjuster__warning">Below the low-stock threshold ({{ adjust.threshold() }}).</p>
+        }
+      } @else {
+        <p class="adjuster__error" role="alert">{{ proposal.message }}</p>
+      }
+    }
+  </div>
+</section>
