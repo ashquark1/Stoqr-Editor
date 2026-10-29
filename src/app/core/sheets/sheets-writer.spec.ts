@@ -321,6 +321,26 @@ describe('SheetsWriter', () => {
       expect(result.kind === 'written' && result.sheets.map((s) => s.product.stockQty)).toEqual([7, 7]);
     });
 
+    it('rule: a details edit writes only its changed cells (+ Stock Status, Last Updated) in each sheet (US-24, US-36)', async () => {
+      const pending = writer.write(
+        approve(
+          { target: masterRow.ref, reviewed: { brand: 'Dr Trust' }, changes: { brand: 'Dr. Trust' } },
+          { target: drTrustRow.ref, reviewed: { brand: 'Dr Trust' }, changes: { brand: 'Dr. Trust' } },
+        ),
+      );
+      await formatBoth();
+      const master = await post(MASTER_URL);
+      // B = brand, M = stock status, T = last updated; nothing else (no id, no Created At, no untouched field).
+      expect((master.request.body as SentBody).data.map((d) => d.range)).toEqual(["'Sheet1'!B2", "'Sheet1'!M2", "'Sheet1'!T2"]);
+      echo(master);
+      const drTrust = await post(DR_TRUST_URL);
+      const sent = (drTrust.request.body as SentBody).data;
+      expect(sent.map((d) => d.range)).toEqual(["'Sheet1'!B2", "'Sheet1'!M2", "'Sheet1'!T2"]);
+      expect(sent[1].values).toEqual([['Low Stock']]); // Dr Trust's OWN qty 3 < threshold 5
+      echo(drTrust);
+      expect((await pending).kind).toBe('written');
+    });
+
     it('re-reads both sheets before writing either', async () => {
       const pending = writer.write(linked());
       await formatted(MASTER_FORMAT_URL);

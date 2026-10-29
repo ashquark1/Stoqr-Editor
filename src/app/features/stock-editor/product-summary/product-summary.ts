@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
+import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
@@ -31,10 +32,20 @@ export class ProductSummary {
   protected readonly search = inject(ProductSearchStore);
   protected readonly review = inject(StockReviewStore);
   private readonly details = inject(DetailsStore);
+  private readonly detailsReview = inject(DetailsReviewStore);
   protected readonly display = displayValue;
 
   /** Which editor is open; a new summary (another product) starts on Adjust stock. */
   protected readonly mode = signal<SummaryMode>('adjust');
+
+  /** A stock or details save is running: its result must not be lost. */
+  protected readonly saving = computed(
+    () => this.review.step() === 'saving' || this.detailsReview.step() === 'saving',
+  );
+  /** A stock or details review is open (including its outcome): the editor switch is locked. */
+  protected readonly reviewOpen = computed(
+    () => this.review.step() !== 'editing' || this.detailsReview.step() !== 'editing',
+  );
 
   protected show(mode: SummaryMode): void {
     this.details.confirmLeave(() => this.mode.set(mode));

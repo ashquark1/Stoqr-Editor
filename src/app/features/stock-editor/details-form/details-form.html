@@ -10,82 +10,96 @@
       </ul>
     }
 
-    @for (section of sections; track section.group) {
-      <fieldset class="details__group">
-        <legend class="details__group-title">{{ section.title }}</legend>
-        <div class="details__grid">
-          @for (def of section.fields; track def.key) {
-            @if (def.editable && details.editable()) {
-              <div class="stoqr-field details__field" [class.details__field--wide]="def.multiline">
-                <label class="stoqr-field__label" [for]="'detail-' + def.key">
-                  {{ def.label }}
-                  @if (def.required) {
-                    <span class="details__required" aria-hidden="true">*</span>
-                  }
-                </label>
-                @if (def.multiline) {
-                  <textarea
-                    class="stoqr-input stoqr-input--multiline"
-                    [id]="'detail-' + def.key"
-                    [class.stoqr-input--invalid]="details.errors()[def.key]"
-                    [attr.aria-invalid]="details.errors()[def.key] ? true : null"
-                    [attr.aria-describedby]="details.errors()[def.key] ? 'detail-' + def.key + '-error' : null"
-                    [formControl]="form.controls[def.key]"
-                  ></textarea>
-                } @else {
-                  <input
-                    class="stoqr-input"
-                    type="text"
-                    autocomplete="off"
-                    [id]="'detail-' + def.key"
-                    [attr.inputmode]="def.kind === 'text' ? null : def.kind === 'whole' ? 'numeric' : 'decimal'"
-                    [class.stoqr-input--mono]="def.mono"
-                    [class.stoqr-input--invalid]="details.errors()[def.key]"
-                    [attr.aria-required]="def.required"
-                    [attr.aria-invalid]="details.errors()[def.key] ? true : null"
-                    [attr.aria-describedby]="details.errors()[def.key] ? 'detail-' + def.key + '-error' : null"
-                    [formControl]="form.controls[def.key]"
-                  />
-                }
-                @if (details.errors()[def.key]; as message) {
-                  <p class="stoqr-field__error" [id]="'detail-' + def.key + '-error'">{{ message }}</p>
-                }
-              </div>
-            } @else {
-              <div class="stoqr-field details__field">
-                <div class="stoqr-field__label">{{ def.label }}</div>
-                <div class="stoqr-field__value" [class.stoqr-field__value--mono]="def.key === 'sku'">
-                  @if (def.key === 'stockStatus') {
-                    <stoqr-badge [status]="row.product.stockStatus" />
+    @if (review.step() !== 'editing') {
+      <!-- The review replaces the form; the edits stay in DetailsStore. -->
+      <app-details-review />
+    } @else {
+      @for (section of sections; track section.group) {
+        <fieldset class="details__group">
+          <legend class="details__group-title">{{ section.title }}</legend>
+          <div class="details__grid">
+            @for (def of section.fields; track def.key) {
+              @if (def.editable && details.editable()) {
+                <div class="stoqr-field details__field" [class.details__field--wide]="def.multiline">
+                  <label class="stoqr-field__label" [for]="'detail-' + def.key">
+                    {{ def.label }}
+                    @if (def.required) {
+                      <span class="details__required" aria-hidden="true">*</span>
+                    }
+                  </label>
+                  @if (def.multiline) {
+                    <textarea
+                      class="stoqr-input stoqr-input--multiline"
+                      [id]="'detail-' + def.key"
+                      [class.stoqr-input--invalid]="details.errors()[def.key]"
+                      [attr.aria-invalid]="details.errors()[def.key] ? true : null"
+                      [attr.aria-describedby]="details.errors()[def.key] ? 'detail-' + def.key + '-error' : null"
+                      [formControl]="form.controls[def.key]"
+                    ></textarea>
                   } @else {
-                    {{ display(row.product[def.key]) }}
+                    <input
+                      class="stoqr-input"
+                      type="text"
+                      autocomplete="off"
+                      [id]="'detail-' + def.key"
+                      [attr.inputmode]="def.kind === 'text' ? null : def.kind === 'whole' ? 'numeric' : 'decimal'"
+                      [class.stoqr-input--mono]="def.mono"
+                      [class.stoqr-input--invalid]="details.errors()[def.key]"
+                      [attr.aria-required]="def.required"
+                      [attr.aria-invalid]="details.errors()[def.key] ? true : null"
+                      [attr.aria-describedby]="details.errors()[def.key] ? 'detail-' + def.key + '-error' : null"
+                      [formControl]="form.controls[def.key]"
+                    />
+                  }
+                  @if (details.errors()[def.key]; as message) {
+                    <p class="stoqr-field__error" [id]="'detail-' + def.key + '-error'">{{ message }}</p>
                   }
                 </div>
-              </div>
+              } @else {
+                <div class="stoqr-field details__field">
+                  <div class="stoqr-field__label">{{ def.label }}</div>
+                  <div class="stoqr-field__value" [class.stoqr-field__value--mono]="def.key === 'sku'">
+                    @if (def.key === 'stockStatus') {
+                      <stoqr-badge [status]="row.product.stockStatus" />
+                    } @else {
+                      {{ display(row.product[def.key]) }}
+                    }
+                  </div>
+                </div>
+              }
             }
-          }
-        </div>
-      </fieldset>
-    }
-
-    @if (details.editable()) {
-      @if (details.hasChanges() && !details.valid()) {
-        <p class="details__hint" role="status">Fix the highlighted fields to continue.</p>
+          </div>
+        </fieldset>
       }
-      <div class="details__actions">
-        <!-- Review changes is wired in US-23; until then it only shows whether the form may be saved. -->
-        <button type="button" class="stoqr-btn stoqr-btn--primary" [disabled]="!details.canReview()">
-          Review changes
-        </button>
-        <button
-          type="button"
-          class="stoqr-btn stoqr-btn--ghost"
-          [disabled]="!details.hasChanges()"
-          (click)="details.reset()"
-        >
-          Cancel
-        </button>
-      </div>
+
+      @if (details.editable()) {
+        @if (details.hasChanges() && !details.valid()) {
+          <p class="details__hint" role="status">Fix the highlighted fields to continue.</p>
+        } @else if (details.skuChanged()) {
+          <!-- SKU changes need the uniqueness check across both sheets (US-38). -->
+          <p class="details__hint" role="status">
+            Changing the SKU isn't available yet. Put the SKU back to save your other changes.
+          </p>
+        }
+        <div class="details__actions">
+          <button
+            type="button"
+            class="stoqr-btn stoqr-btn--primary"
+            [disabled]="!details.canReview()"
+            (click)="review.open()"
+          >
+            Review changes
+          </button>
+          <button
+            type="button"
+            class="stoqr-btn stoqr-btn--ghost"
+            [disabled]="!details.hasChanges()"
+            (click)="details.reset()"
+          >
+            Cancel
+          </button>
+        </div>
+      }
     }
 
     <stoqr-modal [open]="details.leavePending()" header="Discard changes?" (close)="details.keepEditing()">

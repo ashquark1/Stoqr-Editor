@@ -62,7 +62,7 @@ describe('DetailsForm (US-21, US-22)', () => {
       providers: [
         {
           provide: ProductSearchStore,
-          useValue: { selected, selectedEditability: computed(() => editability()) },
+          useValue: { selected, selectedLink: signal(null), selectedEditability: computed(() => editability()) },
         },
       ],
     });
@@ -118,6 +118,24 @@ describe('DetailsForm (US-21, US-22)', () => {
     type('sku', '   ');
     expect(error('sku')).toBe('SKU is required.');
     expect(store.texts().sku).toBe('   ');
+  });
+
+  it('rule: a SKU change explains why Review changes is disabled (US-38 first)', () => {
+    type('notes', 'Fragile');
+    type('sku', 'DT-BP-02');
+    expect(button('Review changes')?.disabled).toBe(true);
+    expect(el.querySelector('.details__hint')?.textContent).toContain("Changing the SKU isn't available yet");
+  });
+
+  it('Review changes swaps the form for the review of only the changed fields (US-23)', () => {
+    type('notes', 'Fragile');
+    button('Review changes')?.click();
+    render();
+    expect(el.querySelectorAll('input, textarea')).toHaveLength(0);
+    expect(el.querySelector('app-details-review')?.textContent).toContain('Notes');
+    button('Back')?.click();
+    render();
+    expect(input('notes')?.value).toBe('Fragile'); // the edit survives Back
   });
 
   it('Cancel puts every box back', () => {

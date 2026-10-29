@@ -1,0 +1,23 @@
+@switch (step()) {
+  @case ('reviewing') {
+    <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="approve.emit()">Approve</button>
+    <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="back.emit()">Back</button>
+  }
+  @case ('saving') {
+    <button type="button" class="stoqr-btn stoqr-btn--primary" disabled>Saving…</button>
+  }
+  @case ('conflict') {
+    <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="reviewAgain.emit()">Review again</button>
+    <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="back.emit()">Back</button>
+  }
+  @case ('failed') {
+    <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="approve.emit()">Try again</button>
+    <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="back.emit()">Back</button>
+  }
+  @case ('partial') {
+    @if (retryLabel(); as label) {
+      <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="retry.emit()">Retry {{ label }}</button>
+    }
+    <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="back.emit()">Close</button>
+  }
+}

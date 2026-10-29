@@ -5,7 +5,7 @@
       <button
         type="button"
         class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm"
-        [disabled]="review.step() === 'saving'"
+        [disabled]="saving()"
         (click)="changeProduct()"
       >
         Change product
@@ -56,7 +56,7 @@
           [class.stoqr-btn--primary]="mode() === 'adjust'"
           [class.stoqr-btn--ghost]="mode() !== 'adjust'"
           [attr.aria-pressed]="mode() === 'adjust'"
-          [disabled]="review.step() !== 'editing'"
+          [disabled]="reviewOpen()"
           (click)="show('adjust')"
         >
           Adjust stock
@@ -67,7 +67,7 @@
           [class.stoqr-btn--primary]="mode() === 'details'"
           [class.stoqr-btn--ghost]="mode() !== 'details'"
           [attr.aria-pressed]="mode() === 'details'"
-          [disabled]="review.step() !== 'editing'"
+          [disabled]="reviewOpen()"
           (click)="show('details')"
         >
           {{ check.editable ? 'Edit details' : 'Details' }}

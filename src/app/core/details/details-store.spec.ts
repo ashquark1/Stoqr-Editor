@@ -68,6 +68,28 @@ describe('DetailsStore (US-21, US-22)', () => {
     expect(store.canReview()).toBe(false);
   });
 
+  it('rule: changes compare by value: 18.0 for a tax rate of 18 is no change', () => {
+    select(legacy); // tax rate 18 (fixture default)
+    store.setTexts({ category: 'Health', packing: 'Box', lowStockThreshold: '5', taxRate: '18.0' });
+    expect(store.changedFields()).toEqual(['category', 'lowStockThreshold', 'packing']); // form order
+  });
+
+  it('rule: a field the user did not touch follows fresh data (never undoes someone else)', () => {
+    store.setTexts({ notes: 'mine' });
+    selected.set({ ...monitor, product: { ...monitor.product, brand: 'Changed elsewhere', notes: 'theirs' } });
+    expect(store.texts().brand).toBe('Changed elsewhere');
+    expect(store.texts().notes).toBe('mine');
+    expect(store.changedFields()).toEqual(['notes']);
+  });
+
+  it('rule: a SKU change blocks Review until US-38', () => {
+    store.setTexts({ sku: 'NEW-1', notes: 'x' });
+    expect(store.skuChanged()).toBe(true);
+    expect(store.canReview()).toBe(false);
+    store.setTexts({ sku: monitor.product.sku });
+    expect(store.canReview()).toBe(true);
+  });
+
   it('typing a field back to its original is no change', () => {
     store.setTexts({ brand: 'Other' });
     store.setTexts({ brand: 'Dr Trust' });

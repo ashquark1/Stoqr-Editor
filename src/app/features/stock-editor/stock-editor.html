@@ -8,6 +8,15 @@
       (dismiss)="review.clearNotice()"
     />
   }
+  @if (detailsReview.notice(); as notice) {
+    <stoqr-toast
+      variant="success"
+      title="Details saved"
+      [message]="notice"
+      actionLabel=""
+      (dismiss)="detailsReview.clearNotice()"
+    />
+  }
   @if (sheets.loading()) {
     <stoqr-loading-overlay label="Loading both sheets…" />
   } @else if (sheets.error(); as message) {

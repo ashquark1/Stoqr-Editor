@@ -25,29 +25,12 @@
     <p class="review__message" role="alert">{{ message }}</p>
   }
 
-  <div class="review__actions">
-    @switch (review.step()) {
-      @case ('reviewing') {
-        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.approve()">Approve</button>
-        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Back</button>
-      }
-      @case ('saving') {
-        <button type="button" class="stoqr-btn stoqr-btn--primary" disabled>Saving…</button>
-      }
-      @case ('conflict') {
-        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.open()">Review again</button>
-        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Back</button>
-      }
-      @case ('failed') {
-        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.approve()">Try again</button>
-        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Back</button>
-      }
-      @case ('partial') {
-        @if (review.retryLabel(); as label) {
-          <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.retry()">Retry {{ label }}</button>
-        }
-        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Close</button>
-      }
-    }
-  </div>
+  <app-review-actions
+    [step]="review.step()"
+    [retryLabel]="review.retryLabel()"
+    (approve)="review.approve()"
+    (back)="review.back()"
+    (reviewAgain)="review.open()"
+    (retry)="review.retry()"
+  />
 </section>

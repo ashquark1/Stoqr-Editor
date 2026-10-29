@@ -113,9 +113,28 @@ describe('planRowWrite', () => {
     });
   });
 
-  it('a change touching neither qty nor threshold writes no Stock Status', () => {
+  it('rule: every write carries Stock Status derived from the fresh qty and threshold (US-24)', () => {
     const writes = ready(planRowWrite(MASTER_SHEET, values, 'row-1', change({ notes: 'new' }), NOW));
-    expect(writes.map((w) => w.field)).toEqual(['notes', 'lastUpdated']);
+    expect(writes.map((w) => w.field)).toEqual(['notes', 'stockStatus', 'lastUpdated']);
+    expect(writes.find((w) => w.field === 'stockStatus')?.value).toBe(deriveStockStatus(10, 5));
+  });
+
+  describe('cell types (US-24)', () => {
+    const numeric = sheetValues(sheetRow({ id: 'row-1', 'stock qty': 10, sku: 12345, packing: 10, size: 'M' }));
+    const write = (changes: ProductChanges) =>
+      cells(ready(planRowWrite(MASTER_SHEET, numeric, 'row-1', change(changes, {}), NOW)));
+
+    it('rule: a text field whose cell holds a number is written back as a number', () => {
+      expect(write({ sku: '54321', packing: '12' })).toMatchObject({ "'Sheet1'!F2": 54321, "'Sheet1'!J2": 12 });
+    });
+
+    it.each(['007', '1.50', '12 pcs', '-5'])('keeps %j as text (a number would change or reject it)', (typed) => {
+      expect(write({ packing: typed })["'Sheet1'!J2"]).toBe(typed);
+    });
+
+    it('a text cell stays text, even for digits', () => {
+      expect(write({ size: '42' })["'Sheet1'!G2"]).toBe('42');
+    });
   });
 
   it('writes a blank number as an empty cell', () => {

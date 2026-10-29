@@ -1,0 +1,47 @@
+<section class="dreview" aria-labelledby="details-review-title">
+  <h3 id="details-review-title" class="dreview__title">Review details</h3>
+
+  @if (review.review(); as summary) {
+    <p class="dreview__sheets">Saves to: <strong>{{ summary.sheetsText }}</strong></p>
+    <ul class="dreview__lines" aria-label="Changed fields">
+      @for (line of summary.lines; track line.field) {
+        <li class="dreview__line">
+          <span class="dreview__label">{{ line.label }}</span>
+          <span class="dreview__change">
+            <span class="dreview__from">{{ display(line.from) }}</span>
+            <span aria-hidden="true">→</span>
+            <strong class="dreview__to" [class.dreview__to--mono]="line.field === 'sku'">{{ display(line.to) }}</strong>
+          </span>
+          @if (line.drTrustFrom !== undefined) {
+            <span class="dreview__note">
+              {{ summary.drTrustLabel }} has {{ display(line.drTrustFrom) }}; it will be set to {{ display(line.to) }}.
+            </span>
+          }
+        </li>
+      }
+      @for (status of summary.statuses; track status.sheet) {
+        <li class="dreview__line">
+          <span class="dreview__label">Stock Status ({{ status.sheetLabel }})</span>
+          <span class="dreview__change">
+            <stoqr-badge [status]="status.from" />
+            <span aria-hidden="true">→</span>
+            <stoqr-badge [status]="status.to" />
+          </span>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (review.message(); as message) {
+    <p class="dreview__message" role="alert">{{ message }}</p>
+  }
+
+  <app-review-actions
+    [step]="review.step()"
+    [retryLabel]="review.retryLabel()"
+    (approve)="review.approve()"
+    (back)="review.back()"
+    (reviewAgain)="review.open()"
+    (retry)="review.retry()"
+  />
+</section>

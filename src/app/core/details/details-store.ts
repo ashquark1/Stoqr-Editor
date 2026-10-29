@@ -2,6 +2,7 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 
 import { Product } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
+import { DetailValue, changedValues, parseDetail } from './details-diff';
 import { DetailField, EDITABLE_DETAILS, byDetailField } from './details-fields';
 import { validateDetail } from './details-validation';
 
@@ -17,24 +18,32 @@ function textsOf(product: Product | null): DetailTexts {
 }
 
 /**
- * Details-form state for the selected product (US-21, US-22). The component
- * forwards what is typed; the originals, the error per field, whether anything
- * changed and the "Discard changes?" step live here. Resets whenever the
- * selected product changes or the selection clears (sign-out and a different
- * account clear it; expiry does not, so edits survive renewal).
+ * Details-form state for the selected product (US-21–24, US-36). Only the
+ * user's EDITS are kept; every other field shows the product's current value,
+ * so a field the user did not touch follows fresh data (after a conflict or a
+ * save) and can never undo someone else's change. The component forwards what
+ * is typed; the originals, the error per field, what changed and the "Discard
+ * changes?" step live here. Resets whenever the selected product changes or
+ * the selection clears (sign-out and a different account clear it; expiry does
+ * not, so edits survive renewal).
  */
 @Injectable({ providedIn: 'root' })
 export class DetailsStore {
   private readonly search = inject(ProductSearchStore);
 
-  /** The values the form started from. */
+  /** The values the form starts from: the selected product as loaded (or as last confirmed). */
   readonly original = computed<DetailTexts>(() => textsOf(this.search.selected()?.product ?? null));
 
-  private readonly textsSignal = signal<DetailTexts>(untracked(() => this.original()));
+  /** Typed text per field the user changed; a field typed back to its original is dropped. */
+  private readonly editsSignal = signal<Readonly<Partial<Record<DetailField, string>>>>({});
   private readonly pendingLeaveSignal = signal<(() => void) | null>(null);
 
-  /** What is typed, per field. */
-  readonly texts = this.textsSignal.asReadonly();
+  /** What the form shows, per field: the user's edit, else the current value. */
+  readonly texts = computed<DetailTexts>(() => {
+    const edits = this.editsSignal();
+    const original = this.original();
+    return byDetailField((field) => edits[field] ?? original[field]);
+  });
 
   /** The one editability rule (`editability()`), via the search store. */
   readonly editable = computed(() => this.search.selectedEditability()?.editable === true);
@@ -42,7 +51,7 @@ export class DetailsStore {
 
   /** The message per invalid field; fields that may be saved are absent. */
   readonly errors = computed<Readonly<Partial<Record<DetailField, string>>>>(() => {
-    const texts = this.textsSignal();
+    const texts = this.texts();
     const errors: Partial<Record<DetailField, string>> = {};
     for (const def of EDITABLE_DETAILS) {
       const message = validateDetail(def, texts[def.key]);
@@ -55,17 +64,36 @@ export class DetailsStore {
 
   readonly valid = computed(() => Object.keys(this.errors()).length === 0);
 
-  /** Fields whose text differs from the original, in form order. */
+  /**
+   * The changed fields as the values that would be written (US-23), compared
+   * by value: `18.0` for 18 is no change. Empty while any field is invalid.
+   */
+  readonly changes = computed<ReadonlyMap<DetailField, DetailValue>>(() => {
+    const product = this.search.selected()?.product ?? null;
+    if (product === null || !this.valid()) {
+      return new Map();
+    }
+    const texts = this.texts();
+    return changedValues(byDetailField((field) => parseDetail(defOf(field), texts[field])), product);
+  });
+
+  /** Fields whose text differs from the original, in form order (invalid text counts). */
   readonly changedFields = computed<readonly DetailField[]>(() => {
-    const texts = this.textsSignal();
+    const texts = this.texts();
     const original = this.original();
-    return EDITABLE_DETAILS.filter((def) => texts[def.key] !== original[def.key]).map((def) => def.key);
+    const changes = this.changes();
+    return EDITABLE_DETAILS.filter((def) =>
+      this.valid() ? changes.has(def.key) : texts[def.key] !== original[def.key],
+    ).map((def) => def.key);
   });
 
   readonly hasChanges = computed(() => this.editable() && this.changedFields().length > 0);
 
-  /** Editable, changed and valid: Review changes may open (wired in US-23). */
-  readonly canReview = computed(() => this.hasChanges() && this.valid());
+  /** A SKU change waits for its uniqueness check (US-38), so it cannot be reviewed yet. */
+  readonly skuChanged = computed(() => this.changes().has('sku'));
+
+  /** Editable, changed, valid and no SKU change: Review changes may open. */
+  readonly canReview = computed(() => this.hasChanges() && this.valid() && !this.skuChanged());
 
   /** True while "Discard changes?" waits for an answer. */
   readonly leavePending = computed(() => this.pendingLeaveSignal() !== null);
@@ -85,16 +113,32 @@ export class DetailsStore {
   }
 
   /**
-   * Takes the form's values; a field left out keeps its current text. Uses
-   * `update` so a caller's effect never subscribes to the texts it writes.
+   * Takes the form's values; a field left out keeps its current text. Reads
+   * the originals untracked and writes with `update`, so a caller's effect
+   * never subscribes to what it writes or to fresh data.
    */
   setTexts(typed: Readonly<Partial<Record<DetailField, string>>>): void {
-    this.textsSignal.update((current) => byDetailField((field) => typed[field] ?? current[field]));
+    const original = untracked(() => this.original());
+    this.editsSignal.update((edits) => {
+      const next: Partial<Record<DetailField, string>> = { ...edits };
+      for (const def of EDITABLE_DETAILS) {
+        const text = typed[def.key];
+        if (text === undefined) {
+          continue;
+        }
+        if (text === original[def.key]) {
+          delete next[def.key];
+        } else {
+          next[def.key] = text;
+        }
+      }
+      return next;
+    });
   }
 
-  /** Puts every field back to its original value. */
+  /** Drops every edit: each field shows its current value again. */
   reset(): void {
-    this.textsSignal.set(this.original());
+    this.editsSignal.set({});
   }
 
   /** Runs `leave` now when nothing changed; otherwise asks "Discard changes?" first. */
@@ -118,4 +162,12 @@ export class DetailsStore {
   keepEditing(): void {
     this.pendingLeaveSignal.set(null);
   }
+}
+
+function defOf(field: DetailField) {
+  const def = EDITABLE_DETAILS.find((d) => d.key === field);
+  if (def === undefined) {
+    throw new Error(`Unknown detail field: ${field}`);
+  }
+  return def;
 }

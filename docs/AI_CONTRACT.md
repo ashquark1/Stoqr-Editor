@@ -32,7 +32,7 @@
 - Rule: `proposeQuantity`, `parseAmount` and `deriveStockStatus` are imported only in `core/` (enforced by `architecture.spec.ts`); components only read the store's results. The amount and the resulting quantity are capped at 1,000,000.
 - Rule: quantity changes happen only through the quantity adjuster → review → approve flow. The details form shows Stock Qty read-only.
 - Rule: before writing, re-read the target row, confirm the `id` still matches and the quantity still equals what the user reviewed. If not, abort the write and show the fresh value. No silent overwrite.
-- Rule: Stock Status is typed text in the sheet, so it is DERIVED and written with every quantity change (and whenever Low Stock Threshold is edited) by ONE pure function, `deriveStockStatus(qty, lowStockThreshold)` in `core/stock-adjust/`. It is never typed by the user and never computed in a component. This supersedes V1's "stock status is read verbatim" rule, which applied only to V1's read-only contract.
+- Rule: Stock Status is typed text in the sheet, so it is DERIVED and written with EVERY save — quantity or details — per sheet from that sheet's own final qty and threshold, by ONE pure function, `deriveStockStatus(qty, lowStockThreshold)` in `core/stock-adjust/`. It is never typed by the user and never computed in a component. This supersedes V1's "stock status is read verbatim" rule, which applied only to V1's read-only contract.
 - Rule: every approved change also stamps Last Updated with a static timestamp (never a formula), shown as `dd/MM/yyyy HH:mm:ss`.
 - Forbidden: writing quantity without approval; writing a value computed from anything but the freshly re-read sheet value + the approved delta; writing a quantity without its derived Stock Status in the same request.
 
@@ -41,6 +41,10 @@
 - Rule: the details form shows every product field except `id`; Stock Qty, Stock Status, Last Updated and Created At are never inputs. Field rules (groups, kinds, required, locked) live only in `core/details/details-fields.ts`.
 - Rule: details validation is pure (`validateDetail`) and imported only inside `core/details/` (enforced by `architecture.spec.ts`). Invalid input blocks Review; it is never corrected.
 - Rule: leaving the details form with unsaved edits goes through `DetailsStore.confirmLeave()`; one editor (adjuster or details form) is open at a time.
+- Rule: `DetailsReviewStore` is the only caller of `approve()` for details. It approves only the CHANGED fields (compared by value), the same new values in both sheets, each row guarded by that sheet's own current values of those fields.
+- Rule: `DetailsStore` keeps only the user's edits; untouched fields always show current data, so a details save can never undo someone else's change.
+- Rule: until US-38, a changed SKU blocks Review (the uniqueness check comes first).
+- Rule: stock and details reviews share `ReviewFlow` (`core/sheets/review-flow.ts`) for saving, outcomes and Retry; never fork its steps per review.
 
 ### Writes (cross-cutting)
 - Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.
@@ -48,6 +52,7 @@
 - Rule: a retry of a partial write uses ONLY `remaining` from the partial result (`ApprovedChange.remaining()`), never a new `approve()`, and never rewrites a sheet that is already confirmed.
 - Rule: a write is retried automatically ONLY after 429 (Google saved nothing), and only after re-reading and re-checking the row. A 5xx or network failure on a write is never resent automatically and never reported as "not saved". At most 3 automatic retries per request.
 - Rule: values are sent `RAW`; the typed-input option may not appear in source (enforced). Stock Status and Last Updated are filled in only by the writer — callers never pass them.
+- Rule: a text field whose fresh cell holds a number is written back as a number when the new text is a plain number (no leading zeros or trailing decimal zeros); otherwise it stays text. gviz (V1) drops a column's minority-type values.
 - Rule: the ONLY non-value change the app makes is the number format of the exact Last Updated cell it stamps (`LAST_UPDATED_FORMAT`, mask `userEnteredFormat.numberFormat`), one `repeatCell` per sheet, sent by `SheetsWriter` after every sheet is checked and before any value is written. No other formatting, and no other `spreadsheets:batchUpdate` request types.
 - Rule: the writer re-reads the tab, finds the row by `id`, re-checks every reviewed value, and reports `written` only when Google echoes every cell it was sent.
 - Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.

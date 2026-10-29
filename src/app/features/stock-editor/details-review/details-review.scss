@@ -1,0 +1,78 @@
+.dreview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--border-thin);
+}
+
+.dreview__title {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-light);
+}
+
+.dreview__sheets,
+.dreview__message {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-ink-mid);
+}
+
+.dreview__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dreview__line {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-thin);
+  font-size: var(--text-small);
+}
+
+.dreview__label {
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mist);
+}
+
+.dreview__change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-ink-mid);
+  overflow-wrap: anywhere;
+}
+
+.dreview__to {
+  color: var(--color-ink);
+
+  &--mono {
+    font-family: var(--font-mono);
+  }
+}
+
+.dreview__note {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-ink-mid);
+  background: var(--color-dew);
+  border-radius: var(--radius-control);
+}
+
+// Crimson, not amber: amber text on white is below WCAG AA at this size.
+.dreview__message {
+  color: var(--color-error);
+}

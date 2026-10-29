@@ -66,7 +66,7 @@
 ## 2026-10-27: Stock Status is typed text, so the app derives and writes it [confirmed]
 
 - Finding: Stock Status is plain typed text in the sheet, not a formula. After a quantity change it would go stale unless the app updates it.
-- Decision [confirmed]: the app writes Stock Status together with the new quantity in the same request, and again whenever a details edit changes Stock Qty's inputs (Low Stock Threshold).
+- Decision [confirmed]: the app writes Stock Status together with the new quantity in the same request, and again whenever a details edit changes Stock Qty's inputs (Low Stock Threshold). Widened 2026-10-29 (US-24): written on EVERY save, per sheet — see "Details saved to both sheets".
 - Decision [confirmed]: ONE pure function, `deriveStockStatus(qty, lowStockThreshold)`, in `core/stock-adjust/`, using the sheet's exact label texts (confirmed by the owner):
   - qty = 0 → `Out of Stock`
   - 0 < qty < threshold → `Low Stock`
@@ -108,7 +108,7 @@
 - Decision [confirmed 2026-10-28 for the adjuster; the review note lands in Sprint 3 story B] — base quantity: the adjuster's "current qty" and the add/subtract maths use the MASTER's quantity (the picker is driven by master). When the Dr Trust quantity differs, the review step shows a non-blocking note ("Dr Trust currently has X; it will be set to Y") so the overwrite is never invisible.
 - Decision [confirmed 2026-10-28, owner choice "check both first"; built in Sprint 3 story B] — write sequence: re-read BOTH rows, verify each sheet-local `id` still matches, and verify the master quantity (the base the user reviewed) is unchanged; compute final ABSOLUTE values; write master then Dr Trust. The Dr Trust quantity is not guarded — it is overwritten by design. Absolute values make retries idempotent.
 - Decision [confirmed 2026-10-29: reporting in story B, Retry in story C (US-34)] — partial failure: if one write fails, show which sheet was updated and which was not, and offer Retry. Retry re-reads the failed row, re-verifies its `id` (and, for a master retry, the base quantity), then rewrites the same absolute values. The linked pair is held in memory by row refs, so retry does not depend on SKUs matching. If the user abandons it, the next load flags the product as out of sync. Owner choice (2026-10-29): Retry is offered only while the review panel is open; Close leaves the product out of sync, and its next quantity change sets both sheets.
-- Decision [proposed] — details edits: only CHANGED fields are written, to both sheets. Fields that already differ but were not edited are left alone. Last Updated is stamped on both; Stock Status is derived per sheet from the final qty and that sheet's own threshold.
+- Decision [confirmed 2026-10-29, built in US-24/36] — details edits: only CHANGED fields are written, to both sheets. Fields that already differ but were not edited are left alone. Last Updated is stamped on both; Stock Status is derived per sheet from the final qty and that sheet's own threshold.
 - Decision [confirmed 2026-10-27] — SKU is editable, including for linked products. A SKU change is written to BOTH sheets in the same approved action, so the pair stays linked.
 - Decision [proposed] — SKU safeguards: the new SKU must be non-empty and, normalised (trimmed, case-insensitive), must not match any OTHER row in either sheet — otherwise the save is blocked with a message. The review diff shows "old → new" and that it applies to both sheets. If a SKU change fails on only one sheet, the two sheets briefly hold different SKUs and the product would no longer pair on a reload; Retry (pair held in memory) completes it, and the data-health view lists it if abandoned.
 - Decision [confirmed 2026-10-28] — access: a user needs Editor access to BOTH spreadsheets to change a linked product. If a sheet is not accessible the app names it and blocks the change. Master-only products need master access only.
@@ -306,6 +306,18 @@
 - Decision: shared `.stoqr-input` (`--mono`, `--invalid`, `--multiline`) and `.stoqr-field__error` added to `stoqr-theme.scss` (V2 extension, tokens only); the adjuster uses `.stoqr-input` (reuse over duplication).
 - Decision: the form is lazy-loaded (`@defer`, 7 kB); the initial bundle is 455 kB.
 - Finding: a store setter that read its own signal, called from the form's effect, looped forever; setters use `update()` (now in AI_CONTRACT Forbidden Shortcuts).
+
+## 2026-10-29: Details saved to both sheets (US-23, US-24, US-36) [confirmed]
+
+- Decision: only CHANGED fields are written, compared by value (`18.0` for 18 is no change), the same new values to both sheets of a linked product. Each sheet's row is guarded by THAT sheet's own current values of the changed fields: someone else's edit to the same field is a conflict; an edit to another field is not, and is never overwritten. Untouched fields that differ between the sheets are left alone.
+- Decision: `DetailsStore` keeps only the user's edits; untouched fields show current data, so after a conflict or save they follow the fresh values and a save can never undo someone else's change.
+- Decision (owner): after a successful details save the product stays open showing the saved values ("Details saved" toast). Stock saves still clear the selection.
+- Decision: Stock Status is written on EVERY save (stock or details), derived per sheet from that sheet's own qty and threshold; this also repairs rows whose status was blank or stale.
+- Decision: a text field whose fresh cell holds a number is written back as a number when the new text is a plain number (`12`, `0.5`); `007`, `1.50` and `12 pcs` stay text. Reason: RAW would store `"12"` as text, and gviz (V1) drops a column's minority-type values.
+- Decision: a changed SKU blocks Review ("Changing the SKU isn't available yet") until US-38 adds the uniqueness check.
+- Decision (reuse, Q-G3): the stock review's save steps were extracted into `ReviewFlow` (`core/sheets/review-flow.ts`), and the review buttons into `review-actions/`; both reviews use them. The stock specs passed unchanged, proving stock behaviour did not change.
+- Decision: the conflict message names the fields and sheet ("Brand changed in Master since you opened this product. Nothing was saved."); the edits are kept and Review again uses the fresh values. A partial keeps the stock behaviour: Retry from the original approval while the review is open; the edits are dropped because the written sheet already holds them.
+- Cost: the details chunk is 12 kB (lazy); the initial bundle stays 455 kB.
 
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
