@@ -28,6 +28,10 @@ describe('DetailsReviewStore (US-23, US-24, US-36)', () => {
   const drTrustRows = mapSheet(DR_TRUST_SHEET, sheetValues(sheetRow({ id: 'd1', sku: 'dt-po', brand: 'DrTrust', notes: 'd' })));
   const [linkedRow, masterOnlyRow] = masterRows;
   const [drTrustRow] = drTrustRows;
+  const [, orphanRow] = mapSheet(
+    DR_TRUST_SHEET,
+    sheetValues(sheetRow({ id: 'd1' }), sheetRow({ id: 'd2', sku: 'orphan-1', 'product name': 'Orphan Gauze', 'stock qty': 6 })),
+  );
   const sheetOf: Record<SheetKey, SheetDefinition> = { master: MASTER_SHEET, 'dr-trust': DR_TRUST_SHEET };
 
   let master: WritableSignal<readonly LoadedProduct[]>;
@@ -89,12 +93,41 @@ describe('DetailsReviewStore (US-23, US-24, US-36)', () => {
     });
   });
 
-  it('rule: a SKU change cannot be reviewed or approved (US-38 first)', async () => {
-    edit(linkedRow, { sku: 'DT-PO-2', notes: 'x' });
-    store.open();
-    expect(store.step()).toBe('editing');
-    await store.approve();
-    expect(write).not.toHaveBeenCalled();
+  describe('SKU change (US-38)', () => {
+    it('rule: a SKU used by another row cannot be reviewed or approved', async () => {
+      edit(linkedRow, { sku: 'rm-b1' });
+      store.open();
+      expect(store.step()).toBe('editing');
+      await store.approve();
+      expect(write).not.toHaveBeenCalled();
+    });
+
+    it('rule: a linked product writes the new SKU to both sheets in one approval', async () => {
+      write.mockResolvedValue(written({ sku: 'DT-PO-2' }, linkedRow, drTrustRow));
+      edit(linkedRow, { sku: 'DT-PO-2' });
+      store.open();
+      await store.approve();
+      expect(write.mock.calls[0][0].rows).toEqual([
+        { target: linkedRow.ref, reviewed: { sku: 'DT-PO' }, changes: { sku: 'DT-PO-2' } },
+        { target: drTrustRow.ref, reviewed: { sku: 'dt-po' }, changes: { sku: 'DT-PO-2' } },
+      ]);
+    });
+
+    it("rule: taking an unmatched Dr Trust row's SKU links it: both rows written, with a note", async () => {
+      drTrust.set([...drTrustRows, orphanRow]);
+      write.mockResolvedValue(written({ sku: 'ORPHAN-1' }, masterOnlyRow, orphanRow));
+      edit(masterOnlyRow, { sku: 'ORPHAN-1', brand: 'Romsons Ltd' });
+      store.open();
+      expect(store.review()?.sheetsText).toBe('Master and Dr Trust');
+      expect(store.review()?.linkNote).toBe(
+        'This links it to the Dr Trust row "Orphan Gauze" (qty 6). Later changes save to both sheets.',
+      );
+      await store.approve();
+      expect(write.mock.calls[0][0].rows.map((r) => [r.target, r.changes])).toEqual([
+        [masterOnlyRow.ref, { brand: 'Romsons Ltd', sku: 'ORPHAN-1' }],
+        [orphanRow.ref, { brand: 'Romsons Ltd', sku: 'ORPHAN-1' }],
+      ]);
+    });
   });
 
   it('rule: approves ONE genuine change: only changed fields, both sheets, each guarded by its own values', async () => {

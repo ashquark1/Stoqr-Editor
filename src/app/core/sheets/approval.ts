@@ -39,6 +39,12 @@ export class ApprovedChange {
     /** One row, or one row per sheet for a linked product (master first). */
     readonly rows: readonly RowChange[],
     key: typeof APPROVAL_KEY,
+    /**
+     * Every row of the user's ORIGINAL approval, kept by `remaining()`: a new
+     * SKU may already be on these rows (one written before a Retry), never on
+     * any other (US-38).
+     */
+    readonly owners: readonly RowRef[] = rows.map((row) => row.target),
   ) {
     if (key !== APPROVAL_KEY) {
       throw new Error('An ApprovedChange can only be created by approve().');
@@ -64,7 +70,12 @@ export class ApprovedChange {
     if (rows.length === 0) {
       throw new InvalidChangeError('Nothing left to write: every row is already written.');
     }
-    return new ApprovedChange(Object.freeze(rows), APPROVAL_KEY);
+    return new ApprovedChange(Object.freeze(rows), APPROVAL_KEY, this.owners);
+  }
+
+  /** The new SKU this approval writes, or undefined when it does not change SKU. */
+  newSku(): string | undefined {
+    return this.rows.find((row) => 'sku' in row.changes)?.changes.sku;
   }
 }
 

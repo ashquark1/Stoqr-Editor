@@ -6,6 +6,7 @@ import { LoadedProduct } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { BLOCKED_SKU_REASON, Editability } from '@core/sheets/editability';
+import { SheetsStore } from '@core/sheets/sheets-store';
 import { MASTER_SHEET, sheetRow, sheetValues } from '@core/sheets/testing/sheet-fixtures';
 import { Modal } from '@shared/ui/modal/modal';
 import { DetailsForm } from './details-form';
@@ -25,9 +26,12 @@ class ModalStub {
 }
 
 describe('DetailsForm (US-21, US-22)', () => {
-  const [product] = mapSheet(
+  const [product, other] = mapSheet(
     MASTER_SHEET,
-    sheetValues(sheetRow({ id: 'a', 'product name': 'BP Monitor', sku: 'DT-BP-01', 'stock qty': 12, mrp: 2999 })),
+    sheetValues(
+      sheetRow({ id: 'a', 'product name': 'BP Monitor', sku: 'DT-BP-01', 'stock qty': 12, mrp: 2999 }),
+      sheetRow({ id: 'b', 'product name': 'Bandage Roll', sku: 'RM-B1' }),
+    ),
   );
   let selected: WritableSignal<LoadedProduct | null>;
   let editability: WritableSignal<Editability>;
@@ -64,6 +68,7 @@ describe('DetailsForm (US-21, US-22)', () => {
           provide: ProductSearchStore,
           useValue: { selected, selectedLink: signal(null), selectedEditability: computed(() => editability()) },
         },
+        { provide: SheetsStore, useValue: { master: signal([product, other]), drTrust: signal([]) } },
       ],
     });
     TestBed.overrideComponent(DetailsForm, { remove: { imports: [Modal] }, add: { imports: [ModalStub] } });
@@ -120,11 +125,13 @@ describe('DetailsForm (US-21, US-22)', () => {
     expect(store.texts().sku).toBe('   ');
   });
 
-  it('rule: a SKU change explains why Review changes is disabled (US-38 first)', () => {
-    type('notes', 'Fragile');
-    type('sku', 'DT-BP-02');
+  it('rule: a SKU used by another row shows inline and blocks Review changes (US-38)', () => {
+    type('sku', 'rm-b1');
+    expect(error('sku')).toBe('SKU rm-b1 is already used in Master (Bandage Roll).');
     expect(button('Review changes')?.disabled).toBe(true);
-    expect(el.querySelector('.details__hint')?.textContent).toContain("Changing the SKU isn't available yet");
+    type('sku', 'DT-BP-02');
+    expect(error('sku')).toBeUndefined();
+    expect(button('Review changes')?.disabled).toBe(false);
   });
 
   it('Review changes swaps the form for the review of only the changed fields (US-23)', () => {

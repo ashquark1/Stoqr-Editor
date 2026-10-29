@@ -43,7 +43,8 @@
 - Rule: leaving the details form with unsaved edits goes through `DetailsStore.confirmLeave()`; one editor (adjuster or details form) is open at a time.
 - Rule: `DetailsReviewStore` is the only caller of `approve()` for details. It approves only the CHANGED fields (compared by value), the same new values in both sheets, each row guarded by that sheet's own current values of those fields.
 - Rule: `DetailsStore` keeps only the user's edits; untouched fields always show current data, so a details save can never undo someone else's change.
-- Rule: until US-38, a changed SKU blocks Review (the uniqueness check comes first).
+- Rule: a new SKU is checked by `checkNewSku` (`core/sheets/sku-check.ts`) live in the form, and again by `SheetsWriter` on BOTH freshly read sheets whenever an approval changes SKU; any row outside the user's original approval (`ApprovedChange.owners`) holding it stops the write with nothing written.
+- Rule (owner choice 2026-10-29): a master-only product may take the SKU of exactly one unmatched Dr Trust row, which links them; that save writes both rows in one approval. A linked product may not take any other row's SKU.
 - Rule: stock and details reviews share `ReviewFlow` (`core/sheets/review-flow.ts`) for saving, outcomes and Retry; never fork its steps per review.
 
 ### Writes (cross-cutting)
@@ -72,7 +73,7 @@
 - Rule: a duplicate SKU in either sheet makes that product non-editable. Unmatched rows (orphans) are reported as warnings and never synced or guessed.
 - Rule: pairing is computed only by `pairSheets` (pure). A blank SKU never pairs and never counts as a duplicate; rows of a blocked SKU are never reported as orphans.
 - Rule: details edits write only the changed fields, to both sheets. Untouched fields that differ between the sheets are left alone.
-- Rule: SKU is editable, including for linked products. A SKU change is part of the same dual write (both sheets, same approved action). The new SKU must be non-empty and, normalised, must not match any other row's SKU in either sheet; otherwise the save is blocked. During a write and its retries the linked pair is held in memory by row refs and is never re-matched by SKU.
+- Rule: SKU is editable, including for linked products. A SKU change is part of the same dual write (both sheets, same approved action). The new SKU must be non-empty, have no spaces at either end and, normalised, must not match any other row's SKU in either sheet (except the single unmatched Dr Trust row a master-only product links to); otherwise the save is blocked. During a write and its retries the linked pair is held in memory by row refs and is never re-matched by SKU.
 - Rule: changing a linked product requires Editor access to both spreadsheets; if one is inaccessible, block the change and name that sheet. A sheet the user can only view is caught by the format step, before any value is written.
 - Forbidden: writing a linked product to only one sheet; pairing by `id`, row number, or product name; overwriting a differing Dr Trust quantity without showing it in the review step; writing a SKU change to only one sheet; separate write code paths per sheet (one `SheetsWriter`, parameterised by sheet definition).
 

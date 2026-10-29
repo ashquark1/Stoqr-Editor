@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { Auth, SessionEndedError } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
-import { SheetDefinition } from '@core/config/app-environment';
+import { SheetDefinition, SheetKey } from '@core/config/app-environment';
 import { LoadedProduct, Product } from '@core/models/product';
 import { ApprovedChange, InvalidChangeError, RowChange } from './approval';
 import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, retryDelay } from './backoff';
@@ -12,6 +12,7 @@ import { CellValue } from './data-mapping';
 import { RowRef, rowRefId } from './row-ref';
 import { SheetLoadError } from './sheet-load-error';
 import { SHEETS_API, SheetsReader } from './sheets-reader';
+import { freshSkuHolder } from './sku-check';
 import { CellWrite, WritePlan, planRowWrite } from './write-plan';
 
 export type WriteFailureKind =
@@ -24,7 +25,8 @@ export type WriteFailureKind =
   | 'not-found'
   | 'expired'
   | 'unavailable'
-  | 'unconfirmed';
+  | 'unconfirmed'
+  | 'sku-taken';
 
 /** A write that did not happen (or could not be confirmed), naming the sheet; safe to show staff. */
 export class SheetWriteError extends Error {
@@ -107,6 +109,8 @@ type Ready = Extract<WritePlan, { kind: 'ready' }>;
 interface Planned {
   readonly plan: Ready;
   readonly tabId: number;
+  /** The tab as re-read for this plan (for the SKU re-check). */
+  readonly values: CellValue[][] | undefined;
 }
 /** Per sheet, across its format and value requests: one renewal, `RETRY_DELAYS_MS.length` busy resends. */
 interface Budget {
@@ -114,6 +118,9 @@ interface Budget {
   readonly busyRetries: number;
 }
 const FULL_BUDGET: Budget = { mayRenew: true, busyRetries: 0 };
+
+/** A new SKU is checked against both sheets, whichever rows the approval covers. */
+const SKU_SHEETS: readonly SheetKey[] = ['master', 'dr-trust'];
 
 type Failure = { readonly ok: false; readonly result: WriteResult };
 type Checked = { readonly ok: true; readonly planned: Planned } | Failure;
@@ -174,6 +181,16 @@ export class SheetsWriter {
       planned.push(check.planned);
     }
 
+    // 1b. A new SKU must be on no other row of EITHER sheet, re-checked on fresh data (US-38).
+    const sku = approved.newSku();
+    if (sku !== undefined) {
+      const freshValues = new Map(targets.map((t, i) => [t.sheet.key, planned[i].values]));
+      const taken = await this.skuTaken(sku, approved, freshValues);
+      if (taken !== null) {
+        return taken;
+      }
+    }
+
     // 2. Format every sheet's Last Updated cell before writing any value.
     const budgets: Budget[] = [];
     for (const [i, target] of targets.entries()) {
@@ -206,6 +223,36 @@ export class SheetsWriter {
     return { kind: 'written', sheets: written };
   }
 
+  /**
+   * The new SKU against BOTH sheets as they are now (US-38): a sheet already
+   * re-read for this write is reused; the other is read. Any row outside the
+   * user's original approval holding it fails the write with nothing written.
+   */
+  private async skuTaken(
+    sku: string,
+    approved: ApprovedChange,
+    freshValues: ReadonlyMap<SheetKey, CellValue[][] | undefined>,
+  ): Promise<WriteResult | null> {
+    for (const key of SKU_SHEETS) {
+      const sheet = this.config.sheet(key);
+      let holder: string | null;
+      try {
+        const values = freshValues.has(key) ? freshValues.get(key) : await this.reader.read(sheet);
+        holder = freshSkuHolder(sheet, values, sku, approved.owners);
+      } catch (error) {
+        return { kind: 'failed', error: fromLoadError(sheet, error) };
+      }
+      if (holder !== null) {
+        return failed(
+          sheet.label,
+          'sku-taken',
+          `SKU ${sku} is now used in ${sheet.label} (${holder}). Nothing was saved.`,
+        );
+      }
+    }
+    return null;
+  }
+
   /** Re-read one sheet (values and tab number) and plan its write against the fresh data. */
   private async check(target: Target): Promise<Checked> {
     const { sheet, row, id } = target;
@@ -230,7 +277,7 @@ export class SheetsWriter {
     }
     switch (plan.kind) {
       case 'ready':
-        return { ok: true, planned: { plan, tabId } };
+        return { ok: true, planned: { plan, tabId, values } };
       case 'conflict':
         return {
           ok: false,

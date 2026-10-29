@@ -6,6 +6,8 @@ import { ProductSearchStore } from '@core/search/product-search-store';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { Editability } from '@core/sheets/editability';
 import { MASTER_SHEET, sheetRow, sheetValues } from '@core/sheets/testing/sheet-fixtures';
+import { SheetsStore } from '@core/sheets/sheets-store';
+import { DR_TRUST_SHEET } from '@core/sheets/testing/sheet-fixtures';
 import { DetailsStore } from './details-store';
 
 describe('DetailsStore (US-21, US-22)', () => {
@@ -14,9 +16,11 @@ describe('DetailsStore (US-21, US-22)', () => {
     sheetValues(
       sheetRow({ id: 'a', 'product name': 'BP Monitor', mrp: 2999, 'tax rate': 0.18, size: '' }),
       // A row with blanks the owner now requires.
-      sheetRow({ id: 'b', category: '', packing: '', 'low stock threshold': '', mrp: '' }),
+      sheetRow({ id: 'b', sku: 'LEGACY-SKU', category: '', packing: '', 'low stock threshold': '', mrp: '' }),
     ),
   );
+  // An unmatched Dr Trust row (its SKU is in no master row).
+  const [orphan] = mapSheet(DR_TRUST_SHEET, sheetValues(sheetRow({ id: 'o1', sku: 'orphan-1', 'product name': 'Orphan' })));
   let selected: WritableSignal<LoadedProduct | null>;
   let editable: WritableSignal<boolean>;
   let store: DetailsStore;
@@ -28,7 +32,11 @@ describe('DetailsStore (US-21, US-22)', () => {
       selected() === null ? null : { editable: editable(), reasons: editable() ? [] : ['Not editable'] },
     );
     TestBed.configureTestingModule({
-      providers: [{ provide: ProductSearchStore, useValue: { selected, selectedEditability } }],
+      providers: [
+        { provide: ProductSearchStore, useValue: { selected, selectedLink: signal(null), selectedEditability } },
+        // The other rows a new SKU is checked against (US-38).
+        { provide: SheetsStore, useValue: { master: signal([monitor, legacy]), drTrust: signal([orphan]) } },
+      ],
     });
     store = TestBed.inject(DetailsStore);
   });
@@ -82,12 +90,28 @@ describe('DetailsStore (US-21, US-22)', () => {
     expect(store.changedFields()).toEqual(['notes']);
   });
 
-  it('rule: a SKU change blocks Review until US-38', () => {
-    store.setTexts({ sku: 'NEW-1', notes: 'x' });
-    expect(store.skuChanged()).toBe(true);
-    expect(store.canReview()).toBe(false);
-    store.setTexts({ sku: monitor.product.sku });
-    expect(store.canReview()).toBe(true);
+  describe('SKU change (US-38)', () => {
+    it('rule: a SKU used by another row is an inline error that blocks Review', () => {
+      store.setTexts({ sku: ' LEGACY-SKU' });
+      expect(store.errors().sku).toBe("SKU can't start or end with a space.");
+      store.setTexts({ sku: 'LEGACY-SKU' });
+      expect(store.errors().sku).toBe('SKU LEGACY-SKU is already used in Master (BP Monitor).');
+      expect(store.canReview()).toBe(false);
+    });
+
+    it('a new unused SKU may be reviewed; a case-only change of its own SKU too', () => {
+      store.setTexts({ sku: 'NEW-1' });
+      expect(store.errors().sku).toBeUndefined();
+      expect(store.canReview()).toBe(true);
+      store.setTexts({ sku: monitor.product.sku.toLowerCase() });
+      expect(store.errors().sku).toBeUndefined();
+    });
+
+    it("taking an unmatched Dr Trust row's SKU links to it (owner choice)", () => {
+      store.setTexts({ sku: 'ORPHAN-1' });
+      expect(store.errors().sku).toBeUndefined();
+      expect(store.linkTo()?.ref).toBe(orphan.ref);
+    });
   });
 
   it('typing a field back to its original is no change', () => {

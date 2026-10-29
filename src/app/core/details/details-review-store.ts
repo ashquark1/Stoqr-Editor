@@ -13,6 +13,8 @@ export interface DetailsReview {
   /** "Master and Dr Trust" or "Master". */
   readonly sheetsText: string;
   readonly drTrustLabel: string;
+  /** Set when a new SKU links this master-only product to an unmatched Dr Trust row (US-38). */
+  readonly linkNote: string | null;
   readonly lines: readonly DiffLine[];
   /** Stock Status changes the save brings (derived per sheet), labelled by sheet. */
   readonly statuses: readonly (StatusLine & { readonly sheetLabel: string })[];
@@ -67,13 +69,19 @@ export class DetailsReviewStore {
     if (selected === null || changed.size === 0) {
       return null;
     }
-    const link = this.search.selectedLink();
+    const linkTo = this.details.linkTo();
+    const link = this.search.selectedLink() ?? linkTo;
     const masterLabel = this.config.sheet('master').label;
     const drTrustLabel = this.config.sheet('dr-trust').label;
     const drTrust = link?.product ?? null;
     return {
       sheetsText: link ? `${masterLabel} and ${drTrustLabel}` : masterLabel,
       drTrustLabel,
+      linkNote:
+        linkTo === null
+          ? null
+          : `This links it to the ${drTrustLabel} row "${linkTo.product.productName}" (qty ${linkTo.product.stockQty ?? 'blank'}). ` +
+            'Later changes save to both sheets.',
       lines: diffLines(changed, selected.product, drTrust),
       statuses: statusLines(changed, selected.product, drTrust).map((s) => ({
         ...s,
@@ -93,7 +101,7 @@ export class DetailsReviewStore {
     });
   }
 
-  /** Opens the review when the form is changed, valid and has no SKU change. */
+  /** Opens the review when the form is changed and valid. */
   open(): void {
     if (this.details.canReview()) {
       this.flow.open();
@@ -123,7 +131,9 @@ export class DetailsReviewStore {
       this.flow.reset();
       return;
     }
-    const rows = detailRowChanges(this.details.changes(), selected, this.search.selectedLink());
+    // A new SKU may link a master-only product to an unmatched Dr Trust row: both are written (US-38).
+    const link = this.search.selectedLink() ?? this.details.linkTo();
+    const rows = detailRowChanges(this.details.changes(), selected, link);
     await this.flow.save(() => approve(...rows), { productName: selected.product.productName });
   }
 

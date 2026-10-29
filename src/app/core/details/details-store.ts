@@ -1,7 +1,10 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 
-import { Product } from '@core/models/product';
+import { AppConfig } from '@core/config/app-config';
+import { LoadedProduct, Product } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
+import { SheetsStore } from '@core/sheets/sheets-store';
+import { SkuCheck, checkNewSku } from '@core/sheets/sku-check';
 import { DetailValue, changedValues, parseDetail } from './details-diff';
 import { DetailField, EDITABLE_DETAILS, byDetailField } from './details-fields';
 import { validateDetail } from './details-validation';
@@ -30,6 +33,8 @@ function textsOf(product: Product | null): DetailTexts {
 @Injectable({ providedIn: 'root' })
 export class DetailsStore {
   private readonly search = inject(ProductSearchStore);
+  private readonly sheets = inject(SheetsStore);
+  private readonly config = inject(AppConfig);
 
   /** The values the form starts from: the selected product as loaded (or as last confirmed). */
   readonly original = computed<DetailTexts>(() => textsOf(this.search.selected()?.product ?? null));
@@ -49,7 +54,32 @@ export class DetailsStore {
   readonly editable = computed(() => this.search.selectedEditability()?.editable === true);
   readonly reasons = computed(() => this.search.selectedEditability()?.reasons ?? []);
 
-  /** The message per invalid field; fields that may be saved are absent. */
+  /**
+   * A changed SKU checked against every other row of both sheets (US-38);
+   * null while the SKU is unchanged.
+   */
+  readonly skuCheck = computed<SkuCheck | null>(() => {
+    const selected = this.search.selected();
+    const typed = this.texts().sku;
+    if (selected === null || typed === this.original().sku) {
+      return null;
+    }
+    return checkNewSku(
+      typed,
+      { master: selected, drTrust: this.search.selectedLink() },
+      this.sheets.master(),
+      this.sheets.drTrust(),
+      { master: this.config.sheet('master').label, drTrust: this.config.sheet('dr-trust').label },
+    );
+  });
+
+  /** The unmatched Dr Trust row the new SKU links this master-only product to, or null. */
+  readonly linkTo = computed<LoadedProduct | null>(() => {
+    const check = this.skuCheck();
+    return check?.ok === true ? check.linkTo : null;
+  });
+
+  /** The message per invalid field (the SKU check included); fields that may be saved are absent. */
   readonly errors = computed<Readonly<Partial<Record<DetailField, string>>>>(() => {
     const texts = this.texts();
     const errors: Partial<Record<DetailField, string>> = {};
@@ -58,6 +88,10 @@ export class DetailsStore {
       if (message !== null) {
         errors[def.key] = message;
       }
+    }
+    const sku = this.skuCheck();
+    if (errors.sku === undefined && sku !== null && !sku.ok) {
+      errors.sku = sku.message;
     }
     return errors;
   });
@@ -89,11 +123,8 @@ export class DetailsStore {
 
   readonly hasChanges = computed(() => this.editable() && this.changedFields().length > 0);
 
-  /** A SKU change waits for its uniqueness check (US-38), so it cannot be reviewed yet. */
-  readonly skuChanged = computed(() => this.changes().has('sku'));
-
-  /** Editable, changed, valid and no SKU change: Review changes may open. */
-  readonly canReview = computed(() => this.hasChanges() && this.valid() && !this.skuChanged());
+  /** Editable, changed and valid (a new SKU included): Review changes may open. */
+  readonly canReview = computed(() => this.hasChanges() && this.valid());
 
   /** True while "Discard changes?" waits for an answer. */
   readonly leavePending = computed(() => this.pendingLeaveSignal() !== null);

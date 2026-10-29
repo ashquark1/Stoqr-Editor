@@ -341,6 +341,74 @@ describe('SheetsWriter', () => {
       expect((await pending).kind).toBe('written');
     });
 
+    describe('SKU change (US-38)', () => {
+      const skuChange = () =>
+        approve(
+          { target: masterRow.ref, reviewed: { sku: 'DT-BP-01' }, changes: { sku: 'NEW-1' } },
+          { target: drTrustRow.ref, reviewed: { sku: 'DT-BP-01' }, changes: { sku: 'NEW-1' } },
+        );
+
+      it('rule: writes the new SKU to both sheets in the same action', async () => {
+        const pending = writer.write(skuChange());
+        await formatBoth();
+        const master = await post(MASTER_URL);
+        expect((master.request.body as SentBody).data[0]).toMatchObject({ range: "'Sheet1'!F2", values: [['NEW-1']] });
+        echo(master);
+        const drTrust = await post(DR_TRUST_URL);
+        expect((drTrust.request.body as SentBody).data[0]).toMatchObject({ range: "'Sheet1'!F2", values: [['NEW-1']] });
+        echo(drTrust);
+        expect((await pending).kind).toBe('written');
+      });
+
+      it('rule: a SKU another row took since the review is refused on fresh data; nothing is sent', async () => {
+        read.mockImplementation((sheet) =>
+          Promise.resolve(
+            sheet.key === 'master'
+              ? masterValues()
+              : sheetValues(sheetRow({ id: 'dt-9', 'stock qty': 3 }), sheetRow({ id: 'dt-10', sku: 'new-1', 'product name': 'Gauze' })),
+          ),
+        );
+        const result = await writer.write(skuChange());
+        expectFailed(result, 'sku-taken', 'Dr Trust');
+        if (result.kind === 'failed') {
+          expect(result.error.message).toBe('SKU NEW-1 is now used in Dr Trust (Gauze). Nothing was saved.');
+        }
+        expectNothingSent();
+      });
+
+      it('rule: a master-only SKU change still checks the Dr Trust sheet (read fresh)', async () => {
+        read.mockImplementation((sheet) =>
+          Promise.resolve(sheet.key === 'master' ? masterValues() : sheetValues(sheetRow({ id: 'dt-10', sku: 'NEW-1' }))),
+        );
+        const result = await writer.write(
+          approve({ target: masterRow.ref, reviewed: { sku: 'DT-BP-01' }, changes: { sku: 'NEW-1' } }),
+        );
+        expect(read).toHaveBeenCalledWith(DR_TRUST_SHEET);
+        expectFailed(result, 'sku-taken', 'Dr Trust');
+        expectNothingSent();
+      });
+
+      it('Retry after Master took the new SKU: Master counts as its own row, Dr Trust is finished', async () => {
+        const pending = writer.write(skuChange());
+        await formatBoth();
+        echo(await post(MASTER_URL));
+        (await post(DR_TRUST_URL)).flush(null, { status: 503, statusText: 'Unavailable' });
+        const partial = await pending;
+        if (partial.kind !== 'partial') {
+          throw new Error(`expected partial, got ${partial.kind}`);
+        }
+        // Master now holds NEW-1 on the original approval's own row.
+        read.mockImplementation((sheet) =>
+          Promise.resolve(sheet.key === 'master' ? sheetValues(sheetRow({ id: 'row-1', sku: 'NEW-1' })) : drTrustValues()),
+        );
+        const retry = writer.write(partial.remaining);
+        await formatted(DR_TRUST_FORMAT_URL);
+        echo(await post(DR_TRUST_URL));
+        expect((await retry).kind).toBe('written');
+        http.expectNone(MASTER_URL);
+      });
+    });
+
     it('re-reads both sheets before writing either', async () => {
       const pending = writer.write(linked());
       await formatted(MASTER_FORMAT_URL);

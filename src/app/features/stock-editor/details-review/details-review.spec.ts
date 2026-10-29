@@ -12,6 +12,7 @@ describe('DetailsReview (US-23)', () => {
   const review = signal<Review | null>({
     sheetsText: 'Master and Dr Trust',
     drTrustLabel: 'Dr Trust',
+    linkNote: null,
     lines: [
       { field: 'brand', label: 'Brand', from: 'Dr Trust', to: 'Dr. Trust', drTrustFrom: 'DrTrust' },
       { field: 'mrp', label: 'MRP', from: 2999, to: null },

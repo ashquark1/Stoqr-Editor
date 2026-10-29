@@ -3,6 +3,9 @@
 
   @if (review.review(); as summary) {
     <p class="dreview__sheets">Saves to: <strong>{{ summary.sheetsText }}</strong></p>
+    @if (summary.linkNote; as note) {
+      <p class="dreview__note">{{ note }}</p>
+    }
     <ul class="dreview__lines" aria-label="Changed fields">
       @for (line of summary.lines; track line.field) {
         <li class="dreview__line">

@@ -75,11 +75,6 @@
       @if (details.editable()) {
         @if (details.hasChanges() && !details.valid()) {
           <p class="details__hint" role="status">Fix the highlighted fields to continue.</p>
-        } @else if (details.skuChanged()) {
-          <!-- SKU changes need the uniqueness check across both sheets (US-38). -->
-          <p class="details__hint" role="status">
-            Changing the SKU isn't available yet. Put the SKU back to save your other changes.
-          </p>
         }
         <div class="details__actions">
           <button
