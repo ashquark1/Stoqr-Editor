@@ -1,7 +1,8 @@
 @if (search.selected(); as row) {
-  <article class="summary" aria-live="polite">
+  <!-- Not a live region (US-26): it would re-read the whole card while typing; messages announce themselves. -->
+  <article class="summary" aria-labelledby="summary-title">
     <header class="summary__header">
-      <h2 class="summary__title">{{ display(row.product.productName) }}</h2>
+      <h2 id="summary-title" class="summary__title">{{ display(row.product.productName) }}</h2>
       <button
         type="button"
         class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm"

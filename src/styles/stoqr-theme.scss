@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 // ============================================================
 // STOQR — Design Tokens & SCSS
 // ============================================================
@@ -49,6 +51,11 @@
   --color-error-border:  #E8A9A4;
   --color-unknown:       #7B9E8D;
   --color-unknown-bg:    #F0F4F2;
+
+  // V2 text colours (US-26): AA (≥ 4.5:1) for small text on white, paper and dew.
+  // Mist and Ink Light stay for borders, icons and large text.
+  --color-text-muted:    #56685F;
+  --color-text-error:    #C0392B;
 
   // --- Typography ---
   --font-serif:    'Lora', Georgia, 'Times New Roman', serif;
@@ -112,6 +119,9 @@
     --color-dew:       #132B1E;
     --color-pine:      #2ECC79;
     --color-sage:      #2ECC79;
+    // V2 text colours (US-26): AA on the dark surfaces.
+    --color-text-muted: #7B9E8D;
+    --color-text-error: #F0857A;
   }
 }
 
@@ -261,7 +271,7 @@ a {
 
   &__icon {
     flex-shrink: 0;
-    color: var(--color-mist);
+    color: var(--color-text-muted);
     width: 18px;
     height: 18px;
   }
@@ -271,19 +281,24 @@ a {
     border: none;
     outline: none;
     font-family: var(--font-sans);
-    font-size: 15px;
+    // US-26: 16px on phones so iOS does not zoom on focus.
+    font-size: 16px;
     color: var(--color-ink);
     background: transparent;
 
+    @include bp.from(tablet) {
+      font-size: 15px;
+    }
+
     &::placeholder {
-      color: var(--color-mist);
+      color: var(--color-text-muted);
     }
   }
 
   &__hint {
     font-family: var(--font-mono);
     font-size: var(--text-label);
-    color: var(--color-mist);
+    color: var(--color-text-muted);
     white-space: nowrap;
   }
 
@@ -373,7 +388,7 @@ a {
   &--discontinued {
     background: transparent;
     border-color: var(--color-error-border);
-    color: var(--color-error);
+    color: var(--color-text-error);
   }
 }
 
@@ -397,6 +412,17 @@ a {
   border: none;
   transition: opacity var(--transition-fast), background var(--transition-fast);
   white-space: nowrap;
+  // US-26: 44px touch targets on phones; smaller (still ≥ 24px) from desktop.
+  min-height: 44px;
+
+  @include bp.from(desktop) {
+    min-height: 36px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
 
   &:disabled {
     opacity: 0.45;
@@ -426,7 +452,7 @@ a {
 
   &--danger {
     background: transparent;
-    color: var(--color-error);
+    color: var(--color-text-error);
     border: 0.5px solid var(--color-error-border);
     &:hover:not(:disabled) { background: var(--color-error-bg); }
   }
@@ -436,6 +462,10 @@ a {
     padding: 5px 10px;
     font-size: var(--text-label);
     border-radius: var(--radius-sm);
+
+    @include bp.from(desktop) {
+      min-height: 32px;
+    }
   }
 }
 
@@ -468,7 +498,7 @@ a {
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
     border-bottom: var(--border-thin);
     white-space: nowrap;
   }
@@ -493,7 +523,7 @@ a {
     &.td-mono {
       font-family: var(--font-mono);
       font-size: var(--text-mono);
-      color: var(--color-ink-light);
+      color: var(--color-text-muted);
     }
 
     &.td-number {
@@ -502,7 +532,7 @@ a {
 
     &.td-timestamp {
       font-size: var(--text-small);
-      color: var(--color-ink-light);
+      color: var(--color-text-muted);
       white-space: nowrap;
     }
   }
@@ -562,7 +592,7 @@ a {
 
   &__meta {
     font-size: var(--text-label);
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
     margin-top: 2px;
   }
 
@@ -575,7 +605,7 @@ a {
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
     padding: var(--space-1);
     border-radius: var(--radius-sm);
     &:hover { color: var(--color-ink); background: var(--color-dew); }
@@ -590,7 +620,7 @@ a {
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--color-mist);
+    color: var(--color-text-muted);
     margin-bottom: var(--space-2);
     padding-bottom: var(--space-1);
     border-bottom: 0.5px solid var(--color-dew);
@@ -606,7 +636,7 @@ a {
 .stoqr-field {
   &__label {
     font-size: var(--text-label);
-    color: var(--color-mist);
+    color: var(--color-text-muted);
     font-weight: 500;
     margin-bottom: 2px;
   }
@@ -623,7 +653,7 @@ a {
   &__error {
     margin: var(--space-1) 0 0;
     font-size: var(--text-small);
-    color: var(--color-error);
+    color: var(--color-text-error);
   }
 }
 
@@ -632,13 +662,18 @@ a {
   width: 100%;
   padding: var(--space-2) var(--space-3);
   font-family: var(--font-sans);
-  font-size: var(--text-body);
+  // US-26: 16px on phones so iOS does not zoom on focus.
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
   color: var(--color-ink);
   background: var(--color-white);
   border: var(--border-input);
   border-radius: var(--radius-control);
   transition: border-color var(--transition-fast);
+
+  @include bp.from(tablet) {
+    font-size: var(--text-body);
+  }
 
   &:focus {
     outline: 2px solid var(--color-pine);
@@ -727,7 +762,7 @@ a {
     font-weight: 600;
     background: var(--color-white);
     border: 0.5px solid var(--color-error-border);
-    color: var(--color-error);
+    color: var(--color-text-error);
     cursor: pointer;
     transition: opacity var(--transition-fast);
     &:hover { opacity: 0.8; }
@@ -788,7 +823,7 @@ a {
 
   &__size-label {
     font-size: var(--text-label);
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
     margin-left: var(--space-3);
   }
 
@@ -809,7 +844,7 @@ a {
 
   &__count {
     font-size: var(--text-label);
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
     margin-left: var(--space-2);
   }
 }
@@ -853,7 +888,7 @@ a {
 
   &__label {
     font-size: var(--text-small);
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
   }
 }
 
@@ -935,6 +970,23 @@ a {
 
   &__count {
     font-size: var(--text-small);
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
+  }
+}
+
+
+// ============================================================
+// US-26: Reduced motion — no transitions; the spinner turns slowly.
+// ============================================================
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+
+  .stoqr-spinner {
+    animation-duration: 3s;
   }
 }

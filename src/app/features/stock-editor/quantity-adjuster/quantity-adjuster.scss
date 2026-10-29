@@ -12,7 +12,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-ink-light);
+  color: var(--color-text-muted);
 }
 
 .adjuster__modes {
@@ -42,7 +42,7 @@
 }
 
 .adjuster__hint {
-  color: var(--color-ink-light);
+  color: var(--color-text-muted);
 }
 
 .adjuster__line {
@@ -62,5 +62,5 @@
 // Crimson text, not amber: amber text on white is below WCAG AA at this size.
 .adjuster__warning,
 .adjuster__error {
-  color: var(--color-error);
+  color: var(--color-text-error);
 }

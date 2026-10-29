@@ -12,7 +12,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-ink-light);
+  color: var(--color-text-muted);
 }
 
 .review__sheets,
@@ -52,5 +52,5 @@
 // Crimson, not amber: amber text on white is below WCAG AA at this size.
 .review__warning,
 .review__message {
-  color: var(--color-error);
+  color: var(--color-text-error);
 }

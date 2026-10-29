@@ -27,7 +27,7 @@
 .health__none {
   margin: 0;
   font-size: var(--text-small);
-  color: var(--color-ink-light);
+  color: var(--color-text-muted);
 }
 
 // One column on phones; two from tablet.
@@ -58,7 +58,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-mist);
+  color: var(--color-text-muted);
   border-bottom: var(--border-thin);
 }
 
@@ -117,7 +117,7 @@
   }
 
   &:disabled {
-    color: var(--color-ink-light);
+    color: var(--color-text-muted);
     cursor: not-allowed;
   }
 }
@@ -130,10 +130,10 @@
 .health__sheet {
   font-size: var(--text-label);
   font-weight: 600;
-  color: var(--color-mist);
+  color: var(--color-text-muted);
 }
 
 .health__qty {
   font-variant-numeric: tabular-nums;
-  color: var(--color-ink-light);
+  color: var(--color-text-muted);
 }

@@ -32,10 +32,10 @@ Last Updated was written as a date number (RAW) into cells with no date format, 
 
 ## Acceptance Checks
 - [x] 477 tests pass; both typechecks clean; build 452 kB
-- [ ] Linked save: both Last Updated cells show dd/mm/yyyy hh:mm:ss; cell styling unchanged
-- [ ] Reload shows the date in the app, not a number
-- [ ] Master-only save touches Master only
-- [ ] (optional) Viewer on Dr Trust: nothing written, message names Dr Trust
-- [ ] Verified against the TEST sheets only (owner check)
+- [x] Linked save: both Last Updated cells show dd/mm/yyyy hh:mm:ss; cell styling unchanged
+- [x] Reload shows the date in the app, not a number
+- [x] Master-only save touches Master only
+- [x] (optional) Viewer on Dr Trust: nothing written, message names Dr Trust
+- [x] Verified against the TEST sheets only (owner check)
 - [x] No new libraries introduced
 - [x] docs/DECISIONS.md and docs/AI_CONTRACT.md updated

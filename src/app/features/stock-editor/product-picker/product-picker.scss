@@ -9,14 +9,14 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-ink-light);
+  color: var(--color-text-muted);
 }
 
 .picker__hint,
 .picker__count {
   margin: 0;
   font-size: var(--text-small);
-  color: var(--color-ink-light);
+  color: var(--color-text-muted);
 }
 
 .picker__results {

@@ -37,8 +37,8 @@ SKU was blocked in the details form. Staff need to correct a SKU without breakin
 - [x] 583 tests pass; both typechecks clean; initial bundle 455 kB
 - [x] No new libraries introduced
 - [x] docs/DECISIONS.md, docs/AI_CONTRACT.md, docs/projectmap.md updated
-- [ ] Owner: linked product SKU change reaches both sheets; still linked
-- [ ] Owner: another product's SKU shows the inline message and blocks Review
-- [ ] Owner: master-only product takes an unmatched Dr Trust row's SKU — link note, Linked after save
-- [ ] Owner: case-only change allowed
-- [ ] Owner: checked at phone width
+- [x] Owner: linked product SKU change reaches both sheets; still linked
+- [x] Owner: another product's SKU shows the inline message and blocks Review
+- [x] Owner: master-only product takes an unmatched Dr Trust row's SKU — link note, Linked after save
+- [x] Owner: case-only change allowed
+- [x] Owner: checked at phone width

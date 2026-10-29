@@ -99,6 +99,15 @@ All colors WCAG AA compliant on their intended pairings. Tokens defined in
 | `--color-unknown` | Mist | `#7B9E8D` | Unknown badge text |
 | `--color-unknown-bg` | Fog Light | `#F0F4F2` | Unknown badge background |
 
+### Text (V2, US-26)
+AA (≥ 4.5:1) for small text on white, paper and dew, in both modes. Use these for
+labels, hints and error text; keep Mist / Ink Light for borders, icons and large text.
+
+| Token | Light | Dark | Usage |
+|---|---|---|---|
+| `--color-text-muted` | `#56685F` | `#7B9E8D` | Field labels, section headings, hints, meta |
+| `--color-text-error` | `#C0392B` | `#F0857A` | Error messages, required marks, danger text |
+
 ---
 
 ## 3. Typography
@@ -135,7 +144,11 @@ in Fog do most separation work; elevation (search hero, modal) via
 cards/modals `--radius-2xl` (12px) + `--border-thin`; buttons `--radius-md` (6px);
 badges `--radius-pill`; table wrapper `--radius-lg` (8px).
 
-**Focus:** `outline: 2px solid var(--color-pine); outline-offset: 2px`. Never remove.
+**Focus:** `outline: 2px solid var(--color-pine); outline-offset: 2px`. Never remove. Buttons set it explicitly on `:focus-visible` (V2).
+
+**Touch & text size (V2, US-26):** buttons are at least 44px tall on phones (36px from desktop, 32px for `--sm`); inputs use 16px text on phones (no iOS zoom), body size from tablet.
+
+**Reduced motion (V2):** with `prefers-reduced-motion`, transitions are off and the spinner turns slowly.
 
 **Motion:** `--transition-fast` (150ms ease) for color/border; spinner 750ms linear.
 

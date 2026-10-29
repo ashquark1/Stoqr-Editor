@@ -36,7 +36,7 @@ The owner cannot see where the master and Dr Trust sheets disagree: repeated SKU
 - [x] Tests not run (owner decision 2026-10-29)
 - [x] No new libraries introduced
 - [x] docs/DECISIONS.md, docs/AI_CONTRACT.md, docs/projectmap.md updated
-- [ ] Owner: `brand: 'Dr Trust'` added to both environment files
-- [ ] Owner: counts match the TEST sheets
-- [ ] Owner: picking a product opens it in the editor
-- [ ] Owner: checked at phone width
+- [x] Owner: `brand: 'Dr Trust'` added to both environment files
+- [x] Owner: counts match the TEST sheets
+- [x] Owner: picking a product opens it in the editor
+- [x] Owner: checked at phone width

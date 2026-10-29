@@ -20,12 +20,12 @@
 .sync-badge--out-of-sync {
   background: var(--color-warning-bg);
   border-color: var(--color-warning);
-  color: var(--color-error);
+  color: var(--color-text-error);
 }
 
 // Filled, so it never looks like the outlined Discontinued status pill.
 .sync-badge--blocked {
   background: var(--color-error-bg);
   border-color: var(--color-error-border);
-  color: var(--color-error);
+  color: var(--color-text-error);
 }

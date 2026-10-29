@@ -41,11 +41,11 @@ Staff can adjust stock but cannot see or correct a product's other fields.
 - [x] 534 tests pass; both typechecks clean; initial bundle 455 kB, details form lazy 7 kB
 - [x] No new libraries introduced
 - [x] docs/DECISIONS.md, docs/AI_CONTRACT.md, docs/projectmap.md updated
-- [ ] Owner: groups and locked fields match V1; no `id`
-- [ ] Owner: invalid MRP / blank SKU / decimal threshold show messages and block Review changes
-- [ ] Owner: existing required blanks are flagged on open
-- [ ] Owner: Change product and Adjust stock ask "Discard changes?" with edits; Keep editing / Discard behave
-- [ ] Owner: Cancel restores every field
-- [ ] Owner: blocked product shows a read-only Details view with the reason
-- [ ] Owner: the switch is disabled during a stock review
-- [ ] Owner: checked at phone width
+- [x] Owner: groups and locked fields match V1; no `id`
+- [x] Owner: invalid MRP / blank SKU / decimal threshold show messages and block Review changes
+- [x] Owner: existing required blanks are flagged on open
+- [x] Owner: Change product and Adjust stock ask "Discard changes?" with edits; Keep editing / Discard behave
+- [x] Owner: Cancel restores every field
+- [x] Owner: blocked product shows a read-only Details view with the reason
+- [x] Owner: the switch is disabled during a stock review
+- [x] Owner: checked at phone width

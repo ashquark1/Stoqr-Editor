@@ -41,9 +41,9 @@ The details form validates edits but cannot save them. Staff need to see exactly
 - [x] 566 tests pass; both typechecks clean; initial bundle 455 kB, details chunk 12 kB
 - [x] No new libraries introduced
 - [x] docs/DECISIONS.md, docs/AI_CONTRACT.md, docs/projectmap.md updated
-- [ ] Owner: linked product, Brand + Tax Rate — review lists only those; both sheets updated; toast; product stays open
-- [ ] Owner: threshold change shows and writes each sheet's own Stock Status
-- [ ] Owner: a numeric packing/SKU cell stays a number after saving another field
-- [ ] Owner: a hand edit to the same field before Approve gives a conflict, nothing saved
-- [ ] Owner: a changed SKU disables Review with the message
-- [ ] Owner: checked at phone width
+- [x] Owner: linked product, Brand + Tax Rate — review lists only those; both sheets updated; toast; product stays open
+- [x] Owner: threshold change shows and writes each sheet's own Stock Status
+- [x] Owner: a numeric packing/SKU cell stays a number after saving another field
+- [x] Owner: a hand edit to the same field before Approve gives a conflict, nothing saved
+- [x] Owner: a changed SKU disables Review with the message
+- [x] Owner: checked at phone width

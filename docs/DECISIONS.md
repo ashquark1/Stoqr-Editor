@@ -341,6 +341,14 @@
 - Decision: four lists from the pairing only — repeated SKUs, unmatched Dr Trust rows, master-only products of the Dr Trust brand, linked products whose quantities differ (the sync badge's rule). One pure function, `dataHealth` (`core/sheets/data-health.ts`), via `DataHealthStore`. Display only: nothing is blocked or written.
 - Decision: a "Data health (N)" button above the picker opens a lazy panel (8 kB). Master rows can be picked (through "Discard changes?"; disabled while saving); Dr Trust rows are text. Loader-flagged rows are not listed.
 
+## 2026-10-29: Accessibility and small screens (US-26) [confirmed]
+
+- Finding: small text in Mist (2.95:1) and Ink Light (4.37:1) failed WCAG AA in light mode; crimson error text failed in dark mode (2.80:1) — the theme's dark block follows the phone's setting. Buttons were ~29px (small ~21px) tall. The whole summary card was a live region.
+- Decision: two V2 text tokens, `--color-text-muted` (light `#56685F`, dark `#7B9E8D`) and `--color-text-error` (light `#C0392B`, dark `#F0857A`), used for all small and error text in the theme and components. The brand's own colour tokens are unchanged (Mist and Ink Light stay for borders, icons and large text). Badges already passed.
+- Decision: buttons min-height 44px on phones, 36px from desktop (`--sm` 32px, still above WCAG 2.2's 24px); explicit Pine `:focus-visible` ring. Inputs 16px on phones so iOS does not zoom on focus. The theme now uses the `from()` mixin (`@use 'breakpoints'`).
+- Decision: the summary card is labelled by its heading instead of being a live region; targeted messages announce themselves. `prefers-reduced-motion` turns off transitions and slows the spinner.
+- Trade-off: V2's look now differs slightly from V1 (darker small text, taller buttons on phones); V1's copy of the theme is untouched.
+
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
