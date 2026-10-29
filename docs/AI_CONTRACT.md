@@ -42,6 +42,7 @@
 - Rule: a retry of a partial write uses ONLY `remaining` from the partial result (`ApprovedChange.remaining()`), never a new `approve()`, and never rewrites a sheet that is already confirmed.
 - Rule: a write is retried automatically ONLY after 429 (Google saved nothing), and only after re-reading and re-checking the row. A 5xx or network failure on a write is never resent automatically and never reported as "not saved". At most 3 automatic retries per request.
 - Rule: values are sent `RAW`; the typed-input option may not appear in source (enforced). Stock Status and Last Updated are filled in only by the writer — callers never pass them.
+- Rule: the ONLY non-value change the app makes is the number format of the exact Last Updated cell it stamps (`LAST_UPDATED_FORMAT`, mask `userEnteredFormat.numberFormat`), one `repeatCell` per sheet, sent by `SheetsWriter` after every sheet is checked and before any value is written. No other formatting, and no other `spreadsheets:batchUpdate` request types.
 - Rule: the writer re-reads the tab, finds the row by `id`, re-checks every reviewed value, and reports `written` only when Google echoes every cell it was sent.
 - Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.
 - Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet or whole-row ranges — target exact cells only. Legacy rows whose Last Updated cell holds a formula get a static value only when that row is edited; no bulk conversion.
@@ -61,7 +62,7 @@
 - Rule: pairing is computed only by `pairSheets` (pure). A blank SKU never pairs and never counts as a duplicate; rows of a blocked SKU are never reported as orphans.
 - Rule: details edits write only the changed fields, to both sheets. Untouched fields that differ between the sheets are left alone.
 - Rule: SKU is editable, including for linked products. A SKU change is part of the same dual write (both sheets, same approved action). The new SKU must be non-empty and, normalised, must not match any other row's SKU in either sheet; otherwise the save is blocked. During a write and its retries the linked pair is held in memory by row refs and is never re-matched by SKU.
-- Rule: changing a linked product requires Editor access to both spreadsheets; if one is inaccessible, block the change and name that sheet.
+- Rule: changing a linked product requires Editor access to both spreadsheets; if one is inaccessible, block the change and name that sheet. A sheet the user can only view is caught by the format step, before any value is written.
 - Forbidden: writing a linked product to only one sheet; pairing by `id`, row number, or product name; overwriting a differing Dr Trust quantity without showing it in the review step; writing a SKU change to only one sheet; separate write code paths per sheet (one `SheetsWriter`, parameterised by sheet definition).
 
 ## Forbidden Shortcuts

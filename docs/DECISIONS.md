@@ -60,7 +60,7 @@
 - Finding: the sheet's Last Updated column is `=NOW()`, which recalculates continuously, so for those rows it shows the current time rather than when a product changed.
 - Decision: the app stamps a real, static timestamp on every approved quantity change and details edit, displayed as `dd/MM/yyyy HH:mm:ss` (e.g. `27/10/2026 14:26:03`). Existing rows are NOT bulk-converted or touched; a row's Last Updated cell is replaced with a static value only when that row is edited through the app. V1 keeps working (it only displays the text).
 - Consequence: until a row is edited, its Last Updated keeps behaving as before (a `=NOW()` row keeps showing the current time). This is the owner's choice; revisit if it causes confusion.
-- Decision [confirmed 2026-10-28 — sent RAW, see SheetsWriter; the `USER_ENTERED` part is superseded]: write the timestamp as a date-time serial number (days since 1899-12-30, from the user's local wall-clock time) with `USER_ENTERED`, so it is a real date in the sheet and the column's `dd/MM/yyyy HH:mm:ss` format applies. Writing the text `27/10/2026 …` instead would be misread under a US-locale spreadsheet or stored as plain text. Verify the column's number format at M1.
+- Decision [confirmed 2026-10-28 — sent RAW, see SheetsWriter; the `USER_ENTERED` part is superseded]: write the timestamp as a date-time serial number (days since 1899-12-30, from the user's local wall-clock time) with `USER_ENTERED`, so it is a real date in the sheet. Writing the text `27/10/2026 …` instead would be misread under a US-locale spreadsheet or stored as plain text. Superseded 2026-10-29: the column had NO date format (it showed `46324.53178`); the writer now sets the cell's format itself — see "Last Updated cell format".
 - Assumption: all staff work in the same time zone (IST).
 
 ## 2026-10-27: Stock Status is typed text, so the app derives and writes it [confirmed]
@@ -286,6 +286,15 @@
 - Decision (owner: "429 only, re-check first"): a write is retried automatically ONLY after 429, because Google saved nothing; before each resend the writer re-reads and re-checks that sheet, so a conflict found meanwhile stops it. A 5xx or network failure on a write may have saved, so it is never resent automatically: it fails as `unconfirmed` — "Google didn't confirm the save to <sheet>, so it may or may not have been saved. Try again re-checks the sheet first." Try again and Retry always re-read first, so a save is never applied twice.
 - Decision: messages once retries run out — load busy: "Google is busy right now (too many requests). Wait a minute, then Retry."; load unreachable: "Couldn't reach Google to load <sheet>. Check your connection, then Retry."; write busy: "Google is busy right now (too many requests). Nothing was saved to <sheet>. Wait a minute and try again." A 400 that is not a missing tab keeps "Couldn't load <sheet>…" (not a network problem).
 - Decision: no "retrying…" indicator; the loading overlay or "Saving…" stays up while waiting. Change product is disabled while a save runs, so a save's result is never lost (the gap noted in story C).
+
+## 2026-10-29: Last Updated cell format — the app sets it (US-19 fix) [confirmed]
+
+- Finding: `=NOW()` cells display as dates on their own; replacing them with a plain number left the "Automatic" format, so the sheet, V1 and V2 (after a reload) showed the raw date serial.
+- Decision (owner, option B): on every save the writer formats the exact stamped cell `dd/mm/yyyy hh:mm:ss` (number format only) before writing values. Rejected: writing text (not a real date; gviz drops minority-type cells, breaking V1); relying on hand-formatted columns (fragile).
+- Decision: order is check all → format all → write values, so a sheet the user can only view fails with nothing written. This closes the Viewer-only half-save gap (re-reads prove read access only).
+- Decision: the tab number is fetched fresh per save (`SheetsReader.tabId`), never cached. Each sheet gets one renewal and 3 busy resends in total across its format and value requests; a value resend after a re-check formats the cell again first (the row may have moved).
+- Cost: a linked save is 8 requests (was 4); still far below quota.
+- Consequence: cells written before this fix keep showing a number until their row is next saved (the owner may format the column by hand).
 
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

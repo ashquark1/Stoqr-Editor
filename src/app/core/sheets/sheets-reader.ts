@@ -24,9 +24,17 @@ export const READ_PARAMS = {
   dateTimeRenderOption: 'FORMATTED_STRING',
 } as const;
 
+/** Only the tab properties: a tab's internal number is needed to format a cell (US-19 fix). */
+export const TAB_FIELDS = 'sheets.properties(sheetId,title)';
+
 /** The part of a Sheets API `ValueRange` the app uses. `values` is absent for an empty tab. */
 interface ValueRange {
   readonly values?: CellValue[][];
+}
+
+/** The part of a Sheets API `Spreadsheet` that `TAB_FIELDS` asks for. */
+interface SpreadsheetTabs {
+  readonly sheets?: readonly { readonly properties?: { readonly sheetId?: number; readonly title?: string } }[];
 }
 
 /**
@@ -45,8 +53,28 @@ export class SheetsReader {
   private readonly wait = inject(RETRY_WAIT);
 
   async read(sheet: SheetDefinition): Promise<CellValue[][] | undefined> {
+    return this.request(sheet, (token) => this.getValues(sheet, token));
+  }
+
+  /**
+   * The internal number (`sheetId`) of the sheet's tab, found by its exact
+   * title. Fetched fresh for every write, never cached: a tab deleted and
+   * re-created gets a new number. A missing tab is a 'tab' `SheetLoadError`.
+   */
+  async tabId(sheet: SheetDefinition): Promise<number> {
+    const response = await this.request(sheet, (token) => this.getTabs(sheet, token));
+    const tab = (response.sheets ?? []).find((s) => s.properties?.title === sheet.tab);
+    if (tab === undefined) {
+      throw new SheetLoadError(sheet.label, 'tab', `Tab ${sheet.tab} not found in ${sheet.label}.`);
+    }
+    // Google leaves out a sheetId of 0 (a default value), which is the first tab's.
+    return tab.properties?.sheetId ?? 0;
+  }
+
+  /** One GET with renewal and backoff; failures become a `SheetLoadError` naming the sheet. */
+  private async request<T>(sheet: SheetDefinition, get: (token: string) => Promise<T>): Promise<T> {
     try {
-      return await this.fetch(sheet);
+      return await this.fetch(sheet, get);
     } catch (error) {
       if (!isUnauthorized(error)) {
         throw error instanceof SheetLoadError ? error : this.toLoadError(sheet, error);
@@ -55,7 +83,7 @@ export class SheetsReader {
     }
     // One retry after renewal; a second 401 is reported as an expired session.
     try {
-      return await this.fetch(sheet);
+      return await this.fetch(sheet, get);
     } catch (error) {
       if (isUnauthorized(error)) {
         this.auth.markExpired();
@@ -75,10 +103,10 @@ export class SheetsReader {
   }
 
   /** One GET, retried with backoff on transient errors; a fresh token for every try. */
-  private async fetch(sheet: SheetDefinition): Promise<CellValue[][] | undefined> {
+  private async fetch<T>(sheet: SheetDefinition, get: (token: string) => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.get(sheet, await this.token(sheet));
+        return await get(await this.token(sheet));
       } catch (error) {
         if (!isTransient(error) || attempt >= RETRY_DELAYS_MS.length) {
           throw error;
@@ -88,7 +116,7 @@ export class SheetsReader {
     }
   }
 
-  private async get(sheet: SheetDefinition, token: string): Promise<CellValue[][] | undefined> {
+  private async getValues(sheet: SheetDefinition, token: string): Promise<CellValue[][] | undefined> {
     const url = `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values/${tabRange(sheet.tab)}`;
     const response = await firstValueFrom(
       this.http.get<ValueRange>(url, {
@@ -97,6 +125,15 @@ export class SheetsReader {
       }),
     );
     return response.values;
+  }
+
+  private getTabs(sheet: SheetDefinition, token: string): Promise<SpreadsheetTabs> {
+    return firstValueFrom(
+      this.http.get<SpreadsheetTabs>(`${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { fields: TAB_FIELDS },
+      }),
+    );
   }
 
   private toLoadError(sheet: SheetDefinition, error: unknown): SheetLoadError {

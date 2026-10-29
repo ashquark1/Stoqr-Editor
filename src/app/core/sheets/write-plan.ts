@@ -14,10 +14,18 @@ export interface CellWrite {
   readonly value: CellValue;
 }
 
+/** A cell's 0-based grid position, as a format request addresses it. */
+export interface GridCell {
+  readonly rowIndex: number;
+  readonly columnIndex: number;
+}
+
 export type WritePlan =
   | {
       readonly kind: 'ready';
       readonly writes: readonly CellWrite[];
+      /** The Last Updated cell being stamped, for its date-time format (US-19 fix). */
+      readonly stampCell: GridCell;
       /** The row as freshly re-read, before the write. */
       readonly current: LoadedProduct;
       /** The row as it will be once every write is confirmed. */
@@ -44,7 +52,8 @@ const NUMBER_FIELDS: ReadonlySet<keyof Product> = new Set<keyof Product>([
  * by its sheet-local `id` and must appear exactly once. Every reviewed value
  * must still equal the fresh one, else the plan is a conflict and nothing is
  * written. The app's own fields are added: Stock Status (derived) whenever
- * stock qty or threshold changes, and Last Updated on every write.
+ * stock qty or threshold changes, and Last Updated on every write, whose grid
+ * position is returned so the writer can give it a date-time format.
  */
 export function planRowWrite(
   sheet: SheetDefinition,
@@ -107,8 +116,9 @@ export function planRowWrite(
 
   writes.push(cell('lastUpdated', toSheetSerial(now)));
   expected.lastUpdated = formatSheetTimestamp(now);
+  const stampCell = { rowIndex: rowNumber - 1, columnIndex: columnOf(FIELD_LABELS.lastUpdated) };
 
-  return { kind: 'ready', writes, current, expected: toProduct(expected) };
+  return { kind: 'ready', writes, stampCell, current, expected: toProduct(expected) };
 }
 
 /** Rebuilds a typed Product from the merged record (every key comes from a Product). */

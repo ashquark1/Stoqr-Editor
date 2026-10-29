@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { AUTH_MESSAGES, Auth, SessionEndedError } from '@core/auth/auth';
 import { RETRY_WAIT } from './backoff';
 import { SheetLoadError } from './sheet-load-error';
-import { BUSY_LOAD_MESSAGE, READ_PARAMS, SHEETS_API, SheetsReader } from './sheets-reader';
+import { BUSY_LOAD_MESSAGE, READ_PARAMS, SHEETS_API, SheetsReader, TAB_FIELDS } from './sheets-reader';
 import { MASTER_SHEET, sheetRow, sheetValues } from './testing/sheet-fixtures';
 
 const URL = `${SHEETS_API}/fake-master-id/values/%27Sheet1%27`;
@@ -136,6 +136,52 @@ describe('SheetsReader', () => {
     expect(error.message).toBe(message);
     expect(markExpired).not.toHaveBeenCalled();
     expect(wait).not.toHaveBeenCalled();
+  });
+
+  describe('tabId (US-19 fix)', () => {
+    const TABS_URL = `${SHEETS_API}/fake-master-id`;
+    const tabs = async () => {
+      await tick();
+      return http.expectOne((r) => r.url === TABS_URL);
+    };
+
+    it('GETs only the tab properties and returns the number of the tab with the exact title', async () => {
+      const pending = reader.tabId(MASTER_SHEET);
+      const req = await tabs();
+      expect(req.request.method).toBe('GET');
+      expect(req.request.headers.get('Authorization')).toBe('Bearer fake-token');
+      expect(req.request.params.get('fields')).toBe(TAB_FIELDS);
+      req.flush({
+        sheets: [
+          { properties: { sheetId: 0, title: 'Archive' } },
+          { properties: { sheetId: 1234, title: 'Sheet1' } },
+          { properties: { sheetId: 55, title: 'sheet1' } },
+        ],
+      });
+      await expect(pending).resolves.toBe(1234);
+    });
+
+    it('a sheetId left out by Google is 0 (the first tab)', async () => {
+      const pending = reader.tabId(MASTER_SHEET);
+      (await tabs()).flush({ sheets: [{ properties: { title: 'Sheet1' } }] });
+      await expect(pending).resolves.toBe(0);
+    });
+
+    it('a missing tab is a "tab not found" error naming the sheet', async () => {
+      const pending = reader.tabId(MASTER_SHEET);
+      (await tabs()).flush({ sheets: [{ properties: { sheetId: 3, title: 'Other' } }] });
+      await expect(pending).rejects.toMatchObject({ kind: 'tab', message: 'Tab Sheet1 not found in Master.' });
+    });
+
+    it('uses the same error, renewal and backoff rules as read()', async () => {
+      const pending = reader.tabId(MASTER_SHEET);
+      (await tabs()).flush(null, { status: 429, statusText: 'Too Many Requests' });
+      (await tabs()).flush(null, { status: 401, statusText: 'Unauthorized' });
+      (await tabs()).flush(null, { status: 403, statusText: 'Forbidden' });
+      await expect(pending).rejects.toMatchObject({ kind: 'access' });
+      expect(wait).toHaveBeenCalledTimes(1);
+      expect(markExpired).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('backoff (US-11)', () => {

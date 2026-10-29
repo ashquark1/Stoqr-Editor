@@ -38,6 +38,16 @@ describe('planRowWrite', () => {
     });
   });
 
+  it('returns the 0-based grid cell of the Last Updated it stamps (row by id, column by label)', () => {
+    const reversed = [[...HEADER].reverse(), sheetRow({ id: 'row-2' }).reverse(), sheetRow({ id: 'row-1' }).reverse()];
+    const plan = planRowWrite(MASTER_SHEET, reversed, 'row-1', change({ stockQty: 4 }), NOW);
+    if (plan.kind !== 'ready') {
+      throw new Error('expected ready');
+    }
+    expect(plan.stampCell).toEqual({ rowIndex: 2, columnIndex: 1 });
+    expect(plan.writes.find((w) => w.field === 'lastUpdated')?.range).toBe("'Sheet1'!B3");
+  });
+
   it('returns the expected row after the write (for showing confirmed values)', () => {
     const plan = planRowWrite(MASTER_SHEET, values, 'row-1', change({ stockQty: 0 }), NOW);
     if (plan.kind !== 'ready') {
