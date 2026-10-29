@@ -41,8 +41,8 @@ Rule-level:
 Case tests: the edge cases above.
 
 ## Acceptance Checks
-- [ ] All behavior rules hold
-- [ ] Edge cases have tests
-- [ ] Owner: on the TEST sheets, remove your Editor access to the TEST Dr Trust sheet, subtract 1 on a linked product, Approve → partial message with Retry Dr Trust; restore access, Retry → "Stock saved" naming both sheets; both TEST sheets show the same qty (OWNER CHECK)
-- [ ] No new libraries
-- [ ] docs/DECISIONS.md, docs/AI_CONTRACT.md and docs/projectmap.md updated
+- [x] All behavior rules hold
+- [x] Edge cases have tests
+- [x] Owner: on the TEST sheets, remove your Editor access to the TEST Dr Trust sheet, subtract 1 on a linked product, Approve → partial message with Retry Dr Trust; restore access, Retry → "Stock saved" naming both sheets; both TEST sheets show the same qty (owner confirmed 2026-10-29)
+- [x] No new libraries
+- [x] docs/DECISIONS.md, docs/AI_CONTRACT.md and docs/projectmap.md updated

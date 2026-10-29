@@ -47,9 +47,9 @@ Rule-level:
 Case tests: the edge cases above; each review step; the toast variants.
 
 ## Acceptance Checks
-- [ ] All behavior rules hold
-- [ ] Edge cases have tests
-- [ ] Owner: linked product, subtract 1, Review, Approve — in BOTH TEST sheets only qty, Stock Status and Last Updated changed; Last Updated shows as a date-time (OWNER CHECK)
-- [ ] Owner: same for a master-only product (OWNER CHECK)
-- [ ] No new libraries
-- [ ] docs/DECISIONS.md, docs/AI_CONTRACT.md and docs/projectmap.md updated
+- [x] All behavior rules hold
+- [x] Edge cases have tests
+- [x] Owner: linked product, subtract 1, Review, Approve — in BOTH TEST sheets only qty, Stock Status and Last Updated changed; Last Updated shows as a date-time (owner confirmed 2026-10-29)
+- [x] Owner: same for a master-only product (owner confirmed 2026-10-29)
+- [x] No new libraries
+- [x] docs/DECISIONS.md, docs/AI_CONTRACT.md and docs/projectmap.md updated

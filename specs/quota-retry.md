@@ -45,9 +45,9 @@ Rule-level:
 Case tests: the edge cases above.
 
 ## Acceptance Checks
-- [ ] All behavior rules hold
-- [ ] Edge cases have tests
-- [ ] Owner: with the network turned off, opening the editor shows the unreachable message; Retry works once the network is back (OWNER CHECK)
-- [ ] Owner: with the network turned off just before Approve, the "didn't confirm" message appears; with the network back, Try again shows the right qty and nothing is applied twice (TEST sheets; OWNER CHECK)
-- [ ] No new libraries
-- [ ] docs/DECISIONS.md, docs/AI_CONTRACT.md and docs/projectmap.md updated
+- [x] All behavior rules hold
+- [x] Edge cases have tests
+- [x] Owner: with the network turned off, opening the editor shows the unreachable message; Retry works once the network is back (owner confirmed 2026-10-29)
+- [x] Owner: with the network turned off just before Approve, the "didn't confirm" message appears; with the network back, Try again shows the right qty and nothing is applied twice (TEST sheets; owner confirmed 2026-10-29)
+- [x] No new libraries
+- [x] docs/DECISIONS.md, docs/AI_CONTRACT.md and docs/projectmap.md updated

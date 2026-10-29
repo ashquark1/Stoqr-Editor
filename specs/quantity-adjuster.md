@@ -45,6 +45,6 @@ Case tests: the edge cases above; store resets; component states.
 ## Acceptance Checks
 - [x] All behavior rules hold (rule, store and component tests; the import rule caught a planted violation, 2026-10-28)
 - [x] Edge cases have tests
-- [ ] Owner tries add, over-subtract, 2.5, 0, 5000000 and a drop below the threshold at phone width (OWNER CHECK, pending)
+- [x] Owner tries add, over-subtract, 2.5, 0, 5000000 and a drop below the threshold at phone width (owner confirmed 2026-10-29)
 - [x] No new libraries
 - [x] docs/DECISIONS.md (cap and warning confirmed; mode starts unselected), docs/AI_CONTRACT.md and docs/projectmap.md updated
