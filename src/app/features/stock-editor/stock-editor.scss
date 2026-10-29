@@ -7,6 +7,23 @@
   gap: var(--space-2);
 }
 
+.stock-editor__health-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.stock-editor__loading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-small);
+  color: var(--color-ink-light);
+}
+
+app-data-health {
+  display: block;
+  margin-bottom: var(--space-6);
+}
+
 // One column on phones; picker and summary side by side from desktop.
 .stock-editor__layout {
   display: grid;

@@ -75,6 +75,7 @@
 - Rule: details edits write only the changed fields, to both sheets. Untouched fields that differ between the sheets are left alone.
 - Rule: SKU is editable, including for linked products. A SKU change is part of the same dual write (both sheets, same approved action). The new SKU must be non-empty, have no spaces at either end and, normalised, must not match any other row's SKU in either sheet (except the single unmatched Dr Trust row a master-only product links to); otherwise the save is blocked. During a write and its retries the linked pair is held in memory by row refs and is never re-matched by SKU.
 - Rule: changing a linked product requires Editor access to both spreadsheets; if one is inaccessible, block the change and name that sheet. A sheet the user can only view is caught by the format step, before any value is written.
+- Rule: data health is display only. Its lists are computed only by `dataHealth` (`core/sheets/data-health.ts`) from the pairing; it never blocks, writes or re-pairs anything. Dr Trust products in Master are recognised only by the configured `brand` of the Dr Trust sheet, never a hard-coded brand.
 - Forbidden: writing a linked product to only one sheet; pairing by `id`, row number, or product name; overwriting a differing Dr Trust quantity without showing it in the review step; writing a SKU change to only one sheet; separate write code paths per sheet (one `SheetsWriter`, parameterised by sheet definition).
 
 ## Forbidden Shortcuts

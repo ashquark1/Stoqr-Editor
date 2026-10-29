@@ -10,6 +10,11 @@ export interface SheetDefinition {
   readonly label: string;
   readonly spreadsheetId: string;
   readonly tab: string;
+  /**
+   * Optional (US-31): the brand of the products this sheet holds, e.g. `Dr Trust`.
+   * Data health uses it to find Master products missing from this sheet.
+   */
+  readonly brand?: string;
 }
 
 /** Shape of `src/environments/environment*.ts`. Values only; no secrets. */
@@ -54,6 +59,9 @@ export function validateEnvironment(env: AppEnvironment): AppEnvironment {
       if (sheet[field].trim() === '') {
         problems.push(`sheet '${sheet.key}' has a blank ${field}`);
       }
+    }
+    if (sheet.brand !== undefined && sheet.brand.trim() === '') {
+      problems.push(`sheet '${sheet.key}' has a blank brand (leave it out instead)`);
     }
   }
 

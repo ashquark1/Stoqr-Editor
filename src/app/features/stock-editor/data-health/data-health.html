@@ -1,0 +1,93 @@
+@let health = store.health();
+<section class="health" aria-labelledby="health-title">
+  <header class="health__header">
+    <h2 id="health-title" class="health__title">Data health</h2>
+    <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="closed.emit()">Close</button>
+  </header>
+  <p class="health__intro">Where the sheets disagree. Nothing here is changed or blocked by this view.</p>
+
+  <!-- A row: name and SKU; Master rows can be opened in the editor. -->
+  <ng-template #rowTpl let-row>
+    @if (row.ref) {
+      <button type="button" class="health__pick" [disabled]="saving()" (click)="pick(row.ref)">
+        <span class="health__name">{{ display(row.name) }}</span>
+        <span class="health__sku">{{ display(row.sku) }}</span>
+      </button>
+    } @else {
+      <span class="health__name">{{ display(row.name) }}</span>
+      <span class="health__sku">{{ display(row.sku) }}</span>
+    }
+  </ng-template>
+
+  <div class="health__sections">
+    <section class="health__section">
+      <h3 class="health__heading">Repeated SKUs <span class="health__count">{{ health.duplicates.length }}</span></h3>
+      <p class="health__hint">Every row with a repeated SKU is blocked from editing until one is changed in the sheet.</p>
+      @for (dup of health.duplicates; track dup.sku) {
+        <div class="health__group">
+          <span class="health__sku">{{ dup.sku }}</span>
+          <ul class="health__list">
+            @for (row of dup.rows; track $index) {
+              <li class="health__item">
+                <span class="health__sheet">{{ row.sheet === 'master' ? store.masterLabel() : store.drTrustLabel() }}</span>
+                <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" />
+              </li>
+            }
+          </ul>
+        </div>
+      } @empty {
+        <p class="health__none">None.</p>
+      }
+    </section>
+
+    <section class="health__section">
+      <h3 class="health__heading">
+        Unmatched {{ store.drTrustLabel() }} rows <span class="health__count">{{ health.unmatched.length }}</span>
+      </h3>
+      <p class="health__hint">Their SKU is in no {{ store.masterLabel() }} row, so they are never synced.</p>
+      <ul class="health__list">
+        @for (row of health.unmatched; track $index) {
+          <li class="health__item"><ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" /></li>
+        } @empty {
+          <li class="health__none">None.</li>
+        }
+      </ul>
+    </section>
+
+    <section class="health__section">
+      @if (health.missingFromDrTrust; as missing) {
+        <h3 class="health__heading">
+          Missing from {{ store.drTrustLabel() }} <span class="health__count">{{ missing.length }}</span>
+        </h3>
+        <p class="health__hint">{{ store.drTrustLabel() }} products in {{ store.masterLabel() }} with no matching row.</p>
+        <ul class="health__list">
+          @for (row of missing; track $index) {
+            <li class="health__item"><ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" /></li>
+          } @empty {
+            <li class="health__none">None.</li>
+          }
+        </ul>
+      } @else {
+        <h3 class="health__heading">Missing from {{ store.drTrustLabel() }}</h3>
+        <p class="health__hint">Set the {{ store.drTrustLabel() }} brand in config to see this list.</p>
+      }
+    </section>
+
+    <section class="health__section">
+      <h3 class="health__heading">Quantities differ <span class="health__count">{{ health.qtyDiffers.length }}</span></h3>
+      <p class="health__hint">The next stock change sets both sheets to the same quantity.</p>
+      <ul class="health__list">
+        @for (diff of health.qtyDiffers; track $index) {
+          <li class="health__item">
+            <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: diff.row }" />
+            <span class="health__qty">
+              {{ store.masterLabel() }} {{ display(diff.masterQty) }} · {{ store.drTrustLabel() }} {{ display(diff.drTrustQty) }}
+            </span>
+          </li>
+        } @empty {
+          <li class="health__none">None.</li>
+        }
+      </ul>
+    </section>
+  </div>
+</section>

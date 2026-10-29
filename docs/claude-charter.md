@@ -50,7 +50,7 @@ principles behind those rules for humans.
 
 ## Review Gate (Required Before Every Commit)
 - [ ] Structural justification provided for each modified file
-- [ ] Tests pass — and tests assert rules, not cases (`npm test`)
+- [ ] Tests: suspended by the owner on 2026-10-29 (no new specs, `npm test` not run; see DECISIONS). Read new code against AI_CONTRACT instead
 - [ ] Typecheck clean (`npx tsc -p tsconfig.app.json --noEmit`)
 - [ ] Build clean (`npm run build`)
 - [ ] No unauthorized new libraries

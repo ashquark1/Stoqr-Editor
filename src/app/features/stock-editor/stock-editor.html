@@ -37,6 +37,23 @@
     @if (sheets.master().length === 0) {
       <stoqr-empty-state message="No products in the master sheet." />
     } @else {
+      <div class="stock-editor__health-bar">
+        <button
+          type="button"
+          class="stoqr-btn stoqr-btn--secondary stoqr-btn--sm"
+          [attr.aria-expanded]="healthOpen()"
+          (click)="healthOpen.set(!healthOpen())"
+        >
+          Data health ({{ health.health().total }})
+        </button>
+      </div>
+      @if (healthOpen()) {
+        @defer {
+          <app-data-health (closed)="healthOpen.set(false)" />
+        } @loading {
+          <p class="stock-editor__loading">Loading data health…</p>
+        }
+      }
       <div class="stock-editor__layout">
         <app-product-picker class="stock-editor__picker" />
         @if (search.selected()) {

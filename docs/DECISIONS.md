@@ -103,7 +103,7 @@
 - Decision [confirmed]: the app loads both spreadsheets, each with its own spreadsheet ID and tab, from environment config as a list of sheet definitions (`master`, `dr-trust`), with separate test and production IDs.
 - Constraint: Google cannot write to two spreadsheets atomically. A linked write is two requests; the app reports success only when BOTH are confirmed.
 - Decision [confirmed 2026-10-28 — see SKU pairing rules] — pairing: SKU is normalised (trimmed, case-insensitive). A product is "linked" when its SKU appears exactly once in each sheet. Master-only products (other brands) are edited in master only. The picker is driven by the master sheet.
-- Decision [proposed] — data health: a duplicate SKU in either sheet blocks that product (not editable) with a message. Dr Trust rows with no master match, and master Dr Trust products missing from the Dr Trust sheet, are shown as warnings and are not synced.
+- Decision [confirmed 2026-10-29, data-health view built in US-31] — data health: a duplicate SKU in either sheet blocks that product (not editable) with a message. Dr Trust rows with no master match, and master Dr Trust products missing from the Dr Trust sheet, are shown as warnings and are not synced.
 - Decision [confirmed 2026-10-27] — quantity mismatches are ALWAYS overridden: if a linked product's stock qty differs between the sheets, there is no reconcile step and nothing is blocked. The approved final quantity is written to BOTH sheets, replacing whatever the Dr Trust sheet held.
 - Decision [confirmed 2026-10-28 for the adjuster; the review note lands in Sprint 3 story B] — base quantity: the adjuster's "current qty" and the add/subtract maths use the MASTER's quantity (the picker is driven by master). When the Dr Trust quantity differs, the review step shows a non-blocking note ("Dr Trust currently has X; it will be set to Y") so the overwrite is never invisible.
 - Decision [confirmed 2026-10-28, owner choice "check both first"; built in Sprint 3 story B] — write sequence: re-read BOTH rows, verify each sheet-local `id` still matches, and verify the master quantity (the base the user reviewed) is unchanged; compute final ABSOLUTE values; write master then Dr Trust. The Dr Trust quantity is not guarded — it is overwritten by design. Absolute values make retries idempotent.
@@ -326,6 +326,20 @@
 - Decision: checked live in the form (`checkNewSku`, `core/sheets/sku-check.ts`) and again at save: whenever an approval changes SKU, the writer reads BOTH sheets fresh — even for a master-only product, one extra read — and refuses with nothing written if a row outside the original approval now holds it (`sku-taken`).
 - Decision: `ApprovedChange.owners` keeps the original approval's rows through `remaining()`, so a Retry after Master took the new SKU counts Master as its own row and can finish Dr Trust.
 - Finding: an abandoned half-done SKU change leaves the sheets with different SKUs, so the next load shows the product as Master only and the Dr Trust row as unmatched (not "Out of sync" as the backlog said); US-31 will list such rows.
+
+## 2026-10-29: Unit tests suspended (owner) [confirmed]
+
+- Decision (owner): from US-31 on, no new spec files are written and `npm test` is not run, because test writing and runs were taking too much time.
+- Still done before every commit: both typechecks (`tsconfig.app.json`, `tsconfig.spec.json`) and the production build.
+- Consequence: the AI_CONTRACT rules in `architecture.spec.ts` (only `SheetsWriter` mutates, `id` stays in `core/sheets`, approvals only from the review stores, OnPush, no `any`, …) are no longer checked automatically; new code is checked against AI_CONTRACT by reading it. Existing specs may go stale as code changes. The charter's Review Gate is amended to match; each spec's acceptance checks say "tests not run".
+- Last full run: 583 tests, 50 files, all passing (US-38, commit 64fbd97).
+- Revisit before US-25 (end-to-end smoke test) and before go-live (US-27).
+
+## 2026-10-29: Data-health summary (US-31) [confirmed]
+
+- Decision (owner: "brand in config"): Dr Trust products in Master are recognised by an optional `brand` on the Dr Trust `SheetDefinition` (compared trimmed, case-insensitive, inner spaces collapsed); not a hard-coded brand check. The owner adds the value to both environment files (off-limits to Claude). Present-but-blank fails the startup check; absent shows a hint instead of the list.
+- Decision: four lists from the pairing only — repeated SKUs, unmatched Dr Trust rows, master-only products of the Dr Trust brand, linked products whose quantities differ (the sync badge's rule). One pure function, `dataHealth` (`core/sheets/data-health.ts`), via `DataHealthStore`. Display only: nothing is blocked or written.
+- Decision: a "Data health (N)" button above the picker opens a lazy panel (8 kB). Master rows can be picked (through "Discard changes?"; disabled while saving); Dr Trust rows are text. Loader-flagged rows are not listed.
 
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

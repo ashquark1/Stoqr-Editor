@@ -1,0 +1,139 @@
+@use 'breakpoints' as bp;
+
+.health {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-white);
+  border: var(--border-thin);
+  border-radius: var(--radius-2xl);
+}
+
+.health__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.health__title {
+  margin: 0;
+  font-size: var(--text-h3);
+}
+
+.health__intro,
+.health__hint,
+.health__none {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-ink-light);
+}
+
+// One column on phones; two from tablet.
+.health__sections {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+
+  @include bp.from(tablet) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.health__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.health__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding-bottom: var(--space-1);
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mist);
+  border-bottom: var(--border-thin);
+}
+
+.health__count {
+  padding: 0 var(--space-2);
+  color: var(--color-ink);
+  background: var(--color-dew);
+  border-radius: var(--radius-pill);
+}
+
+.health__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.health__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.health__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-small);
+  color: var(--color-ink-mid);
+  overflow-wrap: anywhere;
+}
+
+.health__pick {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  padding: 0;
+  font: inherit;
+  color: var(--color-pine);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  &:hover:not(:disabled) .health__name {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    color: var(--color-ink-light);
+    cursor: not-allowed;
+  }
+}
+
+.health__sku {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+}
+
+.health__sheet {
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--color-mist);
+}
+
+.health__qty {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-light);
+}
