@@ -36,6 +36,12 @@
 - Rule: every approved change also stamps Last Updated with a static timestamp (never a formula), shown as `dd/MM/yyyy HH:mm:ss`.
 - Forbidden: writing quantity without approval; writing a value computed from anything but the freshly re-read sheet value + the approved delta; writing a quantity without its derived Stock Status in the same request.
 
+### Product Details
+- Owner: `core/details/` (field list, validation, form state).
+- Rule: the details form shows every product field except `id`; Stock Qty, Stock Status, Last Updated and Created At are never inputs. Field rules (groups, kinds, required, locked) live only in `core/details/details-fields.ts`.
+- Rule: details validation is pure (`validateDetail`) and imported only inside `core/details/` (enforced by `architecture.spec.ts`). Invalid input blocks Review; it is never corrected.
+- Rule: leaving the details form with unsaved edits goes through `DetailsStore.confirmLeave()`; one editor (adjuster or details form) is open at a time.
+
 ### Writes (cross-cutting)
 - Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.
 - Rule: changes reach `SheetsWriter` only as an `ApprovedChange` from `approve()` (`core/sheets/approval.ts`), which only `core/stock-adjust/` and `core/details/` may call (enforced by `architecture.spec.ts`). Never construct, cast or fake an approval.
@@ -67,6 +73,7 @@
 
 ## Forbidden Shortcuts
 - One-off "quick fixes" that bypass the data-access service or the model layer (Q-G2). Solve it in the right layer instead.
+- A store setter that reads the signal it writes (`s.set(f(s()))`) when called from an effect: the effect subscribes to its own output and loops forever. Use `s.update(...)` or `untracked`.
 - Manual `.subscribe()` in components to "just get the data" — use `async` pipe or `toSignal()`.
 - Adding `if (specificValue)` special-cases to make one row/product behave differently — fix the model or mapping instead.
 - Copy-pasting a component/service and tweaking it instead of extracting a shared piece (design deterioration — Q-G3).

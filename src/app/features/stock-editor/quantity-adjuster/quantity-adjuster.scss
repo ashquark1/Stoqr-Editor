@@ -25,25 +25,6 @@
   color: var(--color-ink-mid);
 }
 
-.adjuster__input {
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-ink);
-  background: var(--color-white);
-  border: var(--border-input);
-  border-radius: var(--radius-control);
-  transition: border-color var(--transition-fast);
-
-  &:focus {
-    outline: 2px solid var(--color-pine);
-    outline-offset: 2px;
-    border-color: var(--color-pine);
-  }
-}
-
 .adjuster__review {
   align-self: flex-start;
 }

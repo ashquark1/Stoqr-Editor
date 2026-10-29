@@ -146,7 +146,8 @@ Component classes are defined in `stoqr-theme.scss`: `.stoqr-logo`,
 `.stoqr-search`, `.stoqr-badge` (`--in-stock`/`--low-stock`/`--out-of-stock`/
 `--unknown`), `.stoqr-btn` (`--primary`/`--secondary`/`--ghost`/`--danger`/`--sm`),
 `.stoqr-table` + `.stoqr-table-wrap`, `.stoqr-modal*` + `.stoqr-field-group`/
-`.stoqr-field`, `.stoqr-toast*`, `.stoqr-pagination*`, `.stoqr-spinner*`,
+`.stoqr-field` (+ `__error`, V2), `.stoqr-input` (`--mono`/`--invalid`/
+`--multiline`, V2), `.stoqr-toast*`, `.stoqr-pagination*`, `.stoqr-spinner*`,
 `.stoqr-refresh`, and the page shells `.stoqr-page`/`.stoqr-topbar`/`.stoqr-results`.
 
 Refer to `stoqr-theme.scss` for the authoritative values.

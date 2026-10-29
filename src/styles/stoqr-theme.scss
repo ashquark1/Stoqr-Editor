@@ -618,6 +618,42 @@ a {
 
     &--mono { font-family: var(--font-mono); }
   }
+
+  // Inline validation message under an input (V2). Crimson: amber fails AA at this size.
+  &__error {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-small);
+    color: var(--color-error);
+  }
+}
+
+// V2: text input for forms (adjuster amount, details form).
+.stoqr-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: var(--border-input);
+  border-radius: var(--radius-control);
+  transition: border-color var(--transition-fast);
+
+  &:focus {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+    border-color: var(--color-pine);
+  }
+
+  &--mono { font-family: var(--font-mono); }
+
+  &--invalid { border-color: var(--color-error); }
+
+  &--multiline {
+    min-height: calc(var(--space-6) * 3);
+    resize: vertical;
+  }
 }
 
 

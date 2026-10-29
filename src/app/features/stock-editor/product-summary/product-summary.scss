@@ -26,6 +26,12 @@
   color: var(--color-ink);
 }
 
+.summary__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .summary__note {
   margin: 0;
   font-size: var(--text-small);

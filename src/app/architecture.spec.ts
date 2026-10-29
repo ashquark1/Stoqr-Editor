@@ -208,6 +208,17 @@ describe('search rules (US-12)', () => {
   });
 });
 
+describe('details rules (US-22)', () => {
+  it('details validation is imported only inside core/details (features read the store)', () => {
+    const detailsValidation = /from\s*['"](?:@core\/details\/|\.\.?\/(?:[\w.-]+\/)*)details-validation['"]/;
+    // Spec files may import the message constants to assert on them.
+    const isAppCode = (f: SourceFile) => isTs(f) && !f.path.endsWith('.spec.ts');
+    expect(
+      offenders((f) => isAppCode(f) && !f.path.startsWith('src/app/core/details/'), detailsValidation),
+    ).toEqual([]);
+  });
+});
+
 describe('environment config rules (US-04)', () => {
   const ENV_DIR = 'src/environments/';
   const DEV_FILE = `${ENV_DIR}environment.development.ts`;

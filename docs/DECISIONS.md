@@ -72,10 +72,10 @@
   - 0 < qty < threshold → `Low Stock`
   - qty ≥ threshold → `In Stock` (a quantity EQUAL to the threshold is In Stock)
   - threshold is empty → `In Stock` when qty > 0 (no low-stock band)
-- Decision [proposed]: in the details form Stock Status is read-only (derived); users do not type it. The review step previews the new status and the low-stock warning from the same function.
+- Decision [confirmed 2026-10-29]: in the details form Stock Status is read-only (derived); users do not type it. The review step previews the new status and the low-stock warning from the same function.
 - Note: this deliberately supersedes V1's rule that stock status is "read verbatim, never derived". That rule belongs to V1's read-only contract; V2 owns the write, so it must own the derivation.
 
-## 2026-10-21: Quantity is edited only via the adjuster [proposed]
+## 2026-10-21: Quantity is edited only via the adjuster [confirmed 2026-10-29]
 
 - Decision: the details form shows Stock Qty read-only; all quantity changes go through adjuster → review → approve. Created At is read-only; Last Updated is app-stamped; Stock Status is app-derived; `id` is excluded.
 - Reason: one reviewed path for quantity prevents unreviewed changes.
@@ -295,6 +295,17 @@
 - Decision: the tab number is fetched fresh per save (`SheetsReader.tabId`), never cached. Each sheet gets one renewal and 3 busy resends in total across its format and value requests; a value resend after a re-check formats the cell again first (the row may have moved).
 - Cost: a linked save is 8 requests (was 4); still far below quota.
 - Consequence: cells written before this fix keep showing a number until their row is next saved (the owner may format the column by hand).
+
+## 2026-10-29: Details form and validation (US-21, US-22) [confirmed]
+
+- Decision (owner): required fields are brand, product name, category, sub category, SKU, unit of measure, packing, status, low stock threshold and tax rate. Created At and Last Updated are not checked (never blank / app-stamped). A blank threshold can no longer be saved from the form.
+- Decision: low stock threshold is a whole number 0–1,000,000 (the quantity cap); tax rate and the three prices are numbers ≥ 0 (digits, optional decimal part); the prices may be blank. Text is kept exactly as typed; whitespace-only counts as blank. Tax rate is checked as stored (no upper bound), so it does not depend on 18 vs 0.18.
+- Decision: rules follow the adjuster's pattern — pure functions in `core/details/`, the component only forwards input; no Angular Validators, no validation library.
+- Decision: one editor at a time in the summary (Adjust stock | Edit details), because a stock save clears the selection, which would drop unsaved details. Leaving with edits asks "Discard changes?". The picker needs no guard (it hides results while a product is selected).
+- Decision: required blanks already in the sheet are flagged as soon as the form opens; nothing is filled in automatically, so such a row must be completed before any details save.
+- Decision: shared `.stoqr-input` (`--mono`, `--invalid`, `--multiline`) and `.stoqr-field__error` added to `stoqr-theme.scss` (V2 extension, tokens only); the adjuster uses `.stoqr-input` (reuse over duplication).
+- Decision: the form is lazy-loaded (`@defer`, 7 kB); the initial bundle is 455 kB.
+- Finding: a store setter that read its own signal, called from the form's effect, looped forever; setters use `update()` (now in AI_CONTRACT Forbidden Shortcuts).
 
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

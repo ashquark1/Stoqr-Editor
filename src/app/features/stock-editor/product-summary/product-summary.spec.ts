@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 
+import { DetailsStore } from '@core/details/details-store';
 import { LoadedProduct } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { mapSheet } from '@core/sheets/data-mapping';
@@ -13,6 +14,7 @@ import {
   sheetRow,
   sheetValues,
 } from '@core/sheets/testing/sheet-fixtures';
+import { DetailsForm } from '../details-form/details-form';
 import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
 import { ReviewPanel } from '../review-panel/review-panel';
 import { ProductSummary } from './product-summary';
@@ -22,6 +24,9 @@ class AdjusterStub {}
 
 @Component({ selector: 'app-review-panel', template: 'review', changeDetection: ChangeDetectionStrategy.OnPush })
 class ReviewPanelStub {}
+
+@Component({ selector: 'app-details-form', template: 'details', changeDetection: ChangeDetectionStrategy.OnPush })
+class DetailsFormStub {}
 
 describe('ProductSummary', () => {
   const [product] = mapSheet(
@@ -44,8 +49,18 @@ describe('ProductSummary', () => {
     clearSelection: vi.fn(),
   };
   const step = signal<ReviewStep>('editing');
+  /** Unsaved details edits: leaving waits (the real store asks "Discard changes?"). */
+  let unsaved = false;
+  const confirmLeave = vi.fn((leave: () => void) => {
+    if (!unsaved) {
+      leave();
+    }
+  });
   let fixture: ComponentFixture<ProductSummary>;
   let el: HTMLElement;
+
+  const button = (text: string) =>
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === text);
 
   const fieldValue = (label: string) =>
     [...el.querySelectorAll('.stoqr-field')]
@@ -53,25 +68,29 @@ describe('ProductSummary', () => {
       ?.querySelector('.stoqr-field__value')
       ?.textContent?.trim();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     selected.set(product);
     selectedLink.set(null);
     drTrustQtyDiffers.set(false);
     selectedEditability.set({ editable: true, reasons: [] });
     selectedSyncBadge.set('master-only');
     step.set('editing');
+    unsaved = false;
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [ProductSummary],
       providers: [
         { provide: ProductSearchStore, useValue: search },
         { provide: StockReviewStore, useValue: { step } },
+        { provide: DetailsStore, useValue: { confirmLeave } },
       ],
     });
     TestBed.overrideComponent(ProductSummary, {
-      remove: { imports: [QuantityAdjuster, ReviewPanel] },
-      add: { imports: [AdjusterStub, ReviewPanelStub] },
+      remove: { imports: [DetailsForm, QuantityAdjuster, ReviewPanel] },
+      add: { imports: [DetailsFormStub, AdjusterStub, ReviewPanelStub] },
     });
+    // The @defer block's dependencies are resolved asynchronously.
+    await TestBed.compileComponents();
     fixture = TestBed.createComponent(ProductSummary);
     el = fixture.nativeElement;
     fixture.detectChanges();
@@ -132,8 +151,60 @@ describe('ProductSummary', () => {
   });
 
   it('Change product clears the selection', () => {
-    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Change product')?.click();
+    button('Change product')?.click();
     expect(search.clearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  describe('one editor at a time (US-21)', () => {
+    /** The details form is behind @defer (loads on idle); render it as if loaded. */
+    async function renderDeferred(): Promise<void> {
+      fixture.detectChanges();
+      for (const block of await fixture.getDeferBlocks()) {
+        await block.render(DeferBlockState.Complete);
+      }
+      fixture.detectChanges();
+    }
+
+    async function openDetails(): Promise<void> {
+      button('Edit details')?.click();
+      await renderDeferred();
+    }
+
+    it('starts on Adjust stock; Edit details swaps the adjuster for the details form', async () => {
+      expect(button('Adjust stock')?.getAttribute('aria-pressed')).toBe('true');
+      await openDetails();
+      expect(el.querySelector('app-details-form')).not.toBeNull();
+      expect(el.querySelector('app-quantity-adjuster')).toBeNull();
+      expect(button('Edit details')?.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('rule: leaving the details form goes through confirmLeave (unsaved edits are never dropped silently)', async () => {
+      await openDetails();
+      unsaved = true;
+      button('Adjust stock')?.click();
+      button('Change product')?.click();
+      fixture.detectChanges();
+      expect(confirmLeave).toHaveBeenCalledTimes(3); // Edit details, Adjust stock, Change product
+      expect(el.querySelector('app-details-form')).not.toBeNull();
+      expect(search.clearSelection).not.toHaveBeenCalled();
+    });
+
+    it('cannot switch while a stock review is open, saving or waiting on Retry', () => {
+      step.set('partial');
+      fixture.detectChanges();
+      expect(button('Adjust stock')?.disabled).toBe(true);
+      expect(button('Edit details')?.disabled).toBe(true);
+    });
+
+    it('a product that cannot be edited offers a read-only Details view', async () => {
+      selectedEditability.set({ editable: false, reasons: [BLOCKED_SKU_REASON] });
+      fixture.detectChanges();
+      expect(button('Edit details')).toBeUndefined();
+      button('Details')?.click();
+      await renderDeferred();
+      expect(el.querySelector('app-details-form')).not.toBeNull();
+      expect(el.querySelector('.summary__blocked')).toBeNull();
+    });
   });
 
   it('renders nothing when no product is selected', () => {

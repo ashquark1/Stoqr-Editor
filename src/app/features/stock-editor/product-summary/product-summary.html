@@ -6,7 +6,7 @@
         type="button"
         class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm"
         [disabled]="review.step() === 'saving'"
-        (click)="search.clearSelection()"
+        (click)="changeProduct()"
       >
         Change product
       </button>
@@ -48,7 +48,39 @@
     }
 
     @if (search.selectedEditability(); as check) {
-      @if (check.editable) {
+      <!-- One editor at a time: a stock save clears the selection, which must never drop unsaved details. -->
+      <div class="summary__modes" role="group" aria-label="What to do with this product">
+        <button
+          type="button"
+          class="stoqr-btn stoqr-btn--sm"
+          [class.stoqr-btn--primary]="mode() === 'adjust'"
+          [class.stoqr-btn--ghost]="mode() !== 'adjust'"
+          [attr.aria-pressed]="mode() === 'adjust'"
+          [disabled]="review.step() !== 'editing'"
+          (click)="show('adjust')"
+        >
+          Adjust stock
+        </button>
+        <button
+          type="button"
+          class="stoqr-btn stoqr-btn--sm"
+          [class.stoqr-btn--primary]="mode() === 'details'"
+          [class.stoqr-btn--ghost]="mode() !== 'details'"
+          [attr.aria-pressed]="mode() === 'details'"
+          [disabled]="review.step() !== 'editing'"
+          (click)="show('details')"
+        >
+          {{ check.editable ? 'Edit details' : 'Details' }}
+        </button>
+      </div>
+
+      @if (mode() === 'details') {
+        @defer {
+          <app-details-form />
+        } @loading {
+          <p class="summary__note">Loading details…</p>
+        }
+      } @else if (check.editable) {
         @if (review.step() === 'editing') {
           <app-quantity-adjuster />
         } @else {

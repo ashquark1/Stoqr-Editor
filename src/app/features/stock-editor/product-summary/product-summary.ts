@@ -1,18 +1,28 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 
+import { DetailsStore } from '@core/details/details-store';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { Badge } from '@shared/ui/badge/badge';
 import { StatusBadge } from '@shared/ui/status-badge/status-badge';
 import { SyncBadge } from '@shared/ui/sync-badge/sync-badge';
 import { displayValue } from '@shared/util/display-value';
+import { DetailsForm } from '../details-form/details-form';
 import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
 import { ReviewPanel } from '../review-panel/review-panel';
 
-/** The selected product, so staff can confirm it is the right one (US-13). */
+export type SummaryMode = 'adjust' | 'details';
+
+/**
+ * The selected product, so staff can confirm it is the right one (US-13),
+ * with ONE editor at a time: the stock adjuster or the details form (US-21).
+ * Leaving the details form with unsaved edits asks first (`DetailsStore`).
+ * The details form is loaded only when opened (`@defer`), keeping it out of
+ * the first download.
+ */
 @Component({
   selector: 'app-product-summary',
-  imports: [Badge, QuantityAdjuster, ReviewPanel, StatusBadge, SyncBadge],
+  imports: [Badge, DetailsForm, QuantityAdjuster, ReviewPanel, StatusBadge, SyncBadge],
   templateUrl: './product-summary.html',
   styleUrl: './product-summary.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,5 +30,17 @@ import { ReviewPanel } from '../review-panel/review-panel';
 export class ProductSummary {
   protected readonly search = inject(ProductSearchStore);
   protected readonly review = inject(StockReviewStore);
+  private readonly details = inject(DetailsStore);
   protected readonly display = displayValue;
+
+  /** Which editor is open; a new summary (another product) starts on Adjust stock. */
+  protected readonly mode = signal<SummaryMode>('adjust');
+
+  protected show(mode: SummaryMode): void {
+    this.details.confirmLeave(() => this.mode.set(mode));
+  }
+
+  protected changeProduct(): void {
+    this.details.confirmLeave(() => this.search.clearSelection());
+  }
 }
