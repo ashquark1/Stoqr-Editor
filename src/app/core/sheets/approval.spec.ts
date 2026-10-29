@@ -73,4 +73,25 @@ describe('approve / ApprovedChange (no write without approval)', () => {
   it('accepts a blank threshold (clearing it is allowed)', () => {
     expect(() => approve(change({ lowStockThreshold: null }))).not.toThrow();
   });
+
+  describe('remaining() (Retry after a partial write, US-34)', () => {
+    const linked = () => approve(change({ stockQty: 7 }), drTrust({ stockQty: 7 }));
+
+    it('keeps only the unwritten rows, unchanged, as a genuine approval', () => {
+      const original = linked();
+      const rest = original.remaining(['master']);
+      expect(ApprovedChange.isGenuine(rest)).toBe(true);
+      expect(rest.rows).toEqual([original.rows[1]]);
+      expect(Object.isFrozen(rest.rows)).toBe(true);
+    });
+
+    it('refuses an empty result', () => {
+      expect(() => linked().remaining(['master', 'dr-trust'])).toThrow(InvalidChangeError);
+    });
+
+    it('rule: a forged approval cannot be turned into a genuine one', () => {
+      const pretender = Object.create(ApprovedChange.prototype) as ApprovedChange;
+      expect(() => pretender.remaining([])).toThrow(InvalidChangeError);
+    });
+  });
 });

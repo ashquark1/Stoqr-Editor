@@ -7,7 +7,7 @@ import { AppConfig } from '@core/config/app-config';
 import { SheetDefinition, SheetKey } from '@core/config/app-environment';
 import { LoadedProduct, Product, ProductIssue } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
-import { ApprovedChange } from '@core/sheets/approval';
+import { ApprovedChange, approve } from '@core/sheets/approval';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { RowRef } from '@core/sheets/row-ref';
 import { pairSheets } from '@core/sheets/sheet-pairing';
@@ -219,13 +219,26 @@ describe('StockReviewStore', () => {
     expect(store.review()?.proposed).toBe(9);
   });
 
-  it('rule: a partial write is never success — names both sheets and clears the amount', async () => {
+  /** Master written, Dr Trust refused; `remaining` is the Dr Trust row (as the writer returns it). */
+  function partial(): WriteResult {
     const [masterWritten] = (written(linkedRow) as Extract<WriteResult, { kind: 'written' }>).sheets;
-    write.mockResolvedValue({
+    return {
       kind: 'partial',
       written: [masterWritten],
       error: new SheetWriteError('Dr Trust', 'access', "You don't have edit access to Dr Trust."),
-    });
+      remaining: approve({ target: drTrustRow.ref, reviewed: {}, changes: { stockQty: 7 } }),
+    };
+  }
+
+  async function toPartial(): Promise<void> {
+    write.mockResolvedValueOnce(partial());
+    prepare(linkedRow);
+    store.open();
+    await store.approve();
+  }
+
+  it('rule: a partial write is never success — names both sheets and clears the amount', async () => {
+    write.mockResolvedValue(partial());
     prepare(linkedRow);
     store.open();
     await store.approve();
@@ -263,5 +276,91 @@ describe('StockReviewStore', () => {
     search.select(masterOnlyRow.ref);
     TestBed.tick();
     expect(store.step()).toBe('editing');
+  });
+
+  describe('Retry after a partial save (US-34)', () => {
+    it('offers Retry for the unwritten sheet', async () => {
+      expect(store.retryLabel()).toBeNull();
+      await toPartial();
+      expect(store.retryLabel()).toBe('Dr Trust');
+    });
+
+    it('rule: retries only the remaining Dr Trust row, from the original approval', async () => {
+      await toPartial();
+      write.mockResolvedValueOnce(written(drTrustRow));
+      await store.retry();
+      const sent = write.mock.calls[1][0];
+      expect(ApprovedChange.isGenuine(sent)).toBe(true);
+      expect(sent.rows).toEqual([{ target: drTrustRow.ref, reviewed: {}, changes: { stockQty: 7 } }]);
+    });
+
+    it('success: applies Dr Trust, toast names both sheets, resets and clears the selection', async () => {
+      await toPartial();
+      write.mockResolvedValueOnce(written(drTrustRow));
+      await store.retry();
+      TestBed.tick();
+      expect(drTrust()[0].product.stockQty).toBe(7);
+      expect(store.notice()).toBe('Pulse Oximeter is now 7 (Master and Dr Trust).');
+      expect(store.step()).toBe('editing');
+      expect(store.retryLabel()).toBeNull();
+      expect(search.selected()).toBeNull();
+    });
+
+    it('rule: a failed retry stays partial — never a plain failure or success', async () => {
+      await toPartial();
+      write.mockResolvedValueOnce({
+        kind: 'failed',
+        error: new SheetWriteError('Dr Trust', 'unavailable', "Couldn't save to Dr Trust."),
+      });
+      await store.retry();
+      expect(store.step()).toBe('partial');
+      expect(store.notice()).toBeNull();
+      expect(store.message()).toBe("Master was updated to 7. Dr Trust still not updated: Couldn't save to Dr Trust.");
+      expect(store.retryLabel()).toBe('Dr Trust');
+
+      write.mockResolvedValueOnce(written(drTrustRow));
+      await store.retry();
+      expect(store.notice()).toBe('Pulse Oximeter is now 7 (Master and Dr Trust).');
+    });
+
+    it('a double click retries once', async () => {
+      await toPartial();
+      write.mockResolvedValueOnce(written(drTrustRow));
+      const first = store.retry();
+      expect(store.step()).toBe('saving');
+      await store.retry();
+      await first;
+      expect(write).toHaveBeenCalledTimes(2); // approve + one retry
+    });
+
+    it('does nothing outside the partial step; approve does nothing in it', async () => {
+      prepare(linkedRow);
+      store.open();
+      await store.retry();
+      expect(write).not.toHaveBeenCalled();
+
+      write.mockResolvedValueOnce(partial());
+      await store.approve();
+      expect(store.step()).toBe('partial');
+      await store.approve();
+      expect(write).toHaveBeenCalledTimes(1);
+    });
+
+    it('Close drops the retry; the product stays selected (Out of sync)', async () => {
+      await toPartial();
+      store.back();
+      expect(store.step()).toBe('editing');
+      expect(store.retryLabel()).toBeNull();
+      expect(search.selected()?.ref).toBe(linkedRow.ref);
+      await store.retry();
+      expect(write).toHaveBeenCalledTimes(1);
+    });
+
+    it('choosing another product drops the retry', async () => {
+      await toPartial();
+      search.select(masterOnlyRow.ref);
+      TestBed.tick();
+      expect(store.retryLabel()).toBeNull();
+    });
   });
 });

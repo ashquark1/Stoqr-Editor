@@ -18,10 +18,13 @@ describe('ReviewPanel', () => {
   const step = signal<ReviewStep>('reviewing');
   const review = signal<ReviewSummary | null>(summary);
   const message = signal<string | null>(null);
+  const retryLabel = signal<string | null>(null);
   const store = {
     step,
     review,
     message,
+    retryLabel,
+    retry: vi.fn(() => Promise.resolve()),
     approve: vi.fn(() => Promise.resolve()),
     back: vi.fn(),
     open: vi.fn(),
@@ -43,6 +46,7 @@ describe('ReviewPanel', () => {
     step.set('reviewing');
     review.set(summary);
     message.set(null);
+    retryLabel.set(null);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [ReviewPanel],
@@ -101,13 +105,21 @@ describe('ReviewPanel', () => {
     expect(store.approve).toHaveBeenCalledTimes(1);
   });
 
-  it('a partial save shows the message even without a valid proposal, and only Close', () => {
+  it('a partial save shows the message even without a valid proposal, with Retry and Close (US-34)', () => {
     review.set(null);
+    retryLabel.set('Dr Trust');
     show('partial', 'Master was updated to 7. Dr Trust was not updated: no access.');
     expect(el.querySelector('.review__line')).toBeNull();
     expect(el.querySelector('.review__message')?.textContent).toContain('Dr Trust was not updated');
-    expect(labels()).toEqual(['Close']);
+    expect(labels()).toEqual(['Retry Dr Trust', 'Close']);
+    button('Retry Dr Trust')?.click();
+    expect(store.retry).toHaveBeenCalledTimes(1);
     button('Close')?.click();
     expect(store.back).toHaveBeenCalledTimes(1);
+  });
+
+  it('a partial with nothing to retry offers only Close', () => {
+    show('partial', 'Master was updated to 7.');
+    expect(labels()).toEqual(['Close']);
   });
 });

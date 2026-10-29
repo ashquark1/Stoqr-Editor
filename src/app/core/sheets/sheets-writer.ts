@@ -58,8 +58,16 @@ export type WriteResult =
     }
   /** Nothing written. */
   | { readonly kind: 'failed'; readonly error: SheetWriteError }
-  /** Some sheets written and confirmed; the rest not (never success). */
-  | { readonly kind: 'partial'; readonly written: readonly SheetWritten[]; readonly error: SheetWriteError };
+  /**
+   * Some sheets written and confirmed; the rest not (never success).
+   * `remaining` is the approval for the unwritten rows, for Retry (US-34).
+   */
+  | {
+      readonly kind: 'partial';
+      readonly written: readonly SheetWritten[];
+      readonly error: SheetWriteError;
+      readonly remaining: ApprovedChange;
+    };
 
 /**
  * Exactly how values go to Google (US-10). RAW: text is stored as text, so no
@@ -143,7 +151,8 @@ export class SheetsWriter {
           sent.result.kind === 'failed'
             ? sent.result.error
             : new SheetWriteError(target.sheet.label, 'invalid', `${target.sheet.label} changed while saving.`);
-        return { kind: 'partial', written, error };
+        const remaining = approved.remaining(written.map((s) => s.sheet.key));
+        return { kind: 'partial', written, error, remaining };
       }
       written.push(sent.written);
     }

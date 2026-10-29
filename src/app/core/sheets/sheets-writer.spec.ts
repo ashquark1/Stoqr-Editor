@@ -230,7 +230,51 @@ describe('SheetsWriter', () => {
         expect(result.written.map((s) => s.sheet.label)).toEqual(['Master']);
         expect(result.error.sheetLabel).toBe('Dr Trust');
         expect(result.error.kind).toBe('access');
+        expect(ApprovedChange.isGenuine(result.remaining)).toBe(true);
+        expect(result.remaining.rows.map((r) => r.target)).toEqual([drTrustRow.ref]);
       }
+    });
+
+    describe('Retry of a partial (US-34)', () => {
+      async function partialResult(): Promise<Extract<WriteResult, { kind: 'partial' }>> {
+        const pending = writer.write(linked());
+        echo(await post(MASTER_URL));
+        (await post(DR_TRUST_URL)).flush(null, { status: 503, statusText: 'Unavailable' });
+        const result = await pending;
+        if (result.kind !== 'partial') {
+          throw new Error(`expected partial, got ${result.kind}`);
+        }
+        read.mockClear();
+        return result;
+      }
+
+      it('rule: re-reads Dr Trust only and sends one Dr Trust request, no Master request', async () => {
+        const { remaining } = await partialResult();
+        const pending = writer.write(remaining);
+        const req = await post(DR_TRUST_URL);
+        http.expectNone(MASTER_URL);
+        expect(read.mock.calls.map(([s]) => s.key)).toEqual(['dr-trust']);
+        echo(req);
+        const result = await pending;
+        expect(result.kind === 'written' && result.sheets.map((s) => s.sheet.key)).toEqual(['dr-trust']);
+      });
+
+      it('rule: writes the same absolute qty even when Dr Trust changed meanwhile', async () => {
+        const { remaining } = await partialResult();
+        read.mockImplementation(() => Promise.resolve(sheetValues(sheetRow({ id: 'dt-9', 'stock qty': 50 }))));
+        const pending = writer.write(remaining);
+        const req = await post(DR_TRUST_URL);
+        expect((req.request.body as SentBody).data[0]).toMatchObject({ range: "'Sheet1'!K2", values: [[7]] });
+        echo(req);
+        expect((await pending).kind).toBe('written');
+      });
+
+      it('a Dr Trust row that is gone fails without writing', async () => {
+        const { remaining } = await partialResult();
+        read.mockImplementation(() => Promise.resolve(sheetValues(sheetRow({ id: 'gone' }))));
+        expectFailed(await writer.write(remaining), 'row-missing', 'Dr Trust');
+        http.expectNone(DR_TRUST_URL);
+      });
     });
 
     it('a Dr Trust row that changed while Master was saving is partial, not a silent skip', async () => {

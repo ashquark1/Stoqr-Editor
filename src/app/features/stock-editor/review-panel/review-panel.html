@@ -43,6 +43,9 @@
         <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Back</button>
       }
       @case ('partial') {
+        @if (review.retryLabel(); as label) {
+          <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.retry()">Retry {{ label }}</button>
+        }
         <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Close</button>
       }
     }

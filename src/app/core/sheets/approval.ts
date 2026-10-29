@@ -1,3 +1,4 @@
+import { SheetKey } from '@core/config/app-environment';
 import { Product } from '@core/models/product';
 import { RowRef } from './row-ref';
 
@@ -47,6 +48,23 @@ export class ApprovedChange {
   /** True only for an object created by `approve()`. */
   static isGenuine(value: unknown): value is ApprovedChange {
     return value instanceof ApprovedChange && #genuine in value && value.#genuine;
+  }
+
+  /**
+   * The rows of THIS approval not yet written — for Retry after a partial
+   * write (US-34). Same targets and values, so retrying finishes the user's
+   * original approval rather than making a new one. Refuses a forged source
+   * and an empty result.
+   */
+  remaining(written: readonly SheetKey[]): ApprovedChange {
+    if (!ApprovedChange.isGenuine(this)) {
+      throw new InvalidChangeError('Only a genuine approval can be retried.');
+    }
+    const rows = this.rows.filter((row) => !written.includes(row.target.sheet));
+    if (rows.length === 0) {
+      throw new InvalidChangeError('Nothing left to write: every row is already written.');
+    }
+    return new ApprovedChange(Object.freeze(rows), APPROVAL_KEY);
   }
 }
 
