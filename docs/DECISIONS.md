@@ -29,6 +29,7 @@
 - Fact (Google Sheets API usage-limits page, checked 2026-10-21): standard use is free; quotas are 300 reads and 300 writes per project per minute, and 60 of each per user per minute; exceeding returns HTTP 429. The same page says charges for exceeding quota are planned to start later in 2026 — re-check before launch.
 - Decision: stay far below quota — load the sheet once per session, re-read only the single target row at approval time, retry 429s with exponential backoff.
 - Update 2026-10-28 (US-10): each write re-reads the WHOLE tab of its sheet (one extra read per sheet per write), because the row must be found by `id` and the headers re-checked; still far below the quotas.
+- Update 2026-10-29 (US-11): retries for 429/5xx/network are built (see "Busy or unreachable Google"). Each retry costs a request, at most 3 per request.
 
 ## 2026-10-21: Read via Sheets API, not gviz [confirmed]
 
@@ -184,7 +185,7 @@
 
 - Decision: `GET …/values/{tabRange(tab)}` with `majorDimension=ROWS`, `valueRenderOption=UNFORMATTED_VALUE`, `dateTimeRenderOption=FORMATTED_STRING`. The reader skips the call (and marks the session expired) when there is no token or `expiresAt` has passed.
 - Decision: both sheets load in parallel, once per session (`SheetsStore.ensureLoaded`); data is set only when both load and map. Any failure shows no data and a message naming the sheet, with Retry. The store clears on sign-out; a load finishing after sign-out is discarded.
-- Decision: errors — 401 → back to sign-in; 403 → no access to <sheet>; 400 "Unable to parse range" → tab not found; 404 → spreadsheet not found; 429/5xx/network → generic. No automatic retry yet (US-11).
+- Decision: errors — 401 → back to sign-in; 403 → no access to <sheet>; 400 "Unable to parse range" → tab not found; 404 → spreadsheet not found; 429/5xx/network → generic. Automatic retry with backoff since US-11 (2026-10-29).
 - Decision: an empty tab (no values) counts as missing every column; a header-only tab is zero products.
 - Decision: the load-check page shows errors in a persistent panel (empty-state + Retry), not the toast, which auto-dismisses.
 - Deferred (owner choice): the Phase 0 raw-value check moved to after sign-in; the page shows MRP, tax rate and last updated for it. Done 2026-10-28: the owner confirmed the values on the TEST sheets match the mapping's assumptions; no change needed.
@@ -277,6 +278,14 @@
 - Decision: `StockReviewStore.retry()` works only from the partial step ("Saving…" while it runs, so a double click writes once). Written → the normal success (toast naming both sheets, amount reset, selection cleared). Anything else stays partial ("Master was updated to N. Dr Trust still not updated: reason"), never a plain failure or success.
 - Decision (owner): Close, choosing another product, sign-out or a reload drops the pending retry; the product keeps the Out of sync badge. Approve does nothing from the partial step, so the Master change cannot be sent twice.
 - Noted, not changed: Change product stays clickable while a save runs; the write stays safe but its message would be lost. Candidate small fix.
+
+## 2026-10-29: Busy or unreachable Google — backoff and honest messages (US-11) [confirmed]
+
+- Decision: `core/sheets/backoff.ts` — up to 3 automatic retries per request, after about 1 s, 2 s and 4 s (±20% random spread). A `Retry-After` header in whole seconds wins, capped at 30 s. The wait is the `RETRY_WAIT` injection token (a timer by default, instant in tests).
+- Decision: reads (both sheet loads and the re-read before every write) retry on 429, 5xx and network failures, asking for a fresh token on every try. 401 (renewal), 403, 404 and a missing tab are never retried by backoff.
+- Decision (owner: "429 only, re-check first"): a write is retried automatically ONLY after 429, because Google saved nothing; before each resend the writer re-reads and re-checks that sheet, so a conflict found meanwhile stops it. A 5xx or network failure on a write may have saved, so it is never resent automatically: it fails as `unconfirmed` — "Google didn't confirm the save to <sheet>, so it may or may not have been saved. Try again re-checks the sheet first." Try again and Retry always re-read first, so a save is never applied twice.
+- Decision: messages once retries run out — load busy: "Google is busy right now (too many requests). Wait a minute, then Retry."; load unreachable: "Couldn't reach Google to load <sheet>. Check your connection, then Retry."; write busy: "Google is busy right now (too many requests). Nothing was saved to <sheet>. Wait a minute and try again." A 400 that is not a missing tab keeps "Couldn't load <sheet>…" (not a network problem).
+- Decision: no "retrying…" indicator; the loading overlay or "Saving…" stays up while waiting. Change product is disabled while a save runs, so a save's result is never lost (the gap noted in story C).
 
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

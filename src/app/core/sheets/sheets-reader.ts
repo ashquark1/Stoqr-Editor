@@ -5,10 +5,14 @@ import { firstValueFrom } from 'rxjs';
 import { AUTH_MESSAGES, Auth } from '@core/auth/auth';
 import { SheetDefinition } from '@core/config/app-environment';
 import { tabRange } from './a1-range';
+import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, isTransient, retryDelay } from './backoff';
 import { CellValue } from './data-mapping';
 import { SheetLoadError, noAccessMessage } from './sheet-load-error';
 
 export const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+/** Shown when Google still says "too many requests" after every retry (US-11). */
+export const BUSY_LOAD_MESSAGE = 'Google is busy right now (too many requests). Wait a minute, then Retry.';
 
 /**
  * Read options (US-08): raw numbers rather than display text, dates as the
@@ -30,16 +34,19 @@ interface ValueRange {
  * only: the only file that may send a mutating request is `sheets-writer.ts`.
  * Failures become a `SheetLoadError` naming the sheet. A token that expires —
  * before the call or as a 401 — waits for the user to renew (US-06) and the
- * GET is retried once, so an interrupted load finishes after Continue.
+ * GET is retried once, so an interrupted load finishes after Continue. Busy
+ * (429), outage (5xx) and network failures are retried with backoff (US-11);
+ * reads change nothing, so that is always safe.
  */
 @Injectable({ providedIn: 'root' })
 export class SheetsReader {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(Auth);
+  private readonly wait = inject(RETRY_WAIT);
 
   async read(sheet: SheetDefinition): Promise<CellValue[][] | undefined> {
     try {
-      return await this.get(sheet, await this.token(sheet));
+      return await this.fetch(sheet);
     } catch (error) {
       if (!isUnauthorized(error)) {
         throw error instanceof SheetLoadError ? error : this.toLoadError(sheet, error);
@@ -48,7 +55,7 @@ export class SheetsReader {
     }
     // One retry after renewal; a second 401 is reported as an expired session.
     try {
-      return await this.get(sheet, await this.token(sheet));
+      return await this.fetch(sheet);
     } catch (error) {
       if (isUnauthorized(error)) {
         this.auth.markExpired();
@@ -64,6 +71,20 @@ export class SheetsReader {
       return await this.auth.freshToken();
     } catch {
       throw expiredError(sheet);
+    }
+  }
+
+  /** One GET, retried with backoff on transient errors; a fresh token for every try. */
+  private async fetch(sheet: SheetDefinition): Promise<CellValue[][] | undefined> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.get(sheet, await this.token(sheet));
+      } catch (error) {
+        if (!isTransient(error) || attempt >= RETRY_DELAYS_MS.length) {
+          throw error;
+        }
+        await this.wait(retryDelay(attempt, error));
+      }
     }
   }
 
@@ -96,6 +117,16 @@ export class SheetsReader {
           return new SheetLoadError(sheet.label, 'tab', `Tab ${sheet.tab} not found in ${sheet.label}.`);
         }
         break;
+    }
+    if (isBusy(error)) {
+      return new SheetLoadError(sheet.label, 'unavailable', BUSY_LOAD_MESSAGE);
+    }
+    if (isTransient(error) || !(error instanceof HttpErrorResponse)) {
+      return new SheetLoadError(
+        sheet.label,
+        'unavailable',
+        `Couldn't reach Google to load ${sheet.label}. Check your connection, then Retry.`,
+      );
     }
     return new SheetLoadError(
       sheet.label,

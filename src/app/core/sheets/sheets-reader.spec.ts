@@ -3,8 +3,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { AUTH_MESSAGES, Auth, SessionEndedError } from '@core/auth/auth';
+import { RETRY_WAIT } from './backoff';
 import { SheetLoadError } from './sheet-load-error';
-import { READ_PARAMS, SHEETS_API, SheetsReader } from './sheets-reader';
+import { BUSY_LOAD_MESSAGE, READ_PARAMS, SHEETS_API, SheetsReader } from './sheets-reader';
 import { MASTER_SHEET, sheetRow, sheetValues } from './testing/sheet-fixtures';
 
 const URL = `${SHEETS_API}/fake-master-id/values/%27Sheet1%27`;
@@ -16,10 +17,12 @@ describe('SheetsReader', () => {
   let tokens: (() => Promise<string>)[];
   const freshToken = vi.fn(() => (tokens.shift() ?? (() => Promise.resolve('fake-token')))());
   const markExpired = vi.fn();
+  /** Instant waits, recorded (milliseconds). */
+  const wait = vi.fn((_ms: number) => Promise.resolve());
 
   /** freshToken() is awaited before the GET, so let it settle first. */
   const tick = async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
       await Promise.resolve();
     }
   };
@@ -33,11 +36,13 @@ describe('SheetsReader', () => {
     tokens = [];
     freshToken.mockClear();
     markExpired.mockReset();
+    wait.mockClear();
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: Auth, useValue: { freshToken, markExpired } },
+        { provide: RETRY_WAIT, useValue: wait },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -125,18 +130,81 @@ describe('SheetsReader', () => {
       'Tab Sheet1 not found in Master.',
     ],
     [400, { error: { message: 'Bad request' } }, 'unavailable', "Couldn't load Master. Check your connection and try again."],
-    [429, null, 'unavailable', "Couldn't load Master. Check your connection and try again."],
-    [503, null, 'unavailable', "Couldn't load Master. Check your connection and try again."],
-  ])('%i maps to a friendly message naming the sheet', async (status, body, kind, message) => {
+  ])('%i maps to a friendly message naming the sheet, without retrying', async (status, body, kind, message) => {
     const error = await failWith(status, body);
     expect(error.kind).toBe(kind);
     expect(error.message).toBe(message);
     expect(markExpired).not.toHaveBeenCalled();
+    expect(wait).not.toHaveBeenCalled();
   });
 
-  it('a network failure maps to the unavailable message', async () => {
-    const pending = reader.read(MASTER_SHEET);
-    (await request()).error(new ProgressEvent('error'));
-    await expect(pending).rejects.toMatchObject({ kind: 'unavailable' });
+  describe('backoff (US-11)', () => {
+    const fail = async (status: number, headers: Record<string, string> = {}) =>
+      (await request()).flush(null, { status, statusText: 'Error', headers });
+    const offline = async () => (await request()).error(new ProgressEvent('error'));
+
+    it('a 429, then success: loads after one wait, with a fresh token', async () => {
+      const values = sheetValues(sheetRow());
+      const pending = reader.read(MASTER_SHEET);
+      await fail(429);
+      (await request()).flush({ values });
+      await expect(pending).resolves.toEqual(values);
+      expect(wait).toHaveBeenCalledTimes(1);
+      expect(wait.mock.calls[0][0]).toBeGreaterThanOrEqual(800);
+      expect(wait.mock.calls[0][0]).toBeLessThanOrEqual(1200);
+      expect(freshToken).toHaveBeenCalledTimes(2);
+    });
+
+    it('three 503s, then success: loads', async () => {
+      const values = sheetValues(sheetRow());
+      const pending = reader.read(MASTER_SHEET);
+      await fail(503);
+      await fail(502);
+      await offline();
+      (await request()).flush({ values });
+      await expect(pending).resolves.toEqual(values);
+      expect(wait).toHaveBeenCalledTimes(3);
+    });
+
+    it('rule: at most 3 retries; then the unreachable message', async () => {
+      const pending = reader.read(MASTER_SHEET);
+      for (let i = 0; i < 4; i++) {
+        await offline();
+      }
+      await expect(pending).rejects.toMatchObject({
+        kind: 'unavailable',
+        message: "Couldn't reach Google to load Master. Check your connection, then Retry.",
+      });
+      expect(wait).toHaveBeenCalledTimes(3);
+      http.expectNone(URL);
+    });
+
+    it('four 429s: the busy message', async () => {
+      const pending = reader.read(MASTER_SHEET);
+      for (let i = 0; i < 4; i++) {
+        await fail(429);
+      }
+      await expect(pending).rejects.toMatchObject({ kind: 'unavailable', message: BUSY_LOAD_MESSAGE });
+    });
+
+    it('honours Retry-After (seconds)', async () => {
+      const pending = reader.read(MASTER_SHEET);
+      await fail(429, { 'Retry-After': '5' });
+      (await request()).flush({ values: [] });
+      await pending;
+      expect(wait).toHaveBeenCalledWith(5000);
+    });
+
+    it('a 401 between transient errors still renews once', async () => {
+      tokens = [() => Promise.resolve('t1'), () => Promise.resolve('t2'), () => Promise.resolve('t3')];
+      const pending = reader.read(MASTER_SHEET);
+      await fail(503);
+      await fail(401);
+      const last = await request();
+      expect(last.request.headers.get('Authorization')).toBe('Bearer t3');
+      last.flush({ values: [] });
+      await expect(pending).resolves.toEqual([]);
+      expect(markExpired).toHaveBeenCalledTimes(1);
+    });
   });
 });

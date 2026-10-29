@@ -7,6 +7,7 @@ import { Auth, SessionEndedError } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
 import { SheetDefinition, SheetKey } from '@core/config/app-environment';
 import { ApprovedChange, ProductChanges, approve } from './approval';
+import { RETRY_WAIT } from './backoff';
 import { CellValue, mapSheet } from './data-mapping';
 import { SheetLoadError } from './sheet-load-error';
 import { SHEETS_API, SheetsReader } from './sheets-reader';
@@ -29,6 +30,8 @@ describe('SheetsWriter', () => {
   let tokens: (() => Promise<string>)[];
   const freshToken = vi.fn(() => (tokens.shift() ?? (() => Promise.resolve('fake-token')))());
   const markExpired = vi.fn();
+  /** Instant waits, recorded (milliseconds). */
+  const wait = vi.fn((_ms: number) => Promise.resolve());
 
   const masterValues = () => sheetValues(sheetRow({ id: 'row-1', 'stock qty': 10, 'low stock threshold': 5 }));
   // Dr Trust holds a DIFFERENT quantity and its own sheet-local id.
@@ -67,6 +70,7 @@ describe('SheetsWriter', () => {
     tokens = [];
     freshToken.mockClear();
     markExpired.mockReset();
+    wait.mockClear();
     read = vi.fn((sheet: SheetDefinition) => Promise.resolve(sheet.key === 'master' ? masterValues() : drTrustValues()));
     const sheets: Record<SheetKey, SheetDefinition> = { master: MASTER_SHEET, 'dr-trust': DR_TRUST_SHEET };
     TestBed.configureTestingModule({
@@ -76,6 +80,7 @@ describe('SheetsWriter', () => {
         { provide: Auth, useValue: { freshToken, markExpired } },
         { provide: SheetsReader, useValue: { read } },
         { provide: AppConfig, useValue: { sheet: (key: SheetKey) => sheets[key] } },
+        { provide: RETRY_WAIT, useValue: wait },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -212,11 +217,23 @@ describe('SheetsWriter', () => {
       http.expectNone(MASTER_URL);
     });
 
-    it('a Master write failure stops before Dr Trust (nothing written)', async () => {
+    it('a Master write failure stops before Dr Trust', async () => {
       const pending = writer.write(linked());
-      (await post(MASTER_URL)).flush(null, { status: 503, statusText: 'Unavailable' });
-      expectFailed(await pending, 'unavailable', 'Master');
+      (await post(MASTER_URL)).flush(null, { status: 403, statusText: 'Forbidden' });
+      expectFailed(await pending, 'access', 'Master');
       http.expectNone(DR_TRUST_URL);
+    });
+
+    it('a Dr Trust 503 after Master is partial with the "didn\'t confirm" reason (US-11)', async () => {
+      const pending = writer.write(linked());
+      echo(await post(MASTER_URL));
+      (await post(DR_TRUST_URL)).flush(null, { status: 503, statusText: 'Unavailable' });
+      const result = await pending;
+      expect(result.kind).toBe('partial');
+      if (result.kind === 'partial') {
+        expect(result.error).toMatchObject({ sheetLabel: 'Dr Trust', kind: 'unconfirmed' });
+        expect(result.error.message).toContain("Google didn't confirm the save to Dr Trust");
+      }
     });
 
     it('rule: a Dr Trust failure after Master is partial, naming both sheets, never success', async () => {
@@ -358,17 +375,69 @@ describe('SheetsWriter', () => {
   it.each([
     [403, 'access'],
     [404, 'not-found'],
-    [429, 'unavailable'],
-    [503, 'unavailable'],
-  ])('HTTP %i fails as %s (never success)', async (status, kind) => {
+    [400, 'unavailable'],
+  ])('HTTP %i fails as %s (never success, never retried)', async (status, kind) => {
     const pending = writer.write(approved({ stockQty: 7 }));
     (await post()).flush(null, { status, statusText: 'Error' });
     expectFailed(await pending, kind);
+    expect(wait).not.toHaveBeenCalled();
   });
 
-  it('a network failure fails as unavailable', async () => {
-    const pending = writer.write(approved({ stockQty: 7 }));
-    (await post()).error(new ProgressEvent('error'));
-    expectFailed(await pending, 'unavailable');
+  describe('busy and unreachable (US-11)', () => {
+    const busy = async (url = MASTER_URL) => (await post(url)).flush(null, { status: 429, statusText: 'Too Many Requests' });
+
+    it('rule: a 429 waits, re-reads and re-checks the row, then resends', async () => {
+      const pending = writer.write(approved({ stockQty: 7 }));
+      await busy();
+      const resend = await post();
+      expect(wait).toHaveBeenCalledTimes(1);
+      expect(read).toHaveBeenCalledTimes(2); // the first check + the re-check before the resend
+      echo(resend);
+      expect((await pending).kind).toBe('written');
+    });
+
+    it('rule: at most 3 resends; then busy, nothing reported as saved', async () => {
+      const pending = writer.write(approved({ stockQty: 7 }));
+      for (let i = 0; i < 4; i++) {
+        await busy();
+      }
+      const result = await pending;
+      expectFailed(result, 'unavailable');
+      if (result.kind === 'failed') {
+        expect(result.error.message).toBe(
+          'Google is busy right now (too many requests). Nothing was saved to Master. Wait a minute and try again.',
+        );
+      }
+      expect(wait).toHaveBeenCalledTimes(3);
+      http.expectNone(MASTER_URL);
+    });
+
+    it('a conflict found by the re-check after a 429 sends nothing more', async () => {
+      const pending = writer.write(approved({ stockQty: 7 }));
+      read.mockImplementation(() =>
+        Promise.resolve(sheetValues(sheetRow({ id: 'row-1', 'stock qty': 12, 'low stock threshold': 5 }))),
+      );
+      await busy();
+      const result = await pending;
+      expect(result.kind).toBe('conflict');
+      http.expectNone(MASTER_URL);
+    });
+
+    it.each([
+      ['a 503', (req: TestRequest) => req.flush(null, { status: 503, statusText: 'Unavailable' })],
+      ['a network failure', (req: TestRequest) => req.error(new ProgressEvent('error'))],
+    ])('rule: %s is never resent and never claimed "not saved"', async (_case, failRequest) => {
+      const pending = writer.write(approved({ stockQty: 7 }));
+      failRequest(await post());
+      const result = await pending;
+      expectFailed(result, 'unconfirmed');
+      if (result.kind === 'failed') {
+        expect(result.error.message).toBe(
+          "Google didn't confirm the save to Master, so it may or may not have been saved. Try again re-checks the sheet first.",
+        );
+      }
+      expect(wait).not.toHaveBeenCalled();
+      http.expectNone(MASTER_URL);
+    });
   });
 });

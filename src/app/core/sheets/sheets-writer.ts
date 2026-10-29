@@ -7,6 +7,7 @@ import { AppConfig } from '@core/config/app-config';
 import { SheetDefinition } from '@core/config/app-environment';
 import { LoadedProduct, Product } from '@core/models/product';
 import { ApprovedChange, InvalidChangeError, RowChange } from './approval';
+import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, retryDelay } from './backoff';
 import { CellValue } from './data-mapping';
 import { RowRef, rowRefId } from './row-ref';
 import { SheetLoadError } from './sheet-load-error';
@@ -106,6 +107,9 @@ type Sent = { readonly ok: true; readonly written: SheetWritten } | { readonly o
  *    one request each, with Stock Status and Last Updated filled in;
  * 3. reports `written` only when Google returns every value it was sent, and
  *    `partial` (never success) when a later sheet fails after an earlier one.
+ * A write is retried automatically ONLY after 429 (Google saved nothing), and
+ * only after re-reading and re-checking that sheet (US-11, owner choice). A
+ * 5xx or network failure may have saved, so it is reported, never resent.
  */
 @Injectable({ providedIn: 'root' })
 export class SheetsWriter {
@@ -113,6 +117,7 @@ export class SheetsWriter {
   private readonly auth = inject(Auth);
   private readonly reader = inject(SheetsReader);
   private readonly config = inject(AppConfig);
+  private readonly wait = inject(RETRY_WAIT);
 
   async write(approved: ApprovedChange): Promise<WriteResult> {
     if (!ApprovedChange.isGenuine(approved)) {
@@ -205,8 +210,11 @@ export class SheetsWriter {
     }
   }
 
-  /** One request with exact cells; confirmed against Google's echo. */
-  private async send(target: Target, plan: Ready, mayRetry: boolean): Promise<Sent> {
+  /**
+   * One request with exact cells; confirmed against Google's echo. `mayRenew`:
+   * a 401 may still renew and resend once. `busyRetries`: 429 resends so far.
+   */
+  private async send(target: Target, plan: Ready, mayRenew: boolean, busyRetries = 0): Promise<Sent> {
     const { sheet } = target;
     let response: BatchUpdateResponse;
     try {
@@ -230,7 +238,7 @@ export class SheetsWriter {
       }
       if (error instanceof HttpErrorResponse && error.status === 401) {
         this.auth.markExpired();
-        if (!mayRetry) {
+        if (!mayRenew) {
           return {
             ok: false,
             result: failed(sheet.label, 'expired', `Your session expired before ${sheet.label} was saved.`),
@@ -238,7 +246,13 @@ export class SheetsWriter {
         }
         // After renewal, re-read and re-check THIS sheet only (an earlier sheet may already be written).
         const again = await this.check(target);
-        return again.ok ? this.send(target, again.plan, false) : { ok: false, result: again.result };
+        return again.ok ? this.send(target, again.plan, false, busyRetries) : { ok: false, result: again.result };
+      }
+      if (isBusy(error) && busyRetries < RETRY_DELAYS_MS.length) {
+        // Google saved nothing: wait, re-read and re-check THIS sheet, then resend.
+        await this.wait(retryDelay(busyRetries, error));
+        const again = await this.check(target);
+        return again.ok ? this.send(target, again.plan, mayRenew, busyRetries + 1) : { ok: false, result: again.result };
       }
       return { ok: false, result: { kind: 'failed', error: fromWriteError(sheet, error) } };
     }
@@ -293,6 +307,21 @@ function fromWriteError(sheet: SheetDefinition, error: unknown): SheetWriteError
   }
   if (status === 404) {
     return new SheetWriteError(sheet.label, 'not-found', `${sheet.label} spreadsheet not found, check configuration.`);
+  }
+  if (status === 429) {
+    return new SheetWriteError(
+      sheet.label,
+      'unavailable',
+      `Google is busy right now (too many requests). Nothing was saved to ${sheet.label}. Wait a minute and try again.`,
+    );
+  }
+  if (status === 0 || status >= 500) {
+    // The request may have reached Google and been saved: never claim it was not.
+    return new SheetWriteError(
+      sheet.label,
+      'unconfirmed',
+      `Google didn't confirm the save to ${sheet.label}, so it may or may not have been saved. Try again re-checks the sheet first.`,
+    );
   }
   return new SheetWriteError(sheet.label, 'unavailable', `Couldn't save to ${sheet.label}. Check your connection and try again.`);
 }

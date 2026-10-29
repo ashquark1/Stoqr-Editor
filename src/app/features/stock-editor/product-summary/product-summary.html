@@ -2,7 +2,12 @@
   <article class="summary" aria-live="polite">
     <header class="summary__header">
       <h2 class="summary__title">{{ display(row.product.productName) }}</h2>
-      <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="search.clearSelection()">
+      <button
+        type="button"
+        class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm"
+        [disabled]="review.step() === 'saving'"
+        (click)="search.clearSelection()"
+      >
         Change product
       </button>
     </header>

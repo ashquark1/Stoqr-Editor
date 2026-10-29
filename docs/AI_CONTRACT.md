@@ -40,6 +40,7 @@
 - Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.
 - Rule: changes reach `SheetsWriter` only as an `ApprovedChange` from `approve()` (`core/sheets/approval.ts`), which only `core/stock-adjust/` and `core/details/` may call (enforced by `architecture.spec.ts`). Never construct, cast or fake an approval.
 - Rule: a retry of a partial write uses ONLY `remaining` from the partial result (`ApprovedChange.remaining()`), never a new `approve()`, and never rewrites a sheet that is already confirmed.
+- Rule: a write is retried automatically ONLY after 429 (Google saved nothing), and only after re-reading and re-checking the row. A 5xx or network failure on a write is never resent automatically and never reported as "not saved". At most 3 automatic retries per request.
 - Rule: values are sent `RAW`; the typed-input option may not appear in source (enforced). Stock Status and Last Updated are filled in only by the writer — callers never pass them.
 - Rule: the writer re-reads the tab, finds the row by `id`, re-checks every reviewed value, and reports `written` only when Google echoes every cell it was sent.
 - Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.

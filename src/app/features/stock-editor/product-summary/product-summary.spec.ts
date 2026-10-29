@@ -122,6 +122,15 @@ describe('ProductSummary', () => {
     }
   });
 
+  it('Change product is disabled while a save runs (US-11)', () => {
+    const change = () =>
+      [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Change product');
+    expect(change()?.disabled).toBe(false);
+    step.set('saving');
+    fixture.detectChanges();
+    expect(change()?.disabled).toBe(true);
+  });
+
   it('Change product clears the selection', () => {
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Change product')?.click();
     expect(search.clearSelection).toHaveBeenCalledTimes(1);
