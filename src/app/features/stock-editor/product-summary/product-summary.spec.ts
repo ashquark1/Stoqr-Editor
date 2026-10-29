@@ -6,6 +6,7 @@ import { ProductSearchStore } from '@core/search/product-search-store';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { BLOCKED_SKU_REASON, Editability } from '@core/sheets/editability';
 import { SyncBadgeKind } from '@core/sheets/sync-badge';
+import { ReviewStep, StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import {
   DR_TRUST_SHEET,
   MASTER_SHEET,
@@ -13,10 +14,14 @@ import {
   sheetValues,
 } from '@core/sheets/testing/sheet-fixtures';
 import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
+import { ReviewPanel } from '../review-panel/review-panel';
 import { ProductSummary } from './product-summary';
 
 @Component({ selector: 'app-quantity-adjuster', template: 'adjuster', changeDetection: ChangeDetectionStrategy.OnPush })
 class AdjusterStub {}
+
+@Component({ selector: 'app-review-panel', template: 'review', changeDetection: ChangeDetectionStrategy.OnPush })
+class ReviewPanelStub {}
 
 describe('ProductSummary', () => {
   const [product] = mapSheet(
@@ -38,6 +43,7 @@ describe('ProductSummary', () => {
     selectedSyncBadge,
     clearSelection: vi.fn(),
   };
+  const step = signal<ReviewStep>('editing');
   let fixture: ComponentFixture<ProductSummary>;
   let el: HTMLElement;
 
@@ -53,14 +59,18 @@ describe('ProductSummary', () => {
     drTrustQtyDiffers.set(false);
     selectedEditability.set({ editable: true, reasons: [] });
     selectedSyncBadge.set('master-only');
+    step.set('editing');
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [ProductSummary],
-      providers: [{ provide: ProductSearchStore, useValue: search }],
+      providers: [
+        { provide: ProductSearchStore, useValue: search },
+        { provide: StockReviewStore, useValue: { step } },
+      ],
     });
     TestBed.overrideComponent(ProductSummary, {
-      remove: { imports: [QuantityAdjuster] },
-      add: { imports: [AdjusterStub] },
+      remove: { imports: [QuantityAdjuster, ReviewPanel] },
+      add: { imports: [AdjusterStub, ReviewPanelStub] },
     });
     fixture = TestBed.createComponent(ProductSummary);
     el = fixture.nativeElement;
@@ -100,6 +110,16 @@ describe('ProductSummary', () => {
 
   it('shows the quantity adjuster only for an editable product (US-15)', () => {
     expect(el.querySelector('app-quantity-adjuster')).not.toBeNull();
+    expect(el.querySelector('app-review-panel')).toBeNull();
+  });
+
+  it('swaps the adjuster for the review panel once a review is open (US-18)', () => {
+    for (const s of ['reviewing', 'saving', 'conflict', 'partial', 'failed'] as const) {
+      step.set(s);
+      fixture.detectChanges();
+      expect(el.querySelector('app-review-panel')).not.toBeNull();
+      expect(el.querySelector('app-quantity-adjuster')).toBeNull();
+    }
   });
 
   it('Change product clears the selection', () => {

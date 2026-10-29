@@ -2,7 +2,8 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 
 import { Auth } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
-import { LoadedProduct, isEditable } from '@core/models/product';
+import { LoadedProduct, Product, ProductIssue, isEditable } from '@core/models/product';
+import { RowRef } from './row-ref';
 import { mapSheet } from './data-mapping';
 import { SheetLoadError, combineLoadErrors } from './sheet-load-error';
 import { pairSheets, pairingCounts } from './sheet-pairing';
@@ -83,6 +84,22 @@ export class SheetsStore {
   /** Retry: loads both sheets again. */
   reload(): Promise<void> {
     return this.load();
+  }
+
+  /**
+   * Puts values Google confirmed (or freshly re-read after a conflict) into the
+   * loaded row, keeping its `RowRef`, so the screen shows the sheet's real
+   * values after a write — never a guess. Pairing and badges follow by
+   * themselves. `issues` replace the row's issues when given.
+   */
+  applyRow(ref: RowRef, product: Product, issues?: readonly ProductIssue[]): void {
+    const replace = (rows: readonly LoadedProduct[]) =>
+      rows.map((row) => (row.ref === ref ? { ref, product, issues: issues ?? row.issues } : row));
+    if (ref.sheet === 'master') {
+      this.masterSignal.update(replace);
+    } else {
+      this.drTrustSignal.update(replace);
+    }
   }
 
   private async load(): Promise<void> {

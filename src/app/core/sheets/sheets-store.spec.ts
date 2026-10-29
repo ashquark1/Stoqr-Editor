@@ -266,4 +266,30 @@ describe('SheetsStore', () => {
     expect(store.fetchedAt()).toBeNull();
     expect(store.loading()).toBe(false);
   });
+
+  it('applyRow replaces one row in its own sheet with confirmed values, keeping the ref', async () => {
+    respond({ master: async () => masterRows, 'dr-trust': async () => drTrustRows });
+    await store.ensureLoaded();
+    const [first, second] = store.master();
+    const [drTrust] = store.drTrust();
+
+    store.applyRow(first.ref, { ...first.product, stockQty: 3 });
+    expect(store.master()[0]).toEqual({ ref: first.ref, product: { ...first.product, stockQty: 3 }, issues: first.issues });
+    expect(store.master()[1]).toBe(second);
+    expect(store.drTrust()[0]).toBe(drTrust);
+
+    store.applyRow(drTrust.ref, { ...drTrust.product, stockQty: 3 });
+    expect(store.drTrust()[0].product.stockQty).toBe(3);
+    expect(store.master()[0].product.stockQty).toBe(3);
+  });
+
+  it('applyRow can replace issues (a fresh re-read)', async () => {
+    respond({ master: async () => masterRows, 'dr-trust': async () => drTrustRows });
+    await store.ensureLoaded();
+    const flagged = store.master()[1];
+    expect(flagged.issues).not.toEqual([]);
+    store.applyRow(flagged.ref, { ...flagged.product, stockQty: 4 }, []);
+    expect(store.master()[1].issues).toEqual([]);
+    expect(store.flaggedCount()).toBe(0);
+  });
 });

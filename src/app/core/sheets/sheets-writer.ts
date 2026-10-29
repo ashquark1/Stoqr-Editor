@@ -3,18 +3,18 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { Auth, SessionEndedError } from '@core/auth/auth';
+import { AppConfig } from '@core/config/app-config';
 import { SheetDefinition } from '@core/config/app-environment';
 import { LoadedProduct, Product } from '@core/models/product';
 import { ApprovedChange, InvalidChangeError, RowChange } from './approval';
 import { CellValue } from './data-mapping';
-import { rowRefId } from './row-ref';
+import { RowRef, rowRefId } from './row-ref';
 import { SheetLoadError } from './sheet-load-error';
 import { SHEETS_API, SheetsReader } from './sheets-reader';
-import { CellWrite, planRowWrite } from './write-plan';
+import { CellWrite, WritePlan, planRowWrite } from './write-plan';
 
 export type WriteFailureKind =
   | 'not-approved'
-  | 'wrong-sheet'
   | 'invalid'
   | 'columns'
   | 'row-missing'
@@ -37,10 +37,29 @@ export class SheetWriteError extends Error {
   }
 }
 
+/** One sheet's confirmed write. `ref` is the approved row's ref (unchanged). */
+export interface SheetWritten {
+  readonly sheet: SheetDefinition;
+  readonly ref: RowRef;
+  readonly product: Product;
+  readonly cells: readonly CellWrite[];
+}
+
 export type WriteResult =
-  | { readonly kind: 'written'; readonly product: Product; readonly cells: readonly CellWrite[] }
-  | { readonly kind: 'conflict'; readonly current: LoadedProduct; readonly fields: readonly (keyof Product)[] }
-  | { readonly kind: 'failed'; readonly error: SheetWriteError };
+  /** Every sheet written and confirmed. */
+  | { readonly kind: 'written'; readonly sheets: readonly SheetWritten[] }
+  /** Nothing written: a reviewed value changed underneath. */
+  | {
+      readonly kind: 'conflict';
+      readonly sheet: SheetDefinition;
+      readonly ref: RowRef;
+      readonly current: LoadedProduct;
+      readonly fields: readonly (keyof Product)[];
+    }
+  /** Nothing written. */
+  | { readonly kind: 'failed'; readonly error: SheetWriteError }
+  /** Some sheets written and confirmed; the rest not (never success). */
+  | { readonly kind: 'partial'; readonly written: readonly SheetWritten[]; readonly error: SheetWriteError };
 
 /**
  * Exactly how values go to Google (US-10). RAW: text is stored as text, so no
@@ -59,68 +78,127 @@ interface BatchUpdateResponse {
   readonly responses?: readonly { readonly updatedData?: { readonly values?: CellValue[][] } }[];
 }
 
+interface Target {
+  readonly row: RowChange;
+  readonly sheet: SheetDefinition;
+  readonly id: string;
+}
+
+type Ready = Extract<WritePlan, { kind: 'ready' }>;
+type Checked = { readonly ok: true; readonly plan: Ready } | { readonly ok: false; readonly result: WriteResult };
+type Sent = { readonly ok: true; readonly written: SheetWritten } | { readonly ok: false; readonly result: WriteResult };
+
 /**
- * THE ONLY code that changes a spreadsheet (AI_CONTRACT: Writes). One row in
- * one sheet per call, parameterised by the sheet definition. It takes only a
- * genuine `ApprovedChange`, re-reads the tab and re-checks the row (by `id`)
- * and every reviewed value, writes exact single cells in one request, fills in
- * Stock Status and Last Updated itself, and reports `written` only after
- * Google returns every value it was sent.
+ * THE ONLY code that changes a spreadsheet (AI_CONTRACT: Writes). Parameterised
+ * by sheet definition; one row, or one row per sheet for a linked product. It
+ * takes only a genuine `ApprovedChange`, then:
+ * 1. checks EVERY sheet first — re-reads it, finds the row by `id`, re-checks
+ *    the reviewed values — and writes nothing if any check fails;
+ * 2. writes the sheets in order (Master, then Dr Trust), exact single cells in
+ *    one request each, with Stock Status and Last Updated filled in;
+ * 3. reports `written` only when Google returns every value it was sent, and
+ *    `partial` (never success) when a later sheet fails after an earlier one.
  */
 @Injectable({ providedIn: 'root' })
 export class SheetsWriter {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(Auth);
   private readonly reader = inject(SheetsReader);
+  private readonly config = inject(AppConfig);
 
-  async write(sheet: SheetDefinition, approved: ApprovedChange): Promise<WriteResult> {
+  async write(approved: ApprovedChange): Promise<WriteResult> {
     if (!ApprovedChange.isGenuine(approved)) {
-      return failed(sheet, 'not-approved', 'This change was not approved, so nothing was written.');
+      return failed('', 'not-approved', 'This change was not approved, so nothing was written.');
     }
-    const change = approved.change;
-    if (change.target.sheet !== sheet.key) {
-      return failed(sheet, 'wrong-sheet', `This change is for another sheet, not ${sheet.label}.`);
+    const targets: Target[] = [];
+    for (const row of approved.rows) {
+      const sheet = this.config.sheet(row.target.sheet);
+      const id = rowRefId(row.target);
+      if (id === undefined || id === '') {
+        return failed(sheet.label, 'row-missing', `This product has no id in ${sheet.label}, so nothing was written.`);
+      }
+      targets.push({ row, sheet, id });
     }
-    const id = rowRefId(change.target);
-    if (id === undefined || id === '') {
-      return failed(sheet, 'row-missing', `This product has no id in ${sheet.label}, so it cannot be written.`);
+
+    // 1. Check every sheet before writing any (owner choice: "check both first").
+    const checks = await Promise.all(targets.map((t) => this.check(t)));
+    const plans: Ready[] = [];
+    for (const check of checks) {
+      if (!check.ok) {
+        return check.result;
+      }
+      plans.push(check.plan);
     }
-    return this.attempt(sheet, change, id, true);
+
+    // 2. Write in order; stop at the first failure.
+    const written: SheetWritten[] = [];
+    for (const [i, target] of targets.entries()) {
+      const sent = await this.send(target, plans[i], true);
+      if (!sent.ok) {
+        if (written.length === 0) {
+          return sent.result;
+        }
+        // An earlier sheet is already written: whatever stopped this one, it is partial.
+        const error =
+          sent.result.kind === 'failed'
+            ? sent.result.error
+            : new SheetWriteError(target.sheet.label, 'invalid', `${target.sheet.label} changed while saving.`);
+        return { kind: 'partial', written, error };
+      }
+      written.push(sent.written);
+    }
+    return { kind: 'written', sheets: written };
   }
 
-  private async attempt(sheet: SheetDefinition, change: RowChange, id: string, mayRetry: boolean): Promise<WriteResult> {
-    // 1. Re-read the whole tab: headers and the row may have moved since the load.
+  /** Re-read one sheet and plan its write against the fresh data. */
+  private async check(target: Target): Promise<Checked> {
+    const { sheet, row, id } = target;
     let values;
     try {
       values = await this.reader.read(sheet);
     } catch (error) {
-      return { kind: 'failed', error: fromLoadError(sheet, error) };
+      return { ok: false, result: { kind: 'failed', error: fromLoadError(sheet, error) } };
     }
-
-    // 2. Plan against the fresh data (row by id, reviewed values, derived fields).
-    let plan;
+    let plan: WritePlan;
     try {
-      plan = planRowWrite(sheet, values, id, change, new Date());
+      plan = planRowWrite(sheet, values, id, row, new Date());
     } catch (error) {
       if (error instanceof SheetLoadError) {
-        return { kind: 'failed', error: fromLoadError(sheet, error) };
+        return { ok: false, result: { kind: 'failed', error: fromLoadError(sheet, error) } };
       }
       if (error instanceof InvalidChangeError || error instanceof RangeError) {
-        return failed(sheet, 'invalid', error.message);
+        return { ok: false, result: failed(sheet.label, 'invalid', error.message) };
       }
       throw error;
     }
-    if (plan.kind === 'conflict') {
-      return { kind: 'conflict', current: plan.current, fields: plan.fields };
+    switch (plan.kind) {
+      case 'ready':
+        return { ok: true, plan };
+      case 'conflict':
+        return {
+          ok: false,
+          result: { kind: 'conflict', sheet, ref: row.target, current: plan.current, fields: plan.fields },
+        };
+      case 'row-missing':
+        return {
+          ok: false,
+          result: failed(sheet.label, 'row-missing', `This product is no longer in ${sheet.label}. Nothing was written.`),
+        };
+      case 'row-duplicated':
+        return {
+          ok: false,
+          result: failed(
+            sheet.label,
+            'row-duplicated',
+            `This product's id now appears twice in ${sheet.label}. Nothing was written.`,
+          ),
+        };
     }
-    if (plan.kind === 'row-missing') {
-      return failed(sheet, 'row-missing', `This product is no longer in ${sheet.label}. Nothing was written.`);
-    }
-    if (plan.kind === 'row-duplicated') {
-      return failed(sheet, 'row-duplicated', `This product's id now appears twice in ${sheet.label}. Nothing was written.`);
-    }
+  }
 
-    // 3. One request with exact cells only.
+  /** One request with exact cells; confirmed against Google's echo. */
+  private async send(target: Target, plan: Ready, mayRetry: boolean): Promise<Sent> {
+    const { sheet } = target;
     let response: BatchUpdateResponse;
     try {
       const token = await this.auth.freshToken();
@@ -136,31 +214,41 @@ export class SheetsWriter {
       );
     } catch (error) {
       if (error instanceof SessionEndedError) {
-        return failed(sheet, 'expired', 'You signed out before the change was saved. Nothing was written.');
+        return {
+          ok: false,
+          result: failed(sheet.label, 'expired', `You signed out before ${sheet.label} was saved.`),
+        };
       }
       if (error instanceof HttpErrorResponse && error.status === 401) {
         this.auth.markExpired();
-        // Absolute values + a fresh re-read and re-check make one retry safe.
-        return mayRetry
-          ? this.attempt(sheet, change, id, false)
-          : failed(sheet, 'expired', 'Your session expired before the change was saved. Nothing was written.');
+        if (!mayRetry) {
+          return {
+            ok: false,
+            result: failed(sheet.label, 'expired', `Your session expired before ${sheet.label} was saved.`),
+          };
+        }
+        // After renewal, re-read and re-check THIS sheet only (an earlier sheet may already be written).
+        const again = await this.check(target);
+        return again.ok ? this.send(target, again.plan, false) : { ok: false, result: again.result };
       }
-      return { kind: 'failed', error: fromWriteError(sheet, error) };
+      return { ok: false, result: { kind: 'failed', error: fromWriteError(sheet, error) } };
     }
 
-    // 4. Success only once Google returns every value it was sent.
     const returned = response.responses ?? [];
     const confirmed =
       returned.length === plan.writes.length &&
       plan.writes.every((w, i) => sameCell(returned[i]?.updatedData?.values?.[0]?.[0] ?? '', w.value));
     if (!confirmed) {
-      return failed(
-        sheet,
-        'unconfirmed',
-        `Google did not confirm the change in ${sheet.label}. Reload to check it before trying again.`,
-      );
+      return {
+        ok: false,
+        result: failed(
+          sheet.label,
+          'unconfirmed',
+          `Google did not confirm the change in ${sheet.label}. Reload to check it before trying again.`,
+        ),
+      };
     }
-    return { kind: 'written', product: plan.expected, cells: plan.writes };
+    return { ok: true, written: { sheet, ref: target.row.target, product: plan.expected, cells: plan.writes } };
   }
 }
 
@@ -172,8 +260,8 @@ function sameCell(returned: CellValue, sent: CellValue): boolean {
   return returned === sent;
 }
 
-function failed(sheet: SheetDefinition, kind: WriteFailureKind, message: string): WriteResult {
-  return { kind: 'failed', error: new SheetWriteError(sheet.label, kind, message) };
+function failed(sheetLabel: string, kind: WriteFailureKind, message: string): WriteResult {
+  return { kind: 'failed', error: new SheetWriteError(sheetLabel, kind, message) };
 }
 
 function fromLoadError(sheet: SheetDefinition, error: unknown): SheetWriteError {
@@ -191,15 +279,11 @@ function fromWriteError(sheet: SheetDefinition, error: unknown): SheetWriteError
     return new SheetWriteError(
       sheet.label,
       'access',
-      `You don't have edit access to ${sheet.label}. Ask the owner to share it with you as Editor. Nothing was written.`,
+      `You don't have edit access to ${sheet.label}. Ask the owner to share it with you as Editor.`,
     );
   }
   if (status === 404) {
     return new SheetWriteError(sheet.label, 'not-found', `${sheet.label} spreadsheet not found, check configuration.`);
   }
-  return new SheetWriteError(
-    sheet.label,
-    'unavailable',
-    `Couldn't save to ${sheet.label}. Check your connection and try again.`,
-  );
+  return new SheetWriteError(sheet.label, 'unavailable', `Couldn't save to ${sheet.label}. Check your connection and try again.`);
 }

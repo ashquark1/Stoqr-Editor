@@ -22,9 +22,9 @@ import {
 export class Toast implements OnInit, OnDestroy {
   readonly message = input.required<string>();
   readonly title = input("Couldn't load products");
-  /** `error` (default) or `warning`; maps to the theme's `.stoqr-toast--*` variants. */
-  readonly variant = input<'error' | 'warning'>('error');
-  /** Label of the action button; emits `retry` when clicked. */
+  /** `error` (default), `warning` or `success`; maps to the theme's `.stoqr-toast--*` variants. */
+  readonly variant = input<'error' | 'warning' | 'success'>('error');
+  /** Label of the action button (emits `retry`); empty hides the button. */
   readonly actionLabel = input('Retry');
   /** Milliseconds before dismissing itself; 0 keeps it until the user acts. */
   readonly autoDismissMs = input(5000);

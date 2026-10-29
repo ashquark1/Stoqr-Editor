@@ -6,9 +6,11 @@
   <div class="stoqr-toast__content">
     <div class="stoqr-toast__title">{{ title() }}</div>
     <div class="stoqr-toast__body">{{ message() }}</div>
-    <button type="button" class="stoqr-toast__retry" (click)="onRetry()">
-      {{ actionLabel() }}
-    </button>
+    @if (actionLabel()) {
+      <button type="button" class="stoqr-toast__retry" (click)="onRetry()">
+        {{ actionLabel() }}
+      </button>
+    }
   </div>
   <button
     type="button"

@@ -35,7 +35,8 @@ export class ApprovedChange {
   readonly #genuine = true;
 
   constructor(
-    readonly change: RowChange,
+    /** One row, or one row per sheet for a linked product (master first). */
+    readonly rows: readonly RowChange[],
     key: typeof APPROVAL_KEY,
   ) {
     if (key !== APPROVAL_KEY) {
@@ -58,12 +59,24 @@ export class InvalidChangeError extends Error {
 }
 
 /**
- * Seals a reviewed change as approved. Call ONLY from the review step
- * (`core/stock-adjust/`, `core/details/`) after the user's explicit approval;
- * an architecture rule enforces where it may be called. Refuses an empty
- * change, forbidden fields, and a stock qty that is not a whole number ≥ 0.
+ * Seals a reviewed change as approved: one row, or — for a linked product —
+ * one row per sheet, master first, in ONE approval so both sheets are written
+ * in the same action (AI_CONTRACT: Linked Sheets). Call ONLY from the review
+ * step (`core/stock-adjust/`, `core/details/`) after the user's explicit
+ * approval; an architecture rule enforces where it may be called. Refuses an
+ * empty change, forbidden fields, and a stock qty that is not a whole number ≥ 0.
  */
-export function approve(change: RowChange): ApprovedChange {
+export function approve(...rows: RowChange[]): ApprovedChange {
+  if (rows.length < 1 || rows.length > 2) {
+    throw new InvalidChangeError('An approval covers one row, or one row in each sheet.');
+  }
+  if (rows.length === 2 && (rows[0].target.sheet !== 'master' || rows[1].target.sheet !== 'dr-trust')) {
+    throw new InvalidChangeError('A linked approval is one Master row, then one Dr Trust row.');
+  }
+  return new ApprovedChange(Object.freeze(rows.map(sealRow)), APPROVAL_KEY);
+}
+
+function sealRow(change: RowChange): RowChange {
   const fields = Object.keys(change.changes);
   if (fields.length === 0) {
     throw new InvalidChangeError('Nothing to write: the change is empty.');
@@ -80,10 +93,9 @@ export function approve(change: RowChange): ApprovedChange {
   if (threshold !== undefined && threshold !== null && (!Number.isFinite(threshold) || threshold < 0)) {
     throw new InvalidChangeError(`Low stock threshold must be ≥ 0 or blank, got ${threshold}.`);
   }
-  const sealed: RowChange = Object.freeze({
+  return Object.freeze({
     target: change.target,
     reviewed: Object.freeze({ ...change.reviewed }),
     changes: Object.freeze({ ...change.changes }),
   });
-  return new ApprovedChange(sealed, APPROVAL_KEY);
 }

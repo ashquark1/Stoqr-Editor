@@ -1,0 +1,50 @@
+<section class="review" aria-labelledby="review-title">
+  <h3 id="review-title" class="review__title">Review change</h3>
+
+  @if (review.review(); as summary) {
+    <p class="review__sheets">Saves to: <strong>{{ summary.sheetsText }}</strong></p>
+    <p class="review__line">
+      Current <strong>{{ summary.current }}</strong>
+      <span aria-hidden="true">→</span>
+      <strong>{{ summary.deltaText }}</strong>
+      <span aria-hidden="true">→</span>
+      New <strong class="review__new">{{ summary.proposed }}</strong>
+      @if (summary.status; as status) {
+        <stoqr-badge [status]="status" />
+      }
+    </p>
+    @if (summary.lowStockWarning) {
+      <p class="review__warning">Below the low-stock threshold.</p>
+    }
+    @if (summary.drTrustNote; as note) {
+      <p class="review__note">{{ note }}</p>
+    }
+  }
+
+  @if (review.message(); as message) {
+    <p class="review__message" role="alert">{{ message }}</p>
+  }
+
+  <div class="review__actions">
+    @switch (review.step()) {
+      @case ('reviewing') {
+        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.approve()">Approve</button>
+        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Back</button>
+      }
+      @case ('saving') {
+        <button type="button" class="stoqr-btn stoqr-btn--primary" disabled>Saving…</button>
+      }
+      @case ('conflict') {
+        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.open()">Review again</button>
+        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Back</button>
+      }
+      @case ('failed') {
+        <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.approve()">Try again</button>
+        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Back</button>
+      }
+      @case ('partial') {
+        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.back()">Close</button>
+      }
+    }
+  </div>
+</section>

@@ -58,4 +58,13 @@
       }
     }
   </div>
+
+  <button
+    type="button"
+    class="stoqr-btn stoqr-btn--primary adjuster__review"
+    [disabled]="!adjust.readyForReview()"
+    (click)="review.open()"
+  >
+    Review
+  </button>
 </section>

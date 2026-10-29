@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { AdjustMode, Proposal } from '@core/stock-adjust/stock-adjust';
 import { StockAdjustStore } from '@core/stock-adjust/stock-adjust-store';
+import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { StockStatusLabel } from '@core/stock-adjust/stock-status';
 import { QuantityAdjuster } from './quantity-adjuster';
 
@@ -12,12 +13,15 @@ describe('QuantityAdjuster', () => {
   const proposal = signal<Proposal | null>(null);
   const proposedStatus = signal<StockStatusLabel | null>(null);
   const lowStockWarning = signal(false);
+  const readyForReview = signal(false);
+  const review = { open: vi.fn() };
   const adjust = {
     mode,
     amountText,
     proposal,
     proposedStatus,
     lowStockWarning,
+    readyForReview,
     threshold: signal(100),
     deltaText: computed(() => {
       const p = proposal();
@@ -50,10 +54,14 @@ describe('QuantityAdjuster', () => {
     proposal.set(null);
     proposedStatus.set(null);
     lowStockWarning.set(false);
+    readyForReview.set(false);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [QuantityAdjuster],
-      providers: [{ provide: StockAdjustStore, useValue: adjust }],
+      providers: [
+        { provide: StockAdjustStore, useValue: adjust },
+        { provide: StockReviewStore, useValue: review },
+      ],
     });
     fixture = TestBed.createComponent(QuantityAdjuster);
     el = fixture.nativeElement;
@@ -113,5 +121,14 @@ describe('QuantityAdjuster', () => {
     TestBed.tick();
     fixture.detectChanges();
     expect(el.querySelector<HTMLInputElement>('#adjust-amount')?.value).toBe('');
+  });
+
+  it('Review is disabled until the proposal is ready, then opens the review', () => {
+    expect(button('Review')?.disabled).toBe(true);
+    readyForReview.set(true);
+    fixture.detectChanges();
+    expect(button('Review')?.disabled).toBe(false);
+    button('Review')?.click();
+    expect(review.open).toHaveBeenCalledTimes(1);
   });
 });

@@ -6,6 +6,7 @@ import { LoadedProduct } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { mapSheet } from '@core/sheets/data-mapping';
 import { SheetsStore } from '@core/sheets/sheets-store';
+import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { MASTER_SHEET, sheetRow, sheetValues } from '@core/sheets/testing/sheet-fixtures';
 import { ProductPicker } from './product-picker/product-picker';
 import { ProductSummary } from './product-summary/product-summary';
@@ -34,6 +35,8 @@ describe('StockEditor (page)', () => {
   };
   const selected = signal<LoadedProduct | null>(null);
   const auth = { signOut: vi.fn() };
+  const notice = signal<string | null>(null);
+  const review = { notice, clearNotice: vi.fn(() => notice.set(null)) };
   let fixture: ComponentFixture<StockEditor>;
   let el: HTMLElement;
 
@@ -53,6 +56,7 @@ describe('StockEditor (page)', () => {
     fetchedAt.set(null);
     master.set([]);
     selected.set(null);
+    notice.set(null);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [StockEditor],
@@ -60,6 +64,7 @@ describe('StockEditor (page)', () => {
         { provide: SheetsStore, useValue: sheets },
         { provide: ProductSearchStore, useValue: { selected } },
         { provide: Auth, useValue: auth },
+        { provide: StockReviewStore, useValue: review },
       ],
     });
     TestBed.overrideComponent(StockEditor, {
@@ -69,6 +74,21 @@ describe('StockEditor (page)', () => {
     fixture = TestBed.createComponent(StockEditor);
     el = fixture.nativeElement;
     fixture.detectChanges();
+  });
+
+  it('confirms a saved change in a success toast, which can be dismissed (US-20)', () => {
+    loaded();
+    expect(el.querySelector('stoqr-toast')).toBeNull();
+    notice.set('Pulse Oximeter is now 7 (Master and Dr Trust).');
+    fixture.detectChanges();
+    const toast = el.querySelector('.stoqr-toast');
+    expect(toast?.classList).toContain('stoqr-toast--success');
+    expect(toast?.textContent).toContain('Stock saved');
+    expect(toast?.textContent).toContain('Pulse Oximeter is now 7 (Master and Dr Trust).');
+    el.querySelector<HTMLButtonElement>('.toast-close')?.click();
+    fixture.detectChanges();
+    expect(review.clearNotice).toHaveBeenCalledTimes(1);
+    expect(el.querySelector('stoqr-toast')).toBeNull();
   });
 
   it('starts loading both sheets when opened', () => {

@@ -60,6 +60,19 @@ describe('Toast', () => {
     expect(el.querySelector('.stoqr-toast__retry')?.textContent?.trim()).toBe('Stay signed in');
   });
 
+  it('supports a success variant with no action button (US-20)', () => {
+    const fixture = create('Pulse Oximeter is now 7 (Master).');
+    fixture.componentRef.setInput('variant', 'success');
+    fixture.componentRef.setInput('actionLabel', '');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const card = el.querySelector('.stoqr-toast');
+    expect(card?.classList).toContain('stoqr-toast--success');
+    expect(card?.getAttribute('role')).toBe('status');
+    expect(el.querySelector('.stoqr-toast__retry')).toBeNull();
+    expect(el.querySelector('.toast-close')).not.toBeNull();
+  });
+
   it('never auto-dismisses when autoDismissMs is 0', () => {
     const fixture = create();
     fixture.componentRef.setInput('autoDismissMs', 0);
