@@ -18,6 +18,7 @@ export const environment: AppEnvironment = {
     {
       key: 'dr-trust',
       label: 'Dr Trust',
+      brand: 'Dr Trust',
       spreadsheetId: '1yvchzyHq0lGJe4LOBW-h37IxpoCh7yJrAwKlz2ydDt0',
       tab: 'Sheet1',
     },
