@@ -13,6 +13,8 @@ export const routes: Routes = [
   {
     path: 'sign-in',
     canActivate: [redirectIfSignedIn],
+    // Only the top bar and the card on this screen (US-45); see App.showBottomBar.
+    data: { bottomBar: false },
     loadComponent: () => import('@features/sign-in/sign-in').then((m) => m.SignIn),
   },
   { path: '**', redirectTo: '' },
