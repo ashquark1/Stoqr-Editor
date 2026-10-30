@@ -5,7 +5,7 @@
       <h2 id="summary-title" class="summary__title">{{ display(row.product.productName) }}</h2>
       <button
         type="button"
-        class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm"
+        class="stoqr-btn stoqr-btn--ghost"
         [disabled]="saving()"
         (click)="changeProduct()"
       >
@@ -53,7 +53,7 @@
       <div class="summary__modes" role="group" aria-label="What to do with this product">
         <button
           type="button"
-          class="stoqr-btn stoqr-btn--sm"
+          class="stoqr-btn"
           [class.stoqr-btn--primary]="mode() === 'adjust'"
           [class.stoqr-btn--ghost]="mode() !== 'adjust'"
           [attr.aria-pressed]="mode() === 'adjust'"
@@ -64,7 +64,7 @@
         </button>
         <button
           type="button"
-          class="stoqr-btn stoqr-btn--sm"
+          class="stoqr-btn"
           [class.stoqr-btn--primary]="mode() === 'details'"
           [class.stoqr-btn--ghost]="mode() !== 'details'"
           [attr.aria-pressed]="mode() === 'details'"

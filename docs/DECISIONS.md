@@ -345,7 +345,7 @@
 
 - Finding: small text in Mist (2.95:1) and Ink Light (4.37:1) failed WCAG AA in light mode; crimson error text failed in dark mode (2.80:1) — the theme's dark block follows the phone's setting. Buttons were ~29px (small ~21px) tall. The whole summary card was a live region.
 - Decision: two V2 text tokens, `--color-text-muted` (light `#56685F`, dark `#7B9E8D`) and `--color-text-error` (light `#C0392B`, dark `#F0857A`), used for all small and error text in the theme and components. The brand's own colour tokens are unchanged (Mist and Ink Light stay for borders, icons and large text). Badges already passed.
-- Decision: buttons min-height 44px on phones, 36px from desktop (`--sm` 32px, still above WCAG 2.2's 24px); explicit Pine `:focus-visible` ring. Inputs 16px on phones so iOS does not zoom on focus. The theme now uses the `from()` mixin (`@use 'breakpoints'`).
+- Decision: buttons min-height 44px on phones, 36px from desktop (`--sm` 32px, still above WCAG 2.2's 24px) [superseded 2026-10-30 by US-42: every button 44px at every width; `--sm` retired, guarded by an architecture rule]; explicit Pine `:focus-visible` ring. Inputs 16px on phones so iOS does not zoom on focus. The theme now uses the `from()` mixin (`@use 'breakpoints'`).
 - Decision: the summary card is labelled by its heading instead of being a live region; targeted messages announce themselves. `prefers-reduced-motion` turns off transitions and slows the spinner.
 - Trade-off: V2's look now differs slightly from V1 (darker small text, taller buttons on phones); V1's copy of the theme is untouched.
 

@@ -5,7 +5,7 @@
     @if (auth.hasSession()) {
       <div class="app-user">
         <span class="app-user__name">{{ auth.userLabel() }}</span>
-        <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="auth.signOut()">
+        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="auth.signOut()">
           Sign out
         </button>
       </div>

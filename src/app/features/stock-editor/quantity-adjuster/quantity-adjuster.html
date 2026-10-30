@@ -4,7 +4,7 @@
   <div class="adjuster__modes" role="group" aria-label="Add or subtract">
     <button
       type="button"
-      class="stoqr-btn stoqr-btn--sm"
+      class="stoqr-btn"
       [class.stoqr-btn--primary]="adjust.mode() === 'add'"
       [class.stoqr-btn--ghost]="adjust.mode() !== 'add'"
       [attr.aria-pressed]="adjust.mode() === 'add'"
@@ -14,7 +14,7 @@
     </button>
     <button
       type="button"
-      class="stoqr-btn stoqr-btn--sm"
+      class="stoqr-btn"
       [class.stoqr-btn--primary]="adjust.mode() === 'subtract'"
       [class.stoqr-btn--ghost]="adjust.mode() !== 'subtract'"
       [attr.aria-pressed]="adjust.mode() === 'subtract'"

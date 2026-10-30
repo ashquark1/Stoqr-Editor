@@ -77,6 +77,11 @@ describe('architecture rules', () => {
     expect(offenders(isScss, /@media[^{]*max-width/)).toEqual([]);
   });
 
+  it('no small button size: stoqr-btn--sm is retired (US-42, every button 44px)', () => {
+    const notSpec = (f: SourceFile) => !f.path.endsWith('.spec.ts');
+    expect(offenders(notSpec, /stoqr-btn--sm/)).toEqual([]);
+  });
+
   it('no hex colour literals in component SCSS (use var(--token))', () => {
     expect(offenders((f) => inApp(f) && isScss(f), /#[0-9a-fA-F]{3,8}\b/)).toEqual([]);
   });

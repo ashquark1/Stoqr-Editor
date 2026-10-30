@@ -146,7 +146,7 @@ badges `--radius-pill`; table wrapper `--radius-lg` (8px).
 
 **Focus:** `outline: 2px solid var(--color-pine); outline-offset: 2px`. Never remove. Buttons set it explicitly on `:focus-visible` (V2).
 
-**Touch & text size (V2, US-26):** buttons are at least 44px tall on phones (36px from desktop, 32px for `--sm`); inputs use 16px text on phones (no iOS zoom), body size from tablet.
+**Touch & text size (V2, US-26):** buttons are 44px tall at every width (US-42; no small size); inputs use 16px text on phones (no iOS zoom), body size from tablet.
 
 **Reduced motion (V2):** with `prefers-reduced-motion`, transitions are off and the spinner turns slowly.
 
@@ -157,7 +157,8 @@ badges `--radius-pill`; table wrapper `--radius-lg` (8px).
 ## 5. Component Styling
 Component classes are defined in `stoqr-theme.scss`: `.stoqr-logo`,
 `.stoqr-search`, `.stoqr-badge` (`--in-stock`/`--low-stock`/`--out-of-stock`/
-`--unknown`), `.stoqr-btn` (`--primary`/`--secondary`/`--ghost`/`--danger`/`--sm`),
+`--unknown`), `.stoqr-btn` (`--primary`/`--secondary`/`--ghost`/`--danger`/`--busy`, V2) +
+`.icon-btn` (icon-only under 768px, V1's name),
 `.stoqr-table` + `.stoqr-table-wrap`, `.stoqr-modal*` + `.stoqr-field-group`/
 `.stoqr-field` (+ `__error`, V2), `.stoqr-input` (`--mono`/`--invalid`/
 `--multiline`, V2), `.stoqr-toast*`, `.stoqr-pagination*`, `.stoqr-spinner*`,
