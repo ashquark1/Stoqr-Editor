@@ -1,7 +1,7 @@
 <!-- The bar is full width; its row and the page content share the content bounds (US-39). -->
 <header class="stoqr-topbar">
   <div class="stoqr-topbar__inner stoqr-bounds">
-    <stoqr-logo [inline]="true" />
+    <stoqr-logo [inline]="true" appName="Editor" />
     @if (auth.hasSession()) {
       <div class="app-user">
         <span class="app-user__name">{{ auth.userLabel() }}</span>

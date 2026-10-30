@@ -28,4 +28,21 @@
   text-align: left;
   align-items: center;
   gap: 6px;
+
+  // Wordmark and app name on one text baseline; neither shrinks or wraps.
+  .stoqr-logo__text {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    white-space: nowrap;
+  }
+}
+
+// App name after the wordmark (US-40): DM Sans medium, Pine (Sage in dark).
+.stoqr-logo__app {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-pine);
 }
