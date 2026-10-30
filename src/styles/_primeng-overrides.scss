@@ -214,3 +214,19 @@
     opacity: 0.4;
   }
 }
+
+// --- Tooltip (`stoqrTooltip`, US-41): inverted ink pill, small text ---
+// Ink on light pages, Paper on dark (the tokens swap), so it reads in both modes.
+.p-tooltip .p-tooltip-text {
+  background: var(--color-ink);
+  color: var(--color-white);
+  font-size: var(--text-small);
+  line-height: 1.4;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+}
+
+.p-tooltip .p-tooltip-arrow {
+  display: none;
+}

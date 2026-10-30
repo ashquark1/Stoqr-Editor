@@ -28,7 +28,12 @@
   padding-block: var(--space-6);
 }
 
+// Bottom bar mirrors the top bar (US-41): sticky, z-index 100, white, 0.5px Fog
+// border, 12px padding and a 44px row, so both bars are 68.5px tall.
 .app-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
   padding-block: var(--space-3);
   border-top: var(--border-thin);
   background: var(--color-white);
@@ -38,19 +43,37 @@
 
 .app-footer__inner {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-4);
+  min-height: 44px;
 }
 
+// The pill never shrinks or truncates (the LIVE warning must stay readable).
 .app-footer__mode {
+  flex-shrink: 0;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-// Separator dot before each sheet label: `TEST · Master (Sheet1) · Dr Trust (Sheet1)`.
-.app-footer__sheet::before {
+// Takes the free width and shrinks first with "…". The Data health button
+// (US-51) goes after it, at the right end.
+.app-footer__sheets {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+}
+
+// Separator dot between sheet labels: `Master (Sheet1) · Dr Trust (Sheet1)`.
+.app-footer__sheet + .app-footer__sheet::before {
   content: '·';
-  margin-inline-end: var(--space-2);
+  margin-inline: var(--space-2);
 }

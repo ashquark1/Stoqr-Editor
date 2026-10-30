@@ -25,7 +25,13 @@
   <app-session-prompts />
 }
 
-<!-- Which spreadsheets this build talks to (US-04). LIVE uses the warning pill. -->
+<!--
+  Which spreadsheets this build talks to (US-04). LIVE uses the warning pill.
+  Sticky bottom bar matching the top bar (US-41): one line; the sheet labels shorten
+  with "…" first, the full text shows in a tooltip on hover or keyboard focus. The
+  tooltip library loads once the page is idle (keeps the first load under 500 kB);
+  until then the same labels show as plain text.
+-->
 <footer class="app-footer">
   <div class="app-footer__inner stoqr-bounds">
     <span
@@ -35,8 +41,25 @@
     >
       <span class="stoqr-badge__dot"></span>{{ config.mode() }}
     </span>
-    @for (sheet of config.sheets(); track sheet.key) {
-      <span class="app-footer__sheet">{{ sheet.label }} ({{ sheet.tab }})</span>
+    @defer (on idle) {
+      <span
+        class="app-footer__sheets"
+        tabindex="0"
+        [stoqrTooltip]="config.sheetsLabel()"
+        [stoqrTooltipOnEllipsis]="true"
+      >
+        <ng-container [ngTemplateOutlet]="sheetLabels" />
+      </span>
+    } @placeholder {
+      <span class="app-footer__sheets">
+        <ng-container [ngTemplateOutlet]="sheetLabels" />
+      </span>
     }
   </div>
 </footer>
+
+<ng-template #sheetLabels>
+  @for (sheet of config.sheets(); track sheet.key) {
+    <span class="app-footer__sheet">{{ sheet.label }} ({{ sheet.tab }})</span>
+  }
+</ng-template>

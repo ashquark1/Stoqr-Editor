@@ -349,6 +349,13 @@
 - Decision: the summary card is labelled by its heading instead of being a live region; targeted messages announce themselves. `prefers-reduced-motion` turns off transitions and slows the spinner.
 - Trade-off: V2's look now differs slightly from V1 (darker small text, taller buttons on phones); V1's copy of the theme is untouched.
 
+## 2026-10-30: Sticky bottom bar and shared tooltip (US-41) [confirmed]
+
+- Decision: the footer is a sticky bottom bar mirroring the top bar (68.5px, same content bounds, one line). The TEST/LIVE pill never shrinks; the sheet labels shorten with "…" first.
+- Decision (owner: "shared tooltip now"): `[stoqrTooltip]` in `shared/ui/tooltip/` wraps PrimeNG's Tooltip as a host directive; shows on hover and keyboard focus, Escape hides it, `stoqrTooltipOnEllipsis` shows it only while text is cut short. Defaults go through PrimeNG's `setOption()` (its input fields alone have no effect). Rejected: a plain `title` (never shows on keyboard focus).
+- Decision: the tooltip library is about 45 kB; in the shell it pushed the first load to 503 kB, so the footer labels span is `@defer (on idle)` with a plain-text placeholder (first load 458 kB; tooltip a lazy chunk).
+- Trade-off: the footer labels are one extra Tab stop, even when nothing is cut short.
+
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)

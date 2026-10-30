@@ -17,6 +17,13 @@ export class AppConfig {
   readonly clientId = signal(this.env.google.clientId).asReadonly();
   readonly sheets = signal<readonly SheetDefinition[]>(this.env.sheets).asReadonly();
 
+  /** Every sheet as "Label (Tab)", joined by " · " — the footer's full text (US-41). */
+  readonly sheetsLabel = computed(() =>
+    this.sheets()
+      .map((s) => `${s.label} (${s.tab})`)
+      .join(' · '),
+  );
+
   /** The definition for one sheet; validation guarantees both keys exist. */
   sheet(key: SheetKey): SheetDefinition {
     const found = this.sheets().find((s) => s.key === key);
