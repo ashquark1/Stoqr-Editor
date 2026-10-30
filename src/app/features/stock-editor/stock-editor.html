@@ -20,7 +20,11 @@
   @if (sheets.loading()) {
     <stoqr-loading-overlay label="Loading products…" />
   } @else if (sheets.error(); as message) {
-    <stoqr-empty-state [message]="message">
+    <stoqr-empty-state
+      [heading]="sheets.noAccess() ? 'No access to the sheets' : 'Couldn\'t load the products'"
+      [message]="message"
+      [alert]="true"
+    >
       <div class="stock-editor__actions">
         <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="sheets.reload()">
           Retry
@@ -35,7 +39,7 @@
     </stoqr-empty-state>
   } @else if (sheets.fetchedAt()) {
     @if (sheets.master().length === 0) {
-      <stoqr-empty-state message="No products in the master sheet." />
+      <stoqr-empty-state heading="No products yet" message="No products in the master sheet." />
     } @else {
       <div class="stock-editor__health-bar">
         <button

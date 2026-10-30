@@ -9,6 +9,13 @@
   border: var(--border-thin);
   border-radius: var(--radius-lg);
 
+  // Title → message → buttons (US-47). Theme h2 colour and weight; long titles wrap.
+  &__heading {
+    margin: 0;
+    font-size: var(--text-h2);
+    overflow-wrap: anywhere;
+  }
+
   &__message {
     margin: 0;
     color: var(--color-text-muted);
