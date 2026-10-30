@@ -39,7 +39,14 @@
     </stoqr-empty-state>
   } @else if (sheets.fetchedAt()) {
     @if (sheets.master().length === 0) {
-      <stoqr-empty-state heading="No products yet" message="No products in the master sheet." />
+      <stoqr-empty-state heading="No products yet" message="The master sheet has no products to edit.">
+        <!-- Same reload as Retry (US-48); the loading screen replaces the card while it runs. -->
+        <div class="stock-editor__actions">
+          <button type="button" class="stoqr-btn stoqr-btn--secondary" (click)="sheets.reload()">
+            Reload
+          </button>
+        </div>
+      </stoqr-empty-state>
     } @else {
       <div class="stock-editor__health-bar">
         <button
