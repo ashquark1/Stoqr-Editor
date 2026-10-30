@@ -82,3 +82,4 @@ User opens the SPA → signs in with Google (`core/auth`) → `SheetsReader` loa
 - Change sign-in/session behaviour → `src/app/core/auth/`.
 - Change the spreadsheet ID or OAuth client ID → `src/environments/` (off-limits; confirm first).
 - Change layout/styling → the relevant component's template + scoped SCSS (tokens only). Small and error text use `--color-text-muted` / `--color-text-error` (US-26); buttons and inputs get touch sizes from the theme.
+- Change the page column (max width and gutters) → `.stoqr-bounds` in `src/styles/stoqr-theme.scss`, the only definition; the top bar row, the page content and the footer row use it (US-39).

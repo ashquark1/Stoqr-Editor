@@ -913,47 +913,41 @@ a {
 // LAYOUT: Page shells
 // ============================================================
 
-.stoqr-page {
-  min-height: 100vh;
-  background: var(--color-paper);
-  padding: 0 var(--space-6);
+// Content bounds (V1's `content-bounds`; US-39): the one column every bar row
+// and the page content share, so their left and right edges line up at every
+// width. The only place the 1440px cap and the page gutters are defined.
+.stoqr-bounds {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: var(--space-6);
 
-  @media (min-width: 768px)  { padding: 0 var(--space-10); }
-  @media (min-width: 1024px) { padding: 0 var(--space-16); }
+  @include bp.from(tablet) {
+    padding-inline: var(--space-10);
+  }
 
-  &__inner {
-    max-width: 1440px;
-    margin: 0 auto;
+  @include bp.from(desktop) {
+    padding-inline: var(--space-16);
   }
 }
 
-// Initial state (logo + search bar centered)
-.stoqr-page--initial {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-6);
-
-  .stoqr-search--hero {
-    margin-top: var(--space-6);
-  }
-}
-
-// Active search state (top bar + results)
+// Top bar (V1's active `.shell`): full-width white strip; its row sits in the
+// content bounds. The 44px row keeps the bar one height (12 + 44 + 12 + 0.5)
+// whatever it holds, signed in or out.
 .stoqr-topbar {
   position: sticky;
   top: 0;
   z-index: 100;
   background: var(--color-white);
   border-bottom: var(--border-thin);
-  padding: var(--space-3) var(--space-6);
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
+  padding-block: var(--space-3);
 
-  @media (min-width: 768px)  { padding: var(--space-3) var(--space-10); }
-  @media (min-width: 1024px) { padding: var(--space-3) var(--space-16); }
+  &__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-height: 44px;
+  }
 }
 
 .stoqr-results {

@@ -1,16 +1,19 @@
+<!-- The bar is full width; its row and the page content share the content bounds (US-39). -->
 <header class="stoqr-topbar">
-  <stoqr-logo [inline]="true" />
-  @if (auth.hasSession()) {
-    <div class="app-user">
-      <span class="app-user__name">{{ auth.userLabel() }}</span>
-      <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="auth.signOut()">
-        Sign out
-      </button>
-    </div>
-  }
+  <div class="stoqr-topbar__inner stoqr-bounds">
+    <stoqr-logo [inline]="true" />
+    @if (auth.hasSession()) {
+      <div class="app-user">
+        <span class="app-user__name">{{ auth.userLabel() }}</span>
+        <button type="button" class="stoqr-btn stoqr-btn--ghost stoqr-btn--sm" (click)="auth.signOut()">
+          Sign out
+        </button>
+      </div>
+    }
+  </div>
 </header>
 
-<main class="app-content">
+<main class="app-content stoqr-bounds">
   <router-outlet />
 </main>
 
@@ -24,14 +27,16 @@
 
 <!-- Which spreadsheets this build talks to (US-04). LIVE uses the warning pill. -->
 <footer class="app-footer">
-  <span
-    class="stoqr-badge app-footer__mode"
-    [class.stoqr-badge--low-stock]="config.isLive()"
-    [class.stoqr-badge--unknown]="!config.isLive()"
-  >
-    <span class="stoqr-badge__dot"></span>{{ config.mode() }}
-  </span>
-  @for (sheet of config.sheets(); track sheet.key) {
-    <span class="app-footer__sheet">{{ sheet.label }} ({{ sheet.tab }})</span>
-  }
+  <div class="app-footer__inner stoqr-bounds">
+    <span
+      class="stoqr-badge app-footer__mode"
+      [class.stoqr-badge--low-stock]="config.isLive()"
+      [class.stoqr-badge--unknown]="!config.isLive()"
+    >
+      <span class="stoqr-badge__dot"></span>{{ config.mode() }}
+    </span>
+    @for (sheet of config.sheets(); track sheet.key) {
+      <span class="app-footer__sheet">{{ sheet.label }} ({{ sheet.tab }})</span>
+    }
+  </div>
 </footer>
