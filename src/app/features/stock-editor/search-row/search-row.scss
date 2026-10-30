@@ -1,0 +1,61 @@
+:host {
+  display: block;
+}
+
+// Box and Search button on one line at every width (US-50); the box shrinks,
+// the 44px button never does.
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.search-row__box {
+  min-width: 0;
+  padding-inline-end: var(--space-2);
+}
+
+// The browser's own search clear is replaced by ours.
+.stoqr-search__input {
+  min-width: 0;
+  height: 100%;
+  text-overflow: ellipsis;
+
+  &::-webkit-search-cancel-button {
+    appearance: none;
+  }
+}
+
+// Clear (×): 28px, inside the box on the right, shown while the box has text.
+.search-row__clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    background: var(--color-dew);
+    color: var(--color-ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+}

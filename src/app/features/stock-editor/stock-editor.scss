@@ -55,6 +55,10 @@ app-data-health {
   margin-bottom: var(--space-6);
 }
 
+.stock-editor__search {
+  margin-bottom: var(--space-4);
+}
+
 // One column on phones; picker and summary side by side from desktop.
 .stock-editor__layout {
   display: grid;

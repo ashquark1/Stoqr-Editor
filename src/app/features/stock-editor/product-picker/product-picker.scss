@@ -4,14 +4,6 @@
   gap: var(--space-3);
 }
 
-.picker__label {
-  font-size: var(--text-label);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
 .picker__hint,
 .picker__count {
   margin: 0;
