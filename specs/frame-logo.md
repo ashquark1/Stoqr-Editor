@@ -13,6 +13,8 @@ The bar's logo read "stoqr" like V1's, so the two apps looked the same. The sign
 - The lockup is one image to assistive tech: `role="img"`, `aria-label` "Stoqr" + app name ("Stoqr Editor" in the bar; "Stoqr" otherwise). The SVG mark is `aria-hidden`.
 - The bar uses `<stoqr-logo [inline]="true" appName="Editor" />`. The sign-in card's logo is removed (owner choice: now, not in US-44), so every screen shows exactly one logo.
 - The browser tab title stays "Stoqr Editor" (`index.html`, unchanged).
+- Change (owner, 2026-10-30, after US-40): "Editor" sits UNDER the wordmark, not beside it — `stoqr` on top, "Editor" below, both left-aligned beside the mark (2px apart), "Editor" at `--text-small` (12px), DM Sans 500, Pine. Supersedes "on the wordmark's text baseline, 14px" above. The logo is now 56px wide (was 99px); the bar stays 68.8px.
+- Change (owner, 2026-10-30, in US-44): the hero lockup shows `appName` as its sub-label in place of INVENTORY ("EDITOR"), and its accessible name is "Stoqr Editor"; the inline lockup no longer renders the hidden sub-label. The sign-in card shows the hero lockup again, so the sign-in screen has TWO logos (bar + card); every other screen has one.
 
 ## Measured after (browser pane, dark mode)
 | Width | Logos visible | Logo (left–right) | Accessible name | Sideways scroll |
@@ -35,7 +37,7 @@ Signed in, logo + name + Sign out on one line:
 - Typechecks (`tsconfig.app.json`, `tsconfig.spec.json`) and the production build pass; initial bundle 456.3 kB.
 
 ## Acceptance Checks
-- [x] Bar logo reads `stoqr` + "Editor" (title case, DM Sans medium, Pine) on one line
+- [x] Bar logo reads `stoqr` + "Editor" (title case, DM Sans medium, Pine); "Editor" stacked under the wordmark per owner (was one line)
 - [x] Accessible name "Stoqr Editor"; tab title "Stoqr Editor"
 - [x] Exactly one logo on every screen at 360 and 1440 (sign-in and editor)
 - [x] Logo + Sign out fit at 320 and 360 with no wrap or overflow

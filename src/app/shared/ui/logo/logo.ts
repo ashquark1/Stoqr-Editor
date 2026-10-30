@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 /**
- * Stoqr logo lockup. `inline=false` (hero): mark above the wordmark with the
- * INVENTORY sub-label. `inline=true` (active): small mark to the left, no
- * sub-label, and the optional `appName` after the wordmark (US-40: "Editor").
+ * Stoqr logo lockup. `inline=false` (hero): mark above the wordmark with a
+ * sub-label — the `appName` when given (the Editor's sign-in card: "EDITOR"),
+ * else INVENTORY. `inline=true` (active): small mark to the left, no
+ * sub-label, and the optional `appName` under the wordmark (US-40: "Editor").
  * The SVG mark uses `currentColor` so the colorway follows the theme
  * (Pine on light, Sage on dark via `--color-pine`). Sizes transition for the
  * hero↔active animation. The lockup is one image to screen readers, named
@@ -56,7 +57,9 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
         @if (inline() && appName()) {
           <span class="stoqr-logo__app">{{ appName() }}</span>
         }
-        <span class="stoqr-logo__sub">Inventory</span>
+        @if (!inline()) {
+          <span class="stoqr-logo__sub">{{ appName() || 'Inventory' }}</span>
+        }
       </span>
     </span>
   `,
@@ -67,10 +70,13 @@ export class Logo {
   /** Compact, horizontal lockup for the active search state. */
   readonly inline = input(false);
 
-  /** Shown after the wordmark in the inline lockup, e.g. "Editor". Empty shows none. */
+  /**
+   * The app's name, e.g. "Editor": under the wordmark in the inline lockup, and
+   * as the sub-label (in place of INVENTORY) in the hero lockup. Empty shows none.
+   */
   readonly appName = input('');
 
   protected readonly accessibleName = computed(() =>
-    this.inline() && this.appName() ? `Stoqr ${this.appName()}` : 'Stoqr',
+    this.appName() ? `Stoqr ${this.appName()}` : 'Stoqr',
   );
 }

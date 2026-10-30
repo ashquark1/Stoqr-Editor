@@ -1,0 +1,20 @@
+:host {
+  display: block;
+}
+
+// The whole row toggles the box and is a 44px tap target (US-44).
+.stoqr-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--color-ink);
+  font-size: var(--text-body);
+}
+
+// Pine focus ring on the box when reached by keyboard (theme rule).
+:host ::ng-deep .p-checkbox:has(input:focus-visible) .p-checkbox-box {
+  outline: 2px solid var(--color-pine);
+  outline-offset: 2px;
+}

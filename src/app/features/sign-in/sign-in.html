@@ -1,22 +1,31 @@
 <section class="sign-in">
   <div class="sign-in__card">
-    <h1 class="sign-in__title">Sign in to edit stock</h1>
-    <p class="sign-in__hint">Use the Google account that has Editor access to the Stoqr sheets.</p>
+    <!-- The logo tops the card (owner). -->
+    <stoqr-logo appName="Editor" />
 
-    <button
-      type="button"
-      class="stoqr-btn stoqr-btn--primary sign-in__button"
-      [disabled]="!auth.gisReady() || auth.status() === 'signing-in'"
-      (click)="auth.signIn()"
-    >
-      @if (!auth.gisReady()) {
-        Loading Google sign-in…
-      } @else if (auth.status() === 'signing-in') {
-        Signing in…
-      } @else {
-        Sign in with Google
-      }
-    </button>
+    <!-- Evenly between the logo and the button (owner). -->
+    <h1 class="sign-in__title">Sign in to edit stock</h1>
+
+    <!-- The button and Remember me sit together as one group (owner). -->
+    <div class="sign-in__actions">
+      <button
+        type="button"
+        class="stoqr-btn stoqr-btn--primary sign-in__button"
+        [disabled]="!auth.gisReady() || auth.status() === 'signing-in'"
+        (click)="auth.signIn()"
+      >
+        @if (!auth.gisReady()) {
+          Loading Google sign-in…
+        } @else if (auth.status() === 'signing-in') {
+          Signing in…
+        } @else {
+          Sign in with Google
+        }
+      </button>
+
+      <!-- Remember me (US-44): below the button (owner); view state only, US-67 saves the record. -->
+      <stoqr-checkbox class="sign-in__remember" label="Remember me" [formControl]="rememberMe" />
+    </div>
   </div>
 </section>
 

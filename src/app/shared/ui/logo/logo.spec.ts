@@ -33,22 +33,24 @@ describe('Logo', () => {
     expect(el.querySelector('.stoqr-logo__mark')?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('shows the app name after the wordmark in the inline lockup (US-40)', () => {
+  it('shows the app name under the wordmark in the inline lockup, with no sub-label (US-40)', () => {
     const fixture = TestBed.createComponent(Logo);
     fixture.componentRef.setInput('inline', true);
     fixture.componentRef.setInput('appName', 'Editor');
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.stoqr-logo__app')?.textContent).toBe('Editor');
+    expect(el.querySelector('.stoqr-logo__sub')).toBeNull();
     expect(el.querySelector('.stoqr-logo')?.getAttribute('aria-label')).toBe('Stoqr Editor');
   });
 
-  it('never shows the app name in the hero lockup', () => {
+  it('uses the app name as the hero sub-label in place of INVENTORY (US-44, owner)', () => {
     const fixture = TestBed.createComponent(Logo);
     fixture.componentRef.setInput('appName', 'Editor');
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.stoqr-logo__app')).toBeNull();
-    expect(el.querySelector('.stoqr-logo')?.getAttribute('aria-label')).toBe('Stoqr');
+    expect(el.querySelector('.stoqr-logo__sub')?.textContent).toBe('Editor');
+    expect(el.querySelector('.stoqr-logo')?.getAttribute('aria-label')).toBe('Stoqr Editor');
   });
 });

@@ -54,9 +54,11 @@ Mark to the left of the wordmark **stoqr**, aligned to cap height. Gap: `8px`
 hero, `6px` inline. Wordmark in Lora (serif) bold. Sub-label `INVENTORY` below
 the wordmark in DM Sans, 11px, 3px letter-spacing, Pine — hero state only.
 
-Editor (V2, US-40): the inline lockup reads **stoqr** + `Editor` (DM Sans medium,
-14px, Pine) on one line, read as "Stoqr Editor". One logo per screen (the top
-bar); the hero lockup is not used in the Editor.
+Editor (V2, US-40, US-44): the top bar's inline lockup shows **stoqr** with
+`Editor` under it (DM Sans medium, 12px, Pine). The sign-in card shows the hero
+lockup with `EDITOR` as the sub-label in place of INVENTORY. Both are read as
+"Stoqr Editor". The sign-in screen shows both logos (owner choice); every other
+screen shows only the top bar's.
 
 ### Don'ts
 - Do not rotate or tilt the mark

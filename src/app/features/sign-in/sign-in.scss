@@ -1,23 +1,34 @@
-@use 'breakpoints' as bp;
-
-.sign-in {
+// Fill the page area (a flex column, see app.scss) so the card can sit in the
+// middle of the space below the top bar (owner, US-44).
+:host {
+  flex: 1;
   display: flex;
-  justify-content: center;
-  padding-block: var(--space-8);
-
-  @include bp.from(tablet) {
-    padding-block: var(--space-16);
-  }
+  flex-direction: column;
 }
 
+.sign-in {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// A square card (owner): as tall as it is wide, at most 340px so its content
+// fills it rather than floating in empty space. The logo, the title and the
+// group (button, Remember me) are spread evenly: equal space logo to title,
+// title to button (the title sits midway) and below Remember me. The extra top
+// padding sets the logo a little lower than that (owner).
+// Corners: `--radius-2xl` (12px), one step rounder than the 10px controls, as
+// the brand sets cards apart from buttons.
 .sign-in__card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  justify-content: space-evenly;
   width: 100%;
-  max-width: 420px;
-  padding: var(--space-8) var(--space-6);
+  max-width: 340px;
+  aspect-ratio: 1;
+  padding: var(--space-4) var(--space-6) 0;
   background: var(--color-white);
   border: var(--border-thin);
   border-radius: var(--radius-2xl);
@@ -30,12 +41,23 @@
   font-size: var(--text-h2);
 }
 
-.sign-in__hint {
-  margin: 0;
-  color: var(--color-ink-mid);
-}
-
+// Just a little narrower than the card: its full width inside the card's 24px
+// side padding (owner).
 .sign-in__button {
   width: 100%;
-  justify-content: center;
+}
+
+// The button with Remember me just under it (owner: closer together). The 44px
+// checkbox row's own space above its box (about 12px) is the visible gap.
+.sign-in__actions {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+// The row's own space below the box is taken out of the layout so the card's
+// bottom gap matches the top one; the tap area stays 44px.
+.sign-in__remember {
+  margin-bottom: calc(var(--space-3) * -1);
 }
