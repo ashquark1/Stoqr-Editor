@@ -1,0 +1,43 @@
+<div
+  [class]="'stoqr-strip stoqr-strip--' + variant()"
+  [attr.role]="variant() === 'success' ? 'status' : 'alert'"
+>
+  <div class="stoqr-strip__text">
+    <svg class="stoqr-strip__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      @switch (variant()) {
+        @case ('success') {
+          <circle cx="12" cy="12" r="9" />
+          <path d="m8 12 3 3 5-6" />
+        }
+        @case ('problem') {
+          <circle cx="12" cy="12" r="9" />
+          <path d="m9 9 6 6M15 9l-6 6" />
+        }
+        @case ('warning') {
+          <path d="M12 3 2 20h20L12 3Z" />
+          <path d="M12 10v4M12 17h.01" />
+        }
+      }
+    </svg>
+    <p class="stoqr-strip__message">
+      @if (lead()) {
+        <strong>{{ lead() }}</strong>
+      }
+      {{ message() }}
+    </p>
+  </div>
+  @if (primaryLabel() || secondaryLabel()) {
+    <div class="stoqr-strip__actions">
+      @if (primaryLabel()) {
+        <button type="button" class="stoqr-btn stoqr-strip__btn stoqr-strip__btn--primary" (click)="primary.emit()">
+          {{ primaryLabel() }}
+        </button>
+      }
+      @if (secondaryLabel()) {
+        <button type="button" class="stoqr-btn stoqr-strip__btn" (click)="secondary.emit()">
+          {{ secondaryLabel() }}
+        </button>
+      }
+    </div>
+  }
+</div>

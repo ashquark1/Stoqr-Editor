@@ -1,0 +1,124 @@
+@use 'breakpoints' as bp;
+
+:host {
+  display: block;
+}
+
+// Each look sets two colours: its light background and the dark "on" colour
+// for text, icon, buttons and focus ring (AA in light and dark mode, US-54).
+.stoqr-strip {
+  --strip-bg: var(--color-success-bg);
+  --strip-border: var(--color-success-border);
+  --strip-ink: var(--color-on-success);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--strip-bg);
+  border: 0.5px solid var(--strip-border);
+  border-radius: var(--radius-control);
+  color: var(--strip-ink);
+  animation: strip-in 150ms ease-out;
+
+  &--problem {
+    --strip-bg: var(--color-error-bg);
+    --strip-border: var(--color-error-border);
+    --strip-ink: var(--color-on-error);
+  }
+
+  &--warning {
+    --strip-bg: var(--color-warning-bg);
+    --strip-border: var(--color-warning-border);
+    --strip-ink: var(--color-on-warning);
+  }
+
+  // From tablet: text left, buttons right, on one row (the text still wraps).
+  @include bp.from(tablet) {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.stoqr-strip__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.stoqr-strip__icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.stoqr-strip__message {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+// Buttons: full width and stacked on phones; side by side from tablet.
+.stoqr-strip__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  @include bp.from(tablet) {
+    flex-direction: row;
+    flex-shrink: 0;
+  }
+}
+
+// The shared 44px button, recoloured from the strip's "on" colour so it reads
+// on the light background in both modes. Primary filled, secondary outlined.
+.stoqr-strip__btn {
+  width: 100%;
+  background: transparent;
+  color: var(--strip-ink);
+  border: 1.5px solid var(--strip-ink);
+
+  &:hover:not(:disabled) {
+    background: var(--strip-border);
+  }
+
+  &:focus-visible {
+    outline-color: var(--strip-ink);
+  }
+
+  &--primary {
+    background: var(--strip-ink);
+    color: var(--strip-bg);
+
+    &:hover:not(:disabled) {
+      background: var(--strip-ink);
+      opacity: 0.88;
+    }
+  }
+
+  @include bp.from(tablet) {
+    width: auto;
+  }
+}
+
+// Appear: short fade and rise; off under reduced motion.
+@keyframes strip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stoqr-strip {
+    animation: none;
+  }
+}

@@ -57,6 +57,13 @@
   --color-text-muted:    #56685F;
   --color-text-error:    #C0392B;
 
+  // V2 (US-54): text, icons and buttons ON the light semantic backgrounds
+  // (success/warning/error -bg). Those backgrounds stay light in dark mode, so
+  // these stay dark in both modes (≥ 7:1). The same tones as the toast's text.
+  --color-on-success:    #0A5A50;
+  --color-on-warning:    #7A4210;
+  --color-on-error:      #7A2020;
+
   // --- Typography ---
   --font-serif:    'Lora', Georgia, 'Times New Roman', serif;
   --font-sans:     'DM Sans', system-ui, sans-serif;

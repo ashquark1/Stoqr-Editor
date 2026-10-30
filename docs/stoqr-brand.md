@@ -113,6 +113,11 @@ labels, hints and error text; keep Mist / Ink Light for borders, icons and large
 |---|---|---|---|
 | `--color-text-muted` | `#56685F` | `#7B9E8D` | Field labels, section headings, hints, meta |
 | `--color-text-error` | `#C0392B` | `#F0857A` | Error messages, required marks, danger text |
+| `--color-on-success` | `#0A5A50` | `#0A5A50` | Text, icons, buttons on `--color-success-bg` (US-54) |
+| `--color-on-warning` | `#7A4210` | `#7A4210` | Text, icons, buttons on `--color-warning-bg` (US-54) |
+| `--color-on-error` | `#7A2020` | `#7A2020` | Text, icons, buttons on `--color-error-bg` (US-54) |
+
+The semantic backgrounds stay light in dark mode, so the on-colours do not change (≥ 7:1 in both modes).
 
 ---
 
