@@ -18,7 +18,11 @@ The editor's load states talk about "sheets" and their cards have no titles, the
 ### US-48 — empty master sheet text and Reload (done)
 - The empty-master card: heading "No products yet"; message "The master sheet has no products to edit." (was "No products in the master sheet."); a secondary "Reload" button calling `sheets.reload()`, the same reload as Retry, in the existing `stock-editor__actions` row.
 - Busy state: Reload switches the page to "Loading products…" at once, which replaces the card and its button (as for Retry); if the sheet is still empty the card returns.
-### US-49 — top bar visible in all four load states (to do)
+### US-49 — top bar visible in all four load states (done)
+- The full-screen `<stoqr-loading-overlay>` (fixed, z-index 500) covered both bars, and in dark mode drew a pale wash. The editor no longer uses it; the shared component is unchanged.
+- Instead, an in-page block: the theme spinner (`stoqr-spinner--lg`) above "Loading products…" (small, muted), `role="status"` + `aria-live="polite"`, centred between the top and bottom bars (owner: centred spinner, over a card at the top). The editor fills the page area (`:host` and `.stock-editor` are flex columns, like the sign-in screen since US-44); everything else still starts at the top.
+- The problem and empty cards were already in the page under the bar (US-47, US-48).
+- Trade-off (owner choice): when loading ends, the centred spinner gives way to content at the top.
 
 ## Measured after
 - US-46: the production bundle contains "Loading products…" and no longer "Loading both sheets…". Recorded at sign-in in the dev pane: the overlay showed "Loading products…" with `role="status"` and `aria-live="polite"`. It first flashed the old text because the pane had not been reloaded since the edit (the dev server swaps the template in place); a fresh page load uses the new text only.
@@ -33,6 +37,8 @@ The editor's load states talk about "sheets" and their cards have no titles, the
 
 - US-48 (signed in; empty master set in page memory): card 200px tall at 320, 183px from 360; edges on the content column at all six widths; Reload 44px, secondary; no sideways scroll. Keyboard: Tab from Sign out reaches Reload with the focus ring; Enter ran a real (read-only) reload: "Loading products…" → product search, all 122 products back, no error.
 
+- US-49: live sign-in recorded "loading shown; top bar visible; bottom bar shown; no overlay". Held in page memory (loading flag), at 320, 360, 768, 1024, 1440, 1920: top bar 0–69, bottom bar at the window's bottom, spinner centred across and within 3px of halfway between the bars, label "Loading products…", `status`/`polite`, no sideways or vertical scroll; light and dark both checked. After restoring: the home's first row and a load-error card still start at 93px (as before), 122 products back.
+
 ## Test Plan
 - Unit tests suspended by the owner (2026-10-29); not written or run. `stock-editor.spec.ts` checks that the overlay is shown, not its text, so US-46 does not make it stale.
 - US-83 (page tests for the new texts) becomes owner checks below.
@@ -46,6 +52,7 @@ The editor's load states talk about "sheets" and their cards have no titles, the
 
 ## Acceptance Checks
 - [x] US-46: loading label "Loading products…"; no change to `SheetsStore`
+- [x] US-49: top bar (and bottom bar) visible while loading and on every problem card; editor loading in the page; shared overlay unchanged
 - [x] US-48: "No products yet" / "The master sheet has no products to edit." / secondary Reload running the same reload as Retry
 - [x] US-47: optional heading on the shared card (extended, not forked); three titles; messages and buttons word for word; no-access keeps Sign out; heading is a heading; problems announced
 - Tests not run (owner decision 2026-10-29).

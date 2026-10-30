@@ -1,5 +1,36 @@
 @use 'breakpoints' as bp;
 
+// Fill the page area (a flex column, see app.scss) so the loading state can sit
+// in the middle of the space between the bars (US-49). Everything else still
+// starts at the top.
+:host {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.stock-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+// "Loading products…" centred between the bars, in the page (US-49, owner:
+// centred spinner), so the top and bottom bars stay visible.
+.stock-editor__loading-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.stock-editor__loading-label {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}
+
 .stock-editor__actions {
   display: flex;
   flex-wrap: wrap;

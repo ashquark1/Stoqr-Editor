@@ -7,7 +7,6 @@ import { DataHealthStore } from '@core/sheets/data-health-store';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
-import { LoadingOverlay } from '@shared/ui/loading-overlay/loading-overlay';
 import { Toast } from '@shared/ui/toast/toast';
 import { DataHealth } from './data-health/data-health';
 import { ProductPicker } from './product-picker/product-picker';
@@ -21,7 +20,7 @@ import { ProductSummary } from './product-summary/product-summary';
  */
 @Component({
   selector: 'app-stock-editor',
-  imports: [DataHealth, EmptyState, LoadingOverlay, ProductPicker, ProductSummary, Toast],
+  imports: [DataHealth, EmptyState, ProductPicker, ProductSummary, Toast],
   templateUrl: './stock-editor.html',
   styleUrl: './stock-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

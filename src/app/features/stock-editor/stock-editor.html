@@ -18,7 +18,11 @@
     />
   }
   @if (sheets.loading()) {
-    <stoqr-loading-overlay label="Loading products…" />
+    <!-- In the page, not a full-screen overlay, so both bars stay visible (US-49). -->
+    <div class="stock-editor__loading-state" role="status" aria-live="polite">
+      <span class="stoqr-spinner stoqr-spinner--lg" aria-hidden="true"></span>
+      <span class="stock-editor__loading-label">Loading products…</span>
+    </div>
   } @else if (sheets.error(); as message) {
     <stoqr-empty-state
       [heading]="sheets.noAccess() ? 'No access to the sheets' : 'Couldn\'t load the products'"
