@@ -18,7 +18,7 @@
     />
   }
   @if (sheets.loading()) {
-    <stoqr-loading-overlay label="Loading both sheets…" />
+    <stoqr-loading-overlay label="Loading products…" />
   } @else if (sheets.error(); as message) {
     <stoqr-empty-state [message]="message">
       <div class="stock-editor__actions">
