@@ -428,6 +428,14 @@
 - Interim (until US-75/76): the old adjuster gets an Apply button (no New total box yet), `review-panel/` shows the outcomes with its own buttons, and the "Stock saved" toast stays.
 - Tests: `stock-review-store.spec.ts` and `review-panel.spec.ts` tested only the removed review step and were deleted; rewrite in US-88/89 when tests resume (owner suspension, 2026-10-29).
 
+## 2026-10-31: Undo of the last stock change (US-65) [confirmed]
+
+- Decision: Undo is offered for 10 s after a confirmed Apply and writes the previous quantity back as a NEW absolute save (same sheets, same `approve()` → `ReviewFlow` → `SheetsWriter` path), guarded by "Master still holds the quantity just saved"; otherwise refused with nothing written.
+- Decision: Undo is final (no Undo of an undo), and not offered after a half-done save or the Retry that finished it, nor for details saves. The offer ends on the next Apply, another product, Refresh, opening the form, or the timer. "Restored" shows for 5 s.
+- Decision: for a linked product Undo sets Dr Trust to Master's previous quantity (not what Dr Trust held before the Apply), keeping the sheets in step.
+- Decision: Try again after a failed Undo repeats the Undo (the store remembers the last action).
+- Cost: the stock store's timers added 0.4 kB to the first load (497.0 kB; 3 kB under the warning).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

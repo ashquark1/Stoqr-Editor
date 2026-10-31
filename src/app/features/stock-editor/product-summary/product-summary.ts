@@ -50,7 +50,9 @@ export class ProductSummary {
   /** The pencil / eye is off while a save runs or a half-done stock save waits for Retry or Close (US-64). */
   protected readonly iconLocked = computed(() => this.navigation.saving() || this.review.step() === 'partial');
   /** A stock result to show under the adjuster (interim until the strips of US-76). */
-  protected readonly stockOutcome = computed(() => this.review.step() !== 'editing' || this.review.saved() !== null);
+  protected readonly stockOutcome = computed(
+    () => this.review.step() !== 'editing' || this.review.saved() !== null || this.review.restored() !== null,
+  );
 
   private readonly title = viewChild<ElementRef<HTMLElement>>('titleEl');
   private readonly injector = inject(Injector);

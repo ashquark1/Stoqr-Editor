@@ -2,7 +2,7 @@
 <section class="review" aria-label="Stock change result">
   @switch (review.step()) {
     @case ('saving') {
-      <p class="review__line" role="status">Saving…</p>
+      <p class="review__line" role="status">{{ review.undoing() ? 'Undoing…' : 'Saving…' }}</p>
     }
     @case ('editing') {
       @if (review.saved(); as saved) {
@@ -17,8 +17,13 @@
           }
         </p>
         <div class="review__actions">
+          @if (review.undoAvailable()) {
+            <button type="button" class="stoqr-btn stoqr-btn--secondary" (click)="review.undo()">Undo</button>
+          }
           <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.close()">Dismiss</button>
         </div>
+      } @else if (review.restored(); as restored) {
+        <p class="review__line" role="status">Stock restored to {{ restored }}.</p>
       }
     }
     @default {
@@ -28,7 +33,7 @@
       <div class="review__actions">
         @switch (review.step()) {
           @case ('failed') {
-            <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.apply()">Try again</button>
+            <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.tryAgain()">Try again</button>
             <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.close()">Dismiss</button>
           }
           @case ('conflict') {
