@@ -404,6 +404,11 @@
 - Decision: the search box reaches the store through its `input` event. Reason (found while testing): a `toSignal` of the box's value never sees text the store put in the box (`emitEvent: false`), so emptying the box after a Data health pick was ignored.
 - Finding: an effect that calls a method reading store signals subscribes to them; the box effect then wiped every submitted search. Now in AI_CONTRACT Forbidden Shortcuts.
 
+## 2026-10-31: Product card — tiles and one icon (US-72, US-74) [confirmed]
+
+- Decision: the open product is a card under the toolbar; no "Change product" or mode buttons. A product closes only through the search box (clear × or emptied box, US-59 rules). Opening a product closes both floating panels (`ProductSearchStore.select()`).
+- Decision (interim, until US-64): the pencil / eye is disabled while a save runs or a stock review or its outcome (including a half-saved Retry) is showing, so the form never hides that result.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
