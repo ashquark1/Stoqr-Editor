@@ -26,10 +26,10 @@
     type="button"
     class="stoqr-btn stoqr-btn--secondary icon-btn toolbar__refresh"
     [class.stoqr-btn--busy]="sheets.refreshing()"
-    [disabled]="!search.refreshAvailable()"
+    [disabled]="!navigation.refreshAvailable()"
     [attr.aria-busy]="sheets.refreshing()"
     [attr.aria-label]="sheets.refreshing() ? 'Refreshing' : 'Refresh Results'"
-    (click)="sheets.refresh()"
+    (click)="navigation.refresh()"
   >
     @if (sheets.refreshing()) {
       <span class="stoqr-spinner" aria-hidden="true"></span>

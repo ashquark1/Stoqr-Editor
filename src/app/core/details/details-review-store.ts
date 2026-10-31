@@ -60,6 +60,8 @@ export class DetailsReviewStore {
   readonly message = this.flow.message;
   /** Success message for the toast, or null. */
   readonly notice = this.noticeSignal.asReadonly();
+  /** Details were just saved (for the success strip, US-80). */
+  readonly saved = computed(() => this.noticeSignal() !== null);
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = this.flow.retryLabel;
 
@@ -108,9 +110,13 @@ export class DetailsReviewStore {
     }
   }
 
-  /** Back to the form (not while saving); the edits are kept. */
+  /** Back to the form (not while saving); the edits are kept. Close after a half-done save also closes the form (US-66). */
   back(): void {
+    const halfSaved = this.flow.step() === 'partial';
     this.flow.back();
+    if (halfSaved) {
+      this.details.closeForm();
+    }
   }
 
   clearNotice(): void {

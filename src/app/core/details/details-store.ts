@@ -25,10 +25,12 @@ function textsOf(product: Product | null): DetailTexts {
  * user's EDITS are kept; every other field shows the product's current value,
  * so a field the user did not touch follows fresh data (after a conflict or a
  * save) and can never undo someone else's change. The component forwards what
- * is typed; the originals, the error per field, what changed and the "Discard
- * changes?" step live here. Resets whenever the selected product changes or
- * the selection clears (sign-out and a different account clear it; expiry does
- * not, so edits survive renewal).
+ * is typed; the originals, the error per field and what changed live here.
+ * Edits reset whenever the selected row changes (a refresh included) or the
+ * selection clears (sign-out and a different account clear it; expiry does
+ * not, so edits survive renewal). Whether the form is open (US-66) resets only
+ * when another product opens or it closes, so a refresh keeps it open. The
+ * "Discard changes?" question is `ProductNavigation`'s.
  */
 @Injectable({ providedIn: 'root' })
 export class DetailsStore {
@@ -41,7 +43,10 @@ export class DetailsStore {
 
   /** Typed text per field the user changed; a field typed back to its original is dropped. */
   private readonly editsSignal = signal<Readonly<Partial<Record<DetailField, string>>>>({});
-  private readonly pendingLeaveSignal = signal<(() => void) | null>(null);
+  private readonly formOpenSignal = signal(false);
+
+  /** The details form is open (US-66). */
+  readonly formOpen = this.formOpenSignal.asReadonly();
 
   /** What the form shows, per field: the user's edit, else the current value. */
   readonly texts = computed<DetailTexts>(() => {
@@ -53,6 +58,8 @@ export class DetailsStore {
   /** The one editability rule (`editability()`), via the search store. */
   readonly editable = computed(() => this.search.selectedEditability()?.editable === true);
   readonly reasons = computed(() => this.search.selectedEditability()?.reasons ?? []);
+  /** The form shows read-only: the product can't be edited (US-66, the eye icon in US-74). */
+  readonly readOnly = computed(() => !this.editable());
 
   /**
    * A changed SKU checked against every other row of both sheets (US-38);
@@ -126,19 +133,22 @@ export class DetailsStore {
   /** Editable, changed and valid (a new SKU included): Review changes may open. */
   readonly canReview = computed(() => this.hasChanges() && this.valid());
 
-  /** True while "Discard changes?" waits for an answer. */
-  readonly leavePending = computed(() => this.pendingLeaveSignal() !== null);
-
   constructor() {
     let lastRef = untracked(() => this.search.selected()?.ref ?? null);
     effect(() => {
       const ref = this.search.selected()?.ref ?? null;
       if (ref !== lastRef) {
         lastRef = ref;
-        untracked(() => {
-          this.reset();
-          this.pendingLeaveSignal.set(null);
-        });
+        untracked(() => this.reset());
+      }
+    });
+    // Another product, or none: the form closes (US-66). A refresh keeps the key.
+    let lastKey = untracked(() => this.search.selectionKey());
+    effect(() => {
+      const key = this.search.selectionKey();
+      if (key !== lastKey) {
+        lastKey = key;
+        untracked(() => this.formOpenSignal.set(false));
       }
     });
   }
@@ -172,26 +182,15 @@ export class DetailsStore {
     this.editsSignal.set({});
   }
 
-  /** Runs `leave` now when nothing changed; otherwise asks "Discard changes?" first. */
-  confirmLeave(leave: () => void): void {
-    if (this.hasChanges()) {
-      this.pendingLeaveSignal.set(leave);
-    } else {
-      leave();
-    }
+  /** Opens the form (through `ProductNavigation.openDetails`). */
+  openForm(): void {
+    this.formOpenSignal.set(true);
   }
 
-  /** Answer to "Discard changes?": drop the edits, then leave. */
-  discardAndLeave(): void {
-    const leave = this.pendingLeaveSignal();
-    this.pendingLeaveSignal.set(null);
+  /** Closes the form and drops the edits (Cancel after "Discard changes?", or the half-saved Close). */
+  closeForm(): void {
     this.reset();
-    leave?.();
-  }
-
-  /** Answer to "Discard changes?": stay, edits kept. */
-  keepEditing(): void {
-    this.pendingLeaveSignal.set(null);
+    this.formOpenSignal.set(false);
   }
 }
 

@@ -144,34 +144,15 @@ describe('DetailsStore (US-21, US-22)', () => {
     expect(store.texts().notes).toBe('');
   });
 
-  describe('Discard changes?', () => {
-    it('with no changes, leaves at once', () => {
-      const leave = vi.fn();
-      store.confirmLeave(leave);
-      expect(leave).toHaveBeenCalledTimes(1);
-      expect(store.leavePending()).toBe(false);
-    });
-
-    it('rule: with changes, asks first; Keep editing keeps the edits and stays', () => {
-      const leave = vi.fn();
+  describe('form open (US-66)', () => {
+    it('opens and closes; closing drops the edits', () => {
+      expect(store.formOpen()).toBe(false);
+      store.openForm();
+      expect(store.formOpen()).toBe(true);
       store.setTexts({ notes: 'x' });
-      store.confirmLeave(leave);
-      expect(leave).not.toHaveBeenCalled();
-      expect(store.leavePending()).toBe(true);
-      store.keepEditing();
-      expect(store.leavePending()).toBe(false);
-      expect(store.texts().notes).toBe('x');
-      expect(leave).not.toHaveBeenCalled();
-    });
-
-    it('Discard drops the edits, then leaves', () => {
-      const leave = vi.fn();
-      store.setTexts({ notes: 'x' });
-      store.confirmLeave(leave);
-      store.discardAndLeave();
-      expect(leave).toHaveBeenCalledTimes(1);
+      store.closeForm();
+      expect(store.formOpen()).toBe(false);
       expect(store.hasChanges()).toBe(false);
-      expect(store.leavePending()).toBe(false);
     });
   });
 });

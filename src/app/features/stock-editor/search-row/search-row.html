@@ -8,6 +8,7 @@
       autocomplete="off"
       aria-label="Search products"
       [formControl]="queryControl"
+      (input)="typed(input.value)"
       (keyup.enter)="submit()"
     />
     @if (search.typed()) {

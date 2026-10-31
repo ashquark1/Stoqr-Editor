@@ -3,7 +3,7 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 import { Auth } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
 import { LoadedProduct, Product, ProductIssue, isEditable } from '@core/models/product';
-import { RowRef } from './row-ref';
+import { RowRef, rowRefId } from './row-ref';
 import { mapSheet } from './data-mapping';
 import { SheetLoadError, combineLoadErrors } from './sheet-load-error';
 import { pairSheets, pairingCounts } from './sheet-pairing';
@@ -104,8 +104,13 @@ export class SheetsStore {
    * Success replaces the data and `fetchedAt`; failure keeps them and sets
    * `refreshError`. Does nothing while a load or refresh runs, or before the
    * first load (that is `ensureLoaded`/Retry, still all-or-nothing).
+   *
+   * `keep` (US-60): the open product. A reload makes new row refs, so on
+   * success `repoint` is called in the same step as the data changes with the
+   * SAME row's new ref, found by its internal `id` (never leaves this folder),
+   * or null when that row is gone.
    */
-  async refresh(): Promise<RefreshResult> {
+  async refresh(keep: RowRef | null = null, repoint?: (ref: RowRef | null) => void): Promise<RefreshResult> {
     if (this.refreshingSignal() || this.loadingSignal() || this.fetchedAtSignal() === null) {
       return 'skipped';
     }
@@ -136,6 +141,9 @@ export class SheetsStore {
       this.masterSignal.set(masterProducts);
       this.drTrustSignal.set(drTrustProducts);
       this.fetchedAtSignal.set(new Date());
+      if (keep !== null) {
+        repoint?.(sameRow(keep, keep.sheet === 'master' ? masterProducts : drTrustProducts));
+      }
       return 'refreshed';
     } catch (mappingError) {
       if (generation !== this.generation) {
@@ -251,4 +259,11 @@ export class SheetsStore {
     this.drTrustSignal.set([]);
     this.fetchedAtSignal.set(null);
   }
+}
+
+/** The row in fresh data with the same internal `id` as `ref`, or null when gone or no longer unique. */
+function sameRow(ref: RowRef, rows: readonly LoadedProduct[]): RowRef | null {
+  const id = rowRefId(ref);
+  const matches = id === undefined ? [] : rows.filter((row) => rowRefId(row.ref) === id);
+  return matches.length === 1 ? matches[0].ref : null;
 }

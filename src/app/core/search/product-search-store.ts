@@ -25,6 +25,10 @@ export const AUTO_SEARCH_DELAY_MS = 300;
  * search after a 300 ms pause once it has 3+ characters; `setQuery` runs a
  * text at once (Enter/Search, any length); `clear` empties both. Only the
  * submitted query filters, and the filters (`FilterStore`, US-57) apply on top.
+ * A search that runs while a product is open shows the results as an overlay
+ * over it (US-59); the box text that led to the product is remembered so a
+ * cancelled overlay can put it back. The rules that may ask "Discard changes?"
+ * (opening, closing, clearing) are in `ProductNavigation`.
  * Nothing about search lives in a component (AI_CONTRACT: Forbidden Shortcuts).
  */
 @Injectable({ providedIn: 'root' })
@@ -38,12 +42,22 @@ export class ProductSearchStore {
   private readonly typedSignal = signal('');
   private readonly querySignal = signal('');
   private readonly selectedRefSignal = signal<RowRef | null>(null);
+  private readonly overlaySignal = signal(false);
+  /** The box text when the open product was opened (US-59). */
+  private readonly rememberedSignal = signal('');
+  /** Bumped when another product opens or the product closes — not when a refresh re-points the same one (US-60, US-66). */
+  private readonly selectionKeySignal = signal(0);
   private pending: ReturnType<typeof setTimeout> | undefined;
 
   /** What is in the search box. */
   readonly typed = this.typedSignal.asReadonly();
   /** The search that ran (filters the list). */
   readonly query = this.querySignal.asReadonly();
+  /** A search ran while a product is open: the results show over it (US-59). */
+  readonly overlayOpen = this.overlaySignal.asReadonly();
+  /** Changes only when a different product opens or the product closes. */
+  readonly selectionKey = this.selectionKeySignal.asReadonly();
+
   /** True once something other than spaces has been typed. */
   readonly hasQuery = computed(() => tokenize(this.querySignal()).length > 0);
 
@@ -76,6 +90,10 @@ export class ProductSearchStore {
   readonly totalMatches = computed(() => this.matches().length);
   /** The results toolbar shows once a search has run, and stays while a product is open (US-69). */
   readonly toolbarShown = computed(() => this.hasQuery() || this.selectedRefSignal() !== null);
+  /** The result list shows: on the home screen, or as the overlay over an open product (US-59). */
+  readonly listShown = computed(
+    () => this.hasQuery() && (this.selectedRefSignal() === null || this.overlaySignal()),
+  );
   /** Filters changed from the defaults, for "Filters (n)". */
   readonly filterCount = computed(() => this.filters.changedCount());
   /** A filter is changed from its default (for "…and filters" wording, US-70). */
@@ -116,13 +134,6 @@ export class ProductSearchStore {
     return row === null ? undefined : this.badges().get(row.ref);
   });
 
-  /**
-   * Refresh may run (US-69): not while one runs, and — until US-60 adds the
-   * open-product rules — not while a product is open, since a reload makes new
-   * row refs and would close it, dropping unsaved edits.
-   */
-  readonly refreshAvailable = computed(() => !this.sheets.refreshing() && this.selectedRefSignal() === null);
-
   readonly selectedEditability = computed<Editability | null>(() => {
     const row = this.selected();
     return row === null ? null : editability(row, this.statuses().get(row.ref));
@@ -140,6 +151,8 @@ export class ProductSearchStore {
         this.typedSignal.set('');
         this.querySignal.set('');
         this.selectedRefSignal.set(null);
+        this.overlaySignal.set(false);
+        this.rememberedSignal.set('');
       }
     });
   }
@@ -158,7 +171,7 @@ export class ProductSearchStore {
     } else if (length >= AUTO_SEARCH_MIN_CHARS) {
       this.pending = setTimeout(() => {
         this.pending = undefined;
-        this.querySignal.set(text);
+        this.run(text);
       }, AUTO_SEARCH_DELAY_MS);
     }
   }
@@ -167,12 +180,39 @@ export class ProductSearchStore {
   setQuery(query: string): void {
     this.cancelPending();
     this.typedSignal.set(query);
-    this.querySignal.set(query);
+    this.run(query);
   }
 
-  /** The clear (×): empties the box and the results. */
+  /** The clear (×) with no product open: empties the box and the results. */
   clear(): void {
     this.setQuery('');
+  }
+
+  /** Sets the box text only (nothing runs): a cleared box waiting for "Discard changes?" (US-59). */
+  setBox(text: string): void {
+    this.cancelPending();
+    this.typedSignal.set(text);
+  }
+
+  /** Cancels the overlay: the results go, the product shows, the box gets the remembered text back. */
+  cancelOverlay(): void {
+    this.cancelPending();
+    this.overlaySignal.set(false);
+    this.typedSignal.set(this.rememberedSignal());
+    this.querySignal.set(this.rememberedSignal());
+  }
+
+  /** Puts the remembered text back in the box (a clear that was not confirmed). */
+  restoreBox(): void {
+    this.setBox(this.rememberedSignal());
+  }
+
+  /** A search runs; with a product open its results show as the overlay. */
+  private run(text: string): void {
+    this.querySignal.set(text);
+    if (this.selectedRefSignal() !== null && text.trim() !== '') {
+      this.overlaySignal.set(true);
+    }
   }
 
   private cancelPending(): void {
@@ -180,13 +220,32 @@ export class ProductSearchStore {
     this.pending = undefined;
   }
 
-  /** Opens a product; this closes the filter panel (US-70). */
+  /**
+   * Opens a product (call through `ProductNavigation`, which asks first when
+   * needed). The overlay closes and the box text is remembered; this closes
+   * the filter panel (US-70).
+   */
   select(ref: RowRef): void {
+    if (ref !== this.selectedRefSignal()) {
+      this.selectionKeySignal.update((key) => key + 1);
+    }
+    this.cancelPending();
     this.selectedRefSignal.set(ref);
+    this.overlaySignal.set(false);
+    this.rememberedSignal.set(this.typedSignal());
     this.panels.closeFilters();
   }
 
+  /** The same product under the ref a refresh gave it (US-60): nothing else changes. */
+  repoint(ref: RowRef): void {
+    this.selectedRefSignal.set(ref);
+  }
+
   clearSelection(): void {
+    if (this.selectedRefSignal() !== null) {
+      this.selectionKeySignal.update((key) => key + 1);
+    }
     this.selectedRefSignal.set(null);
+    this.overlaySignal.set(false);
   }
 }

@@ -41,7 +41,7 @@
 - Owner: `core/details/` (field list, validation, form state).
 - Rule: the details form shows every product field except `id`; Stock Qty, Stock Status, Last Updated and Created At are never inputs. Field rules (groups, kinds, required, locked) live only in `core/details/details-fields.ts`.
 - Rule: details validation is pure (`validateDetail`) and imported only inside `core/details/` (enforced by `architecture.spec.ts`). Invalid input blocks Review; it is never corrected.
-- Rule: leaving the details form with unsaved edits goes through `DetailsStore.confirmLeave()`; one editor (adjuster or details form) is open at a time.
+- Rule: every step that may drop unsaved work (opening another product, closing it, clearing the search box, a Data health pick, Refresh, leaving the details form) goes through `ProductNavigation` (`core/navigation/`), which asks the one "Discard changes?" question. Unsaved work = details edits, a typed adjuster amount or a chosen sign. One editor (adjuster or details form) is open at a time; whether the form is open is `DetailsStore.formOpen`.
 - Rule: `DetailsReviewStore` is the only caller of `approve()` for details. It approves only the CHANGED fields (compared by value), the same new values in both sheets, each row guarded by that sheet's own current values of those fields.
 - Rule: `DetailsStore` keeps only the user's edits; untouched fields always show current data, so a details save can never undo someone else's change.
 - Rule: a new SKU is checked by `checkNewSku` (`core/sheets/sku-check.ts`) live in the form, and again by `SheetsWriter` on BOTH freshly read sheets whenever an approval changes SKU; any row outside the user's original approval (`ApprovedChange.owners`) holding it stops the write with nothing written.
@@ -82,6 +82,7 @@
 ## Forbidden Shortcuts
 - One-off "quick fixes" that bypass the data-access service or the model layer (Q-G2). Solve it in the right layer instead.
 - A store setter that reads the signal it writes (`s.set(f(s()))`) when called from an effect: the effect subscribes to its own output and loops forever. Use `s.update(...)` or `untracked`.
+- An effect that forwards input by calling a store method that READS signals: the effect subscribes to them and re-runs with stale input (it wiped submitted searches, US-59). Forward from the DOM event instead, or wrap the call in `untracked`.
 - Manual `.subscribe()` in components to "just get the data" — use `async` pipe or `toSignal()`.
 - Adding `if (specificValue)` special-cases to make one row/product behave differently — fix the model or mapping instead.
 - Copy-pasting a component/service and tweaking it instead of extracting a shared piece (design deterioration — Q-G3).

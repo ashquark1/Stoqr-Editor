@@ -394,6 +394,16 @@
 - Finding (G1 pass): from 1024px the page kept the picker | summary two-column grid, but the list hides while a product is open, so the results used half the page and an open product sat in the right half.
 - Decision: one full-width column at every size, so the cards line up with the search row, toolbar and filter panel; US-72 builds the product card on this.
 
+## 2026-10-31: Moving between products safely — ProductNavigation (US-59, US-60, US-61, US-66) [confirmed]
+
+- Decision: one store, `ProductNavigation` (`core/navigation/`), owns every step that may drop work: opening a result, a Data health pick, clearing or emptying the box, closing the product, Refresh, opening and closing the details form. It asks the ONE "Discard changes?" question, shown on the page (moved out of the details form). Reason: these steps span search, details, adjuster, reviews, filters and panels; `ProductSearchStore` cannot inject the stores that already inject it.
+- Decision (Phase 1 question, default chosen; owner to confirm at the sprint check): "unsaved changes" = details edits, a typed adjuster amount, or a chosen Add/Subtract — the same for select, close, clear, Data health pick and Refresh.
+- Decision: the overlay, the remembered box text and `selectionKey` live in `ProductSearchStore`. `selectionKey` changes only when another product opens or it closes, so a refresh (new row refs for the same product) keeps the details form open.
+- Decision: `SheetsStore.refresh(keep, repoint)` finds the same row by its internal `id` and re-points the selection in the same step as the new data, so the product never blinks out and `id` stays in `core/sheets/`.
+- Decision: the details form's open state is `DetailsStore.formOpen`; Cancel always closes it (asking first with edits); a read-only form gets Close; Close after a half-done details save closes it.
+- Decision: the search box reaches the store through its `input` event. Reason (found while testing): a `toSignal` of the box's value never sees text the store put in the box (`emitEvent: false`), so emptying the box after a Data health pick was ignored.
+- Finding: an effect that calls a method reading store signals subscribes to them; the box effect then wiped every submitted search. Now in AI_CONTRACT Forbidden Shortcuts.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

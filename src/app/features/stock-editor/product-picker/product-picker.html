@@ -1,4 +1,4 @@
-@if (!search.selected() && search.hasQuery()) {
+@if (search.listShown()) {
   @if (search.message(); as message) {
     <p class="picker__hint">{{ message }}</p>
   } @else if (search.totalMatches() === 0) {
@@ -11,7 +11,7 @@
     <ul class="picker__results" aria-label="Matching products">
       @for (row of search.matches(); track row.ref) {
         <li>
-          <button type="button" class="picker__result" (click)="search.select(row.ref)">
+          <button type="button" class="picker__result" (click)="navigation.open(row.ref)">
             <span class="picker__name">{{ display(row.product.productName) }}</span>
             <span class="picker__meta">
               {{ display(row.product.brand) }} ·

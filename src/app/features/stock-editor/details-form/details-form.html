@@ -85,32 +85,18 @@
           >
             Review changes
           </button>
-          <button
-            type="button"
-            class="stoqr-btn stoqr-btn--ghost"
-            [disabled]="!details.hasChanges()"
-            (click)="details.reset()"
-          >
+          <!-- Always closes the form; asks first when there are edits (US-66). -->
+          <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="navigation.closeDetails()">
             Cancel
+          </button>
+        </div>
+      } @else {
+        <div class="details__actions">
+          <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="navigation.closeDetails()">
+            Close
           </button>
         </div>
       }
     }
-
-    <stoqr-modal [open]="details.leavePending()" header="Discard changes?" (close)="details.keepEditing()">
-      <div class="details__discard">
-        <p class="details__discard-text">
-          Your changes to {{ display(row.product.productName) }} have not been saved.
-        </p>
-        <div class="details__actions">
-          <button type="button" class="stoqr-btn stoqr-btn--danger" (click)="details.discardAndLeave()">
-            Discard
-          </button>
-          <button type="button" class="stoqr-btn stoqr-btn--secondary" (click)="details.keepEditing()">
-            Keep editing
-          </button>
-        </div>
-      </div>
-    </stoqr-modal>
   </section>
 }

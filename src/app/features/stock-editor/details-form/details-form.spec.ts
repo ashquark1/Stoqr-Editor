@@ -162,29 +162,5 @@ describe('DetailsForm (US-21, US-22)', () => {
     expect(labels()).toHaveLength(20);
   });
 
-  it('asks "Discard changes?" before leaving with edits; Discard puts the boxes back', () => {
-    const leave = vi.fn();
-    type('notes', 'Fragile');
-    store.confirmLeave(leave);
-    render();
-    expect(el.querySelector('.modal-stub')?.getAttribute('data-header')).toBe('Discard changes?');
-    expect(el.querySelector('.modal-stub')?.textContent).toContain('BP Monitor');
-    button('Discard')?.click();
-    render();
-    expect(leave).toHaveBeenCalledTimes(1);
-    expect(el.querySelector('.modal-stub')).toBeNull();
-    expect(input('notes')?.value).toBe('');
-  });
-
-  it('Keep editing closes the question and keeps the edits', () => {
-    const leave = vi.fn();
-    type('notes', 'Fragile');
-    store.confirmLeave(leave);
-    render();
-    button('Keep editing')?.click();
-    render();
-    expect(leave).not.toHaveBeenCalled();
-    expect(el.querySelector('.modal-stub')).toBeNull();
-    expect(input('notes')?.value).toBe('Fragile');
-  });
+  // "Discard changes?" is asked by ProductNavigation and shown on the page (US-59, US-66).
 });

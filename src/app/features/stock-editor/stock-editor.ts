@@ -3,10 +3,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Auth } from '@core/auth/auth';
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { PanelStore } from '@core/layout/panel-store';
+import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
+import { Modal } from '@shared/ui/modal/modal';
 import { Toast } from '@shared/ui/toast/toast';
 import { DataHealth } from './data-health/data-health';
 import { FilterPanel } from './filter-panel/filter-panel';
@@ -24,7 +26,7 @@ import { SearchRow } from './search-row/search-row';
  */
 @Component({
   selector: 'app-stock-editor',
-  imports: [DataHealth, EmptyState, FilterPanel, ProductPicker, ProductSummary, ResultsToolbar, SearchRow, Toast],
+  imports: [DataHealth, EmptyState, FilterPanel, Modal, ProductPicker, ProductSummary, ResultsToolbar, SearchRow, Toast],
   templateUrl: './stock-editor.html',
   styleUrl: './stock-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,6 +38,7 @@ export class StockEditor {
   protected readonly review = inject(StockReviewStore);
   protected readonly detailsReview = inject(DetailsReviewStore);
   protected readonly panels = inject(PanelStore);
+  protected readonly navigation = inject(ProductNavigation);
 
   constructor() {
     void this.sheets.ensureLoaded();

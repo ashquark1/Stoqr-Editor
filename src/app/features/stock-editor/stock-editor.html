@@ -23,10 +23,27 @@
       title="Couldn't refresh the products"
       [message]="message"
       [autoDismissMs]="8000"
-      (retry)="sheets.refresh()"
+      (retry)="navigation.refresh()"
       (dismiss)="sheets.clearRefreshError()"
     />
   }
+  @if (navigation.notice(); as notice) {
+    <stoqr-toast variant="warning" title="Product closed" [message]="notice" actionLabel="" (dismiss)="navigation.clearNotice()" />
+  }
+  <!-- One "Discard changes?" for the page (US-59, US-60, US-66): ProductNavigation asks it. -->
+  <stoqr-modal [open]="navigation.leavePending()" header="Discard changes?" (close)="navigation.keepEditing()">
+    <div class="stock-editor__discard">
+      <p class="stock-editor__discard-text">
+        Your changes to {{ search.selected()?.product?.productName ?? 'this product' }} have not been saved.
+      </p>
+      <div class="stock-editor__actions">
+        <button type="button" class="stoqr-btn stoqr-btn--danger" (click)="navigation.discard()">Discard</button>
+        <button type="button" class="stoqr-btn stoqr-btn--secondary" (click)="navigation.keepEditing()">
+          Keep editing
+        </button>
+      </div>
+    </div>
+  </stoqr-modal>
   @if (sheets.loading()) {
     <!-- In the page, not a full-screen overlay, so both bars stay visible (US-49). -->
     <div class="stock-editor__loading-state" role="status" aria-live="polite">

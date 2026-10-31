@@ -1,12 +1,9 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 
-import { DetailsReviewStore } from '@core/details/details-review-store';
-import { DetailsStore } from '@core/details/details-store';
-import { ProductSearchStore } from '@core/search/product-search-store';
+import { ProductNavigation } from '@core/navigation/product-navigation';
 import { DataHealthStore } from '@core/sheets/data-health-store';
 import { RowRef } from '@core/sheets/row-ref';
-import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { FloatingPanel } from '@shared/ui/floating-panel/floating-panel';
 import { displayValue } from '@shared/util/display-value';
 
@@ -14,7 +11,8 @@ import { displayValue } from '@shared/util/display-value';
  * Where the two sheets disagree (US-31): repeated SKUs, unmatched Dr Trust
  * rows, Dr Trust products missing from the Dr Trust sheet, and quantity
  * differences. Informational only. A Master row can be picked to open it in
- * the editor (asking first if a details edit is unsaved). The lists come from
+ * the editor like a search for its SKU (US-61, `ProductNavigation`: filters
+ * reset, asks first when work would be lost). The lists come from
  * `DataHealthStore`; this component renders and forwards clicks.
  */
 @Component({
@@ -26,24 +24,16 @@ import { displayValue } from '@shared/util/display-value';
 })
 export class DataHealth {
   protected readonly store = inject(DataHealthStore);
-  private readonly search = inject(ProductSearchStore);
-  private readonly details = inject(DetailsStore);
-  private readonly stockReview = inject(StockReviewStore);
-  private readonly detailsReview = inject(DetailsReviewStore);
+  private readonly navigation = inject(ProductNavigation);
   protected readonly display = displayValue;
 
-  /** A product was picked (or the panel closed): the page hides the panel. */
+  /** The panel's ✕ or Escape: the page hides the panel (a pick closes it in `ProductNavigation`). */
   readonly closed = output<void>();
 
   /** No picking while a save runs: its result must not be lost. */
-  protected readonly saving = computed(
-    () => this.stockReview.step() === 'saving' || this.detailsReview.step() === 'saving',
-  );
+  protected readonly saving = this.navigation.saving;
 
   protected pick(ref: RowRef): void {
-    this.details.confirmLeave(() => {
-      this.search.select(ref);
-      this.closed.emit();
-    });
+    this.navigation.pickFromHealth(ref);
   }
 }

@@ -25,9 +25,15 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 ### Product Details
 - **Owns:** the details field list (groups, kinds, required, locked), validation, form state (the user's edits over current data, errors, changes by value, the "Discard changes?" step), the changed-fields diff, and the review/approval of details edits (US-23, US-24, US-36).
 - **Does NOT own:** the write itself (Data Source), editability (`editability()` in Data Source), or rendering (UI).
-- **Code lives in:** `src/app/core/details/` — `details-fields.ts`, `details-validation.ts` (`validateDetail`), `details-store.ts` (`DetailsStore`; edits only; resets on product change), `details-diff.ts` (pure: parse, changed values, diff and status lines, one guarded change per sheet), `details-review-store.ts` (`DetailsReviewStore`; the only caller of `approve()` for details; uses `ReviewFlow`).
+- **Code lives in:** `src/app/core/details/` — `details-fields.ts`, `details-validation.ts` (`validateDetail`), `details-store.ts` (`DetailsStore`; edits (reset on row change) and `formOpen` (reset on product change, kept by a refresh; US-66)), `details-diff.ts` (pure: parse, changed values, diff and status lines, one guarded change per sheet), `details-review-store.ts` (`DetailsReviewStore`; the only caller of `approve()` for details; uses `ReviewFlow`).
 - **The rule:** components forward input; rules and state live here. Validation is imported only in `core/details/` (enforced).
 - **Forbidden:** `id` in the field list; correcting typed values; a second copy of the field rules.
+
+### Product navigation — cross-cutting
+- **Owns:** moving between products safely (US-59/60/61/66): open a result, Data health pick (filters reset, SKU searched), clear/empty the box over a product (overlay rules), close the product, Refresh with a product open, open/close the details form; the one "Discard changes?" question; what counts as unsaved work; the "product no longer in the sheet" notice.
+- **Does NOT own:** search state (`ProductSearchStore`: query, overlay, remembered text, `selectionKey`), form texts (`DetailsStore`), the reload itself (`SheetsStore.refresh`).
+- **Code lives in:** `src/app/core/navigation/product-navigation.ts`.
+- **The rule:** features call these steps; they never call `ProductSearchStore.select/clearSelection` or `DetailsStore.openForm/closeForm` directly.
 
 ### Auth (Google sign-in) — cross-cutting
 - **Owns:** Google Identity Services token flow, the in-memory access token, sign-in status and the first name (memory only; D1: profile scope, no email), expiry (~1 hour) with in-place renewal (session clock, `expired`/`renewing` statuses, `freshToken()`, `sessionId`; US-06), sign-out (revokes the token), and auth-driven navigation (guards + redirects).

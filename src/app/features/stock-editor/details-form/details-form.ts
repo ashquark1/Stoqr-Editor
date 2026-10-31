@@ -5,9 +5,9 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DETAIL_SECTIONS, EDITABLE_DETAILS, byDetailField } from '@core/details/details-fields';
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
+import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { Badge } from '@shared/ui/badge/badge';
-import { Modal } from '@shared/ui/modal/modal';
 import { displayValue } from '@shared/util/display-value';
 import { DetailsReview } from '../details-review/details-review';
 
@@ -15,13 +15,13 @@ import { DetailsReview } from '../details-review/details-review';
  * Every field of the selected product, in V1's groups (US-21), with inline
  * validation (US-22). Editable fields are inputs; Stock Qty, Stock Status,
  * Last Updated and Created At are shown, never typed. A product that cannot be
- * edited is shown read-only. Texts, errors and the "Discard changes?" step
- * live in `DetailsStore`; Review changes opens the review (US-23), which
+ * edited is shown read-only. Texts and errors live in `DetailsStore`; Cancel
+ * (or Close) leaves through `ProductNavigation`, which asks "Discard changes?"; Review changes opens the review (US-23), which
  * replaces the form while it is open. This component forwards input and renders.
  */
 @Component({
   selector: 'app-details-form',
-  imports: [Badge, DetailsReview, Modal, ReactiveFormsModule],
+  imports: [Badge, DetailsReview, ReactiveFormsModule],
   templateUrl: './details-form.html',
   styleUrl: './details-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,6 +30,7 @@ export class DetailsForm {
   protected readonly details = inject(DetailsStore);
   protected readonly review = inject(DetailsReviewStore);
   protected readonly search = inject(ProductSearchStore);
+  protected readonly navigation = inject(ProductNavigation);
   protected readonly sections = DETAIL_SECTIONS;
   protected readonly display = displayValue;
 
