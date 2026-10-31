@@ -389,6 +389,11 @@
 - Decision: opening a product closes the filter panel from `ProductSearchStore.select()`. Rejected: an effect in `PanelStore` reading the search store, which put the whole search store into the first load (+23 kB, over 500 kB).
 - Trade-off: the panel chunk is lazy (133 kB), but the MultiSelect shares PrimeNG utility modules with the start-up PrimeNG setup, so the first load grew 480 → 496 kB (4 kB under the warning). Later stories must not add to the first load; candidates to win it back: deferring more of the shell.
 
+## 2026-10-31: Home screen is one full-width column (US-84) [confirmed]
+
+- Finding (G1 pass): from 1024px the page kept the picker | summary two-column grid, but the list hides while a product is open, so the results used half the page and an open product sat in the right half.
+- Decision: one full-width column at every size, so the cards line up with the search row, toolbar and filter panel; US-72 builds the product card on this.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

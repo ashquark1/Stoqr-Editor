@@ -1,5 +1,3 @@
-@use 'breakpoints' as bp;
-
 // Fill the page area (a flex column, see app.scss) so the loading state can sit
 // in the middle of the space between the bars (US-49). Everything else still
 // starts at the top.
@@ -61,13 +59,11 @@ app-data-health {
   z-index: 1;
 }
 
-// One column on phones; picker and summary side by side from desktop.
+// One full-width column at every size (US-84): the list hides while a product
+// is open, so a second column only ever left half the page empty. The results
+// and the open product line up with the toolbar and the filter panel (US-72).
 .stock-editor__layout {
   display: grid;
   gap: var(--space-6);
   align-items: start;
-
-  @include bp.from(desktop) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
 }
