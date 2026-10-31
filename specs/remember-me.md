@@ -1,5 +1,5 @@
 # Feature: Remember me — record, silent return, rule change (US-67, US-68, US-82)
-# Sprint 9. Classification: CORE (auth). Spec for approval; owner answers 2026-10-31 recorded below.
+# Sprint 9. Classification: CORE (auth). Approved 2026-10-31; built (first load 499.1 kB). Tests not run (suspended).
 
 ## Problem
 Every visit starts at the sign-in screen. Remember me should let a returning person land on the editor without a click when their Google session is still alive, without ever storing a token.

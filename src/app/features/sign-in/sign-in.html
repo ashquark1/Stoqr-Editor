@@ -9,19 +9,22 @@
     <!-- The button and Remember me sit together as one group (owner). -->
     <div class="sign-in__actions">
       <!-- Busy (spinner, aria-busy) while waiting on Google (US-43, shared pattern from US-42). -->
-      @let busy = !auth.gisReady() || auth.status() === 'signing-in';
+      @let busy = auth.redirecting() || !auth.gisReady() || auth.status() === 'signing-in';
       <button
         type="button"
         class="stoqr-btn stoqr-btn--primary sign-in__button"
         [class.stoqr-btn--busy]="busy"
         [disabled]="busy"
         [attr.aria-busy]="busy"
-        (click)="auth.signIn()"
+        (click)="auth.signIn(rememberMe.value)"
       >
         @if (busy) {
           <span class="stoqr-spinner" aria-hidden="true"></span>
         }
-        @if (!auth.gisReady()) {
+        @if (auth.redirecting()) {
+          <!-- Silent return with Remember me (US-68): leaving for Google, back in a moment. -->
+          Signing you in…
+        } @else if (!auth.gisReady()) {
           Loading Google sign-in…
         } @else if (auth.status() === 'signing-in') {
           Signing in…
@@ -30,7 +33,7 @@
         }
       </button>
 
-      <!-- Remember me (US-44): below the button (owner); view state only, US-67 saves the record. -->
+      <!-- Remember me (US-44): below the button (owner); passed to sign-in, which keeps or deletes the record (US-67). -->
       <stoqr-checkbox class="sign-in__remember" label="Remember me" [formControl]="rememberMe" />
     </div>
   </div>

@@ -11,7 +11,10 @@ import { SIGNED_IN_PATH, SIGN_IN_PATH } from './auth-guards';
  * - follows `Auth.status`: signed out on a protected page goes to the sign-in
  *   screen; signed in on the sign-in screen goes home. An expired or renewing
  *   session never navigates, so its work stays on screen (US-06). The route
- *   guards cover URLs typed directly.
+ *   guards cover URLs typed directly;
+ * - Remember me (US-68): with a valid record and no session yet, goes to
+ *   Google once for a silent sign-in (`prompt=none`) and comes back signed in,
+ *   or to the normal sign-in screen with no error.
  */
 export function provideAuthRedirects(): EnvironmentProviders {
   return provideAppInitializer(() => {
@@ -19,6 +22,12 @@ export function provideAuthRedirects(): EnvironmentProviders {
     const router = inject(Router);
 
     void auth.prepare();
+
+    const silent = auth.silentSignInUrl();
+    if (silent !== null) {
+      window.location.assign(silent);
+      return;
+    }
 
     effect(() => {
       const status = auth.status();

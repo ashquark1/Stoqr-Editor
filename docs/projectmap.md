@@ -36,9 +36,9 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **The rule:** features call these steps; they never call `ProductSearchStore.select/clearSelection` or `DetailsStore.openForm/closeForm` directly.
 
 ### Auth (Google sign-in) — cross-cutting
-- **Owns:** Google Identity Services token flow, the in-memory access token, sign-in status and the first name (memory only; D1: profile scope, no email), expiry (~1 hour) with in-place renewal (session clock, `expired`/`renewing` statuses, `freshToken()`, `sessionId`; US-06), sign-out (revokes the token), and auth-driven navigation (guards + redirects).
+- **Owns:** Google Identity Services token flow, Remember me (record + silent redirect return, US-67/68), the in-memory access token, sign-in status and the first name (memory only; D1: profile scope, no email), expiry (~1 hour) with in-place renewal (session clock, `expired`/`renewing` statuses, `freshToken()`, `sessionId`; US-06), sign-out (revokes the token), and auth-driven navigation (guards + redirects).
 - **Does NOT own:** any sheet reads/writes (it only supplies the token).
-- **Code lives in:** `src/app/core/auth/` — `gis-types.ts`, `gis-loader.ts`, `auth-scope.ts`, `auth.ts`, `user-profile.ts`, `auth-guards.ts`, `auth-redirects.ts`, `testing/fake-gis.ts`.
+- **Code lives in:** `src/app/core/auth/` — `gis-types.ts`, `gis-loader.ts`, `auth-scope.ts`, `auth.ts`, `user-profile.ts`, `auth-guards.ts`, `auth-redirects.ts` (also starts the silent return), `remember-me.ts` (the only storage file: record + one-time `state`), `testing/fake-gis.ts`.
 - **The rule:** tokens in memory only; the app is unusable until signed in; expiry never clears work (only sign-out or another account does); 403 surfaces as a clear "no access" message naming the sheet.
 - **Forbidden:** persisting tokens; embedding secrets or API keys; components touching GIS directly.
 

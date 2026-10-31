@@ -136,13 +136,14 @@ describe('auth rules (US-05)', () => {
     ).toEqual([]);
   });
 
-  it('core/auth and core/sheets never use browser storage or cookies', () => {
+  it('core/auth and core/sheets use browser storage only in remember-me.ts (and the dev keeper)', () => {
     const storage = /\b(?:localStorage|sessionStorage|indexedDB)\b|document\.cookie/;
-    // DEVELOPMENT ONLY exception (owner, 2026-10-31): dev-session.ts keeps the
-    // session across reloads in dev builds on TEST. Remove with the file before go-live.
-    const devOnly = 'src/app/core/auth/dev-session.ts';
+    // Remember me (US-67/68/82): remember-me.ts keeps only the record (flag + time) and the
+    // one-time silent-sign-in state. DEVELOPMENT ONLY (owner, 2026-10-31): dev-session.ts,
+    // removed before go-live.
+    const allowed = ['src/app/core/auth/remember-me.ts', 'src/app/core/auth/dev-session.ts'];
     const offending = offenders(
-      (f) => isTs(f) && (inAuth(f) || inSheets(f)) && !f.path.endsWith('.spec.ts') && f.path !== devOnly,
+      (f) => isTs(f) && (inAuth(f) || inSheets(f)) && !f.path.endsWith('.spec.ts') && !allowed.includes(f.path),
       storage,
     );
     expect(offending).toEqual([]);

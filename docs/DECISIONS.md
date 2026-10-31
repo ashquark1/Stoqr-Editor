@@ -455,6 +455,16 @@
 - Decision (reuse, Q-G3): the strip shape (`ResultStrip<A>`), the "Nothing was changed." certainty rule (`failureText`) and the half-saved suffix (`partialText`) live once in `ReviewFlow` and serve both the stock and details strips.
 - Decision: `review-actions/` now covers only reviewing (Save changes / Back) and saving (busy Saving…, Back off); outcome buttons live on the strips.
 
+## 2026-10-31: Remember me — record and silent redirect (US-67, US-68, US-82) [confirmed]
+
+- Decision (owner): `core/auth/remember-me.ts` is the only file that may use browser storage: `localStorage` holds `{ remember: true, savedAt }` (no token, no name, no account id), valid 30 days from the last sign-in; `sessionStorage` holds the one-time random `state` and a once-per-tab attempt flag. A ticked sign-in saves (renews) the record, an unticked one deletes it, Sign out deletes it. Storage errors are caught (no Remember me, nothing breaks).
+- Decision (owner): the return is a SILENT REDIRECT: with a valid record and no session, `provideAuthRedirects()` sends the page once to Google's OAuth endpoint (`response_type=token`, `prompt=none`, same scopes); Google sends it straight back with a token (memory only; the fragment is removed from the address bar at once and `state` checked) or an error, which shows the normal sign-in screen with no message. The sign-in screen shows "Signing you in…" while leaving.
+- Rejected: the GIS popup on start (browsers block it without a click; DECISIONS US-06); storing the token (anyone at a shared shop computer could write to the sheets for up to an hour); a one-tap Continue (still a click).
+- Kept: hourly renewal is the click-based popup (a redirect would reload the page and lose unsaved work).
+- Limits: several Google accounts signed in, an ended Google session, or lapsed consent (Testing mode, ~7 days) → normal sign-in.
+- Owner setup: add `http://localhost:4200/` and the hosted site's address as Authorized redirect URIs on the OAuth client (Google Cloud).
+- Cost: the first load is 499.1 kB (+2.2 kB), 0.9 kB under the 500 kB warning. The bundle budget needs the separate review the owner deferred before any further first-load growth.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
