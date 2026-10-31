@@ -211,6 +211,10 @@ describe('search rules (US-12)', () => {
       offenders((f) => isAppCode(f) && !f.path.startsWith('src/app/core/search/'), searchInternals),
     ).toEqual([]);
   });
+
+  it('no result cap: every match is listed (US-55)', () => {
+    expect(offenders(inApp, /\bMAX_SHOWN\b|\.shown\(\)/)).toEqual([]);
+  });
 });
 
 describe('details rules (US-22)', () => {

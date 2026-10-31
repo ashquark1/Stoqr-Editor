@@ -8,6 +8,7 @@ import { mapSheet } from '@core/sheets/data-mapping';
 import { MASTER_SHEET, sheetRow, sheetValues } from '@core/sheets/testing/sheet-fixtures';
 import { ProductPicker } from './product-picker';
 
+// The search box moved to `app-search-row` (US-50); the picker renders results only.
 describe('ProductPicker', () => {
   const query = signal('');
   const message = signal<string | null>(null);
@@ -19,10 +20,8 @@ describe('ProductPicker', () => {
     message,
     matches,
     totalMatches: computed(() => matches().length),
-    shown: computed(() => matches().slice(0, 20)),
     selected,
     syncBadgeOf: vi.fn(() => 'linked' as const),
-    setQuery: vi.fn((q: string) => query.set(q)),
     select: vi.fn(),
   };
   let fixture: ComponentFixture<ProductPicker>;
@@ -34,14 +33,8 @@ describe('ProductPicker', () => {
       sheetValues(...Array.from({ length: count }, (_, i) => sheetRow({ id: `r${i}`, 'product name': `Strip ${i}`, sku: `S-${i}` }))),
     );
 
-  function type(text: string): void {
-    const input = el.querySelector<HTMLInputElement>('input#product-search');
-    if (input === null) {
-      throw new Error('search input not rendered');
-    }
-    input.value = text;
-    input.dispatchEvent(new Event('input'));
-    TestBed.tick();
+  function searchFor(text: string): void {
+    query.set(text);
     fixture.detectChanges();
   }
 
@@ -60,19 +53,14 @@ describe('ProductPicker', () => {
     fixture.detectChanges();
   });
 
-  it('shows the hint before anything is typed', () => {
-    expect(el.querySelector('.picker__hint')?.textContent).toContain('Search by product name, SKU, brand or category');
+  it('shows nothing before a search', () => {
     expect(el.querySelector('.picker__results')).toBeNull();
-  });
-
-  it('sends what is typed to the store (search state lives in the store)', () => {
-    type('oxi');
-    expect(search.setQuery).toHaveBeenLastCalledWith('oxi');
+    expect(el.querySelector('stoqr-empty-state')).toBeNull();
   });
 
   it('lists results and selects one on click', () => {
     matches.set(rows(2));
-    type('strip');
+    searchFor('strip');
     const buttons = el.querySelectorAll<HTMLButtonElement>('.picker__result');
     expect([...buttons].map((b) => b.querySelector('.picker__name')?.textContent?.trim())).toEqual(['Strip 0', 'Strip 1']);
     buttons[1].click();
@@ -81,38 +69,35 @@ describe('ProductPicker', () => {
 
   it('shows each result’s sync badge (US-37)', () => {
     matches.set(rows(2));
-    type('strip');
+    searchFor('strip');
     const badges = [...el.querySelectorAll('.picker__result stoqr-sync-badge')].map((b) => b.textContent?.trim());
     expect(badges).toEqual(['Linked', 'Linked']);
     expect(search.syncBadgeOf).toHaveBeenCalledWith(matches()[0].ref);
   });
 
-  it('says how many are hidden when more than 20 match', () => {
+  it('rule: lists every match, more than 20 included, with no count line (US-55)', () => {
     matches.set(rows(25));
-    type('strip');
-    expect(el.querySelectorAll('.picker__result')).toHaveLength(20);
-    expect(el.querySelector('.picker__count')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Showing 20 of 25 — keep typing to narrow',
-    );
+    searchFor('strip');
+    expect(el.querySelectorAll('.picker__result')).toHaveLength(25);
+    expect(el.textContent).not.toContain('keep typing to narrow');
   });
 
-  it('shows the no-match state with the query', () => {
-    type('zzz');
-    expect(el.querySelector('stoqr-empty-state')?.textContent).toContain('No products match “zzz”.');
+  it('shows V1’s no-match message (US-55)', () => {
+    searchFor('zzz');
+    expect(el.querySelector('stoqr-empty-state')?.textContent).toContain('No products match your search.');
   });
 
   it('shows V1’s message for a size/colour/packing-only query', () => {
     message.set(SECONDARY_ONLY_MESSAGE);
-    type('blue');
+    searchFor('blue');
     expect(el.querySelector('.picker__hint')?.textContent).toContain(SECONDARY_ONLY_MESSAGE);
   });
 
   it('hides the results once a product is selected', () => {
     matches.set(rows(2));
-    type('strip');
+    searchFor('strip');
     selected.set(matches()[0]);
     fixture.detectChanges();
     expect(el.querySelector('.picker__results')).toBeNull();
-    expect(el.querySelector('input#product-search')).not.toBeNull();
   });
 });

@@ -2,15 +2,12 @@
   @if (search.message(); as message) {
     <p class="picker__hint">{{ message }}</p>
   } @else if (search.totalMatches() === 0) {
-    <stoqr-empty-state message="No products match “{{ search.query().trim() }}”." />
+    <!-- V1's wording (US-55); the "…and filters" variant comes with the filters (US-70). -->
+    <stoqr-empty-state message="No products match your search." />
   } @else {
-    @if (search.totalMatches() > maxShown) {
-      <p class="picker__count">
-        Showing {{ maxShown }} of {{ search.totalMatches() }} — keep typing to narrow
-      </p>
-    }
+    <!-- Every match, no cap (US-55); the page scrolls. -->
     <ul class="picker__results" aria-label="Matching products">
-      @for (row of search.shown(); track row.ref) {
+      @for (row of search.matches(); track row.ref) {
         <li>
           <button type="button" class="picker__result" (click)="search.select(row.ref)">
             <span class="picker__name">{{ display(row.product.productName) }}</span>

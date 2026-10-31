@@ -220,7 +220,7 @@
 ## 2026-10-28: Product picker — V1 matcher, master only, every status [confirmed]
 
 - Decision: V1's search rules are copied UNCHANGED into `core/search/` (`search-fields.ts`, `product-matcher.ts`, `search-validation.ts` + specs): case-insensitive, every typed word must match; core fields name, brand, SKU and category; size/colour/packing count only alongside a core match, otherwise "Please include a product name or brand in your search." Kept identical so drift from V1 is easy to compare.
-- Decision: the picker lists MASTER products only (Dr Trust rows are never pickable) of EVERY status (owner choice), in sheet order; at most 20 are shown with the total ("keep typing to narrow").
+- Decision: the picker lists MASTER products only (Dr Trust rows are never pickable) of EVERY status (owner choice), in sheet order; at most 20 are shown with the total ("keep typing to narrow"). [Superseded 2026-10-31 by US-55: every match is listed (no cap; 122 products on TEST, a 108-match list renders in about 23 ms); no-match text is V1's "No products match your search."; the count moves to the toolbar in US-69.]
 - Decision: all search and selection state lives in `ProductSearchStore` (query, selected `RowRef`, matches, selected product, its linked Dr Trust row, the quantity-differs note, editability). The query is a Reactive Forms `FormControl` forwarded via `toSignal` + `effect`.
 - Decision: ONE rule decides whether a product may be adjusted or edited: `editability(loaded, syncStatus)` in `core/sheets/editability.ts` — no row issues AND not blocked; it returns the reasons shown in the summary.
 - Decision: the temporary load-check view is removed; its counts return with data health (US-31).

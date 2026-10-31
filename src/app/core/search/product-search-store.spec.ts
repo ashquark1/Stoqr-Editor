@@ -13,7 +13,7 @@ import {
   sheetRow,
   sheetValues,
 } from '@core/sheets/testing/sheet-fixtures';
-import { MAX_SHOWN, ProductSearchStore } from './product-search-store';
+import { ProductSearchStore } from './product-search-store';
 import { SECONDARY_ONLY_MESSAGE } from './search-validation';
 
 type Row = Readonly<Record<string, CellValue>>;
@@ -95,12 +95,13 @@ describe('ProductSearchStore', () => {
       expect(names(store.matches())).toEqual(['Pulse Oximeter']);
     });
 
-    it(`shows at most ${MAX_SHOWN} matches, with the total`, () => {
+    it('rule: returns every match, more than 20 included, in sheet order (US-55)', () => {
       master.set(masterRows(...Array.from({ length: 25 }, (_, i) => ({ 'product name': `Strip ${i}`, sku: `S-${i}` }))));
       store.setQuery('strip');
       expect(store.totalMatches()).toBe(25);
-      expect(store.shown()).toHaveLength(MAX_SHOWN);
-      expect(store.shown()[0].product.productName).toBe('Strip 0');
+      expect(store.matches()).toHaveLength(25);
+      expect(store.matches()[0].product.productName).toBe('Strip 0');
+      expect(store.matches()[24].product.productName).toBe('Strip 24');
     });
   });
 

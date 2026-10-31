@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
-import { MAX_SHOWN, ProductSearchStore } from '@core/search/product-search-store';
+import { ProductSearchStore } from '@core/search/product-search-store';
 import { Badge } from '@shared/ui/badge/badge';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { StatusBadge } from '@shared/ui/status-badge/status-badge';
@@ -10,8 +10,8 @@ import { displayValue } from '@shared/util/display-value';
 /**
  * Search results over master products (US-12, US-14). The query is typed in
  * the search row (`app-search-row`, US-50) and lives in `ProductSearchStore`;
- * this component renders the store's results. The list hides once a product is
- * selected.
+ * this component renders every match (no cap, US-55). The list hides once a
+ * product is selected.
  */
 @Component({
   selector: 'app-product-picker',
@@ -23,5 +23,4 @@ import { displayValue } from '@shared/util/display-value';
 export class ProductPicker {
   protected readonly search = inject(ProductSearchStore);
   protected readonly display = displayValue;
-  protected readonly maxShown = MAX_SHOWN;
 }

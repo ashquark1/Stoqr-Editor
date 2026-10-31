@@ -10,9 +10,6 @@ import { SyncBadgeKind, linkedQtyDiffers, syncBadges } from '@core/sheets/sync-b
 import { filterProducts, tokenize } from './product-matcher';
 import { SearchValidation } from './search-validation';
 
-/** How many matches the picker lists at once; staff keep typing to narrow. */
-export const MAX_SHOWN = 20;
-
 /**
  * Search and selection state for the product picker (US-12, US-13). Searches
  * MASTER products only, every status, with V1's matching rules. Components read
@@ -39,7 +36,10 @@ export class ProductSearchStore {
     this.validation.validate(this.querySignal(), this.masterProducts()),
   );
 
-  /** Master rows matching the query, in sheet order; empty for an empty or unsupported query. */
+  /**
+   * Master rows matching the query, in sheet order; empty for an empty or
+   * unsupported query. All of them are listed — there is no cap (US-55).
+   */
   readonly matches = computed<readonly LoadedProduct[]>(() => {
     if (!this.hasQuery() || this.message() !== null) {
       return [];
@@ -53,7 +53,6 @@ export class ProductSearchStore {
   });
 
   readonly totalMatches = computed(() => this.matches().length);
-  readonly shown = computed(() => this.matches().slice(0, MAX_SHOWN));
 
   private readonly statuses = computed(() => syncStatuses(this.sheets.pairing()));
 
