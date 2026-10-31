@@ -12,10 +12,15 @@ import { SheetsReader } from './sheets-reader';
 const GENERIC_ERROR = "Couldn't load the products. Please try again.";
 export const INTERRUPTED_ERROR = 'Loading was interrupted by the session ending. Please retry.';
 
+/** Outcome of `refresh()` (US-58). */
+export type RefreshResult = 'refreshed' | 'failed' | 'skipped';
+
 /**
  * Both sheets, loaded once per session after sign-in (US-08). All-or-nothing:
  * data is set only when both sheets load and map; any failure shows no data.
  * Cleared on sign-out or session expiry so the next user never sees old rows.
+ * `refresh()` (US-58) reloads both while the old data stays on screen, and
+ * keeps it if the refresh fails — safe because every write re-reads its rows.
  */
 @Injectable({ providedIn: 'root' })
 export class SheetsStore {
@@ -29,8 +34,14 @@ export class SheetsStore {
   private readonly masterSignal = signal<readonly LoadedProduct[]>([]);
   private readonly drTrustSignal = signal<readonly LoadedProduct[]>([]);
   private readonly noAccessSignal = signal(false);
+  private readonly refreshingSignal = signal(false);
+  private readonly refreshErrorSignal = signal<string | null>(null);
 
   readonly loading = this.loadingSignal.asReadonly();
+  /** A refresh is running; the old data is still shown (US-58). */
+  readonly refreshing = this.refreshingSignal.asReadonly();
+  /** Why the last refresh failed (the old data was kept), or null. */
+  readonly refreshError = this.refreshErrorSignal.asReadonly();
   /** A message naming every failing sheet, or null. */
   readonly error = this.errorSignal.asReadonly();
   /** True when the last load failed because the account cannot open at least one sheet (US-32). */
@@ -84,6 +95,58 @@ export class SheetsStore {
   /** Retry: loads both sheets again. */
   reload(): Promise<void> {
     return this.load();
+  }
+
+  /**
+   * Refresh (US-58): reloads both sheets while the loaded data stays available.
+   * Success replaces the data and `fetchedAt`; failure keeps them and sets
+   * `refreshError`. Does nothing while a load or refresh runs, or before the
+   * first load (that is `ensureLoaded`/Retry, still all-or-nothing).
+   */
+  async refresh(): Promise<RefreshResult> {
+    if (this.refreshingSignal() || this.loadingSignal() || this.fetchedAtSignal() === null) {
+      return 'skipped';
+    }
+    const generation = this.generation;
+    const master = this.config.sheet('master');
+    const drTrust = this.config.sheet('dr-trust');
+    this.refreshingSignal.set(true);
+    this.refreshErrorSignal.set(null);
+    try {
+      const [masterRead, drTrustRead] = await Promise.allSettled([
+        this.reader.read(master),
+        this.reader.read(drTrust),
+      ]);
+      if (generation !== this.generation) {
+        return 'skipped';
+      }
+      if (masterRead.status === 'rejected' || drTrustRead.status === 'rejected') {
+        this.refreshErrorSignal.set(
+          this.failureMessage([masterRead, drTrustRead].flatMap((r) => (r.status === 'rejected' ? [r.reason] : []))),
+        );
+        return 'failed';
+      }
+      const masterProducts = mapSheet(master, masterRead.value);
+      const drTrustProducts = mapSheet(drTrust, drTrustRead.value);
+      this.masterSignal.set(masterProducts);
+      this.drTrustSignal.set(drTrustProducts);
+      this.fetchedAtSignal.set(new Date());
+      return 'refreshed';
+    } catch (mappingError) {
+      if (generation !== this.generation) {
+        return 'skipped';
+      }
+      this.refreshErrorSignal.set(this.failureMessage([mappingError]));
+      return 'failed';
+    } finally {
+      if (generation === this.generation) {
+        this.refreshingSignal.set(false);
+      }
+    }
+  }
+
+  clearRefreshError(): void {
+    this.refreshErrorSignal.set(null);
   }
 
   /**
@@ -148,18 +211,23 @@ export class SheetsStore {
 
   /** All-or-nothing: data is already cleared; this only sets the message and the no-access flag. */
   private showFailures(failures: readonly unknown[]): void {
+    this.errorSignal.set(this.failureMessage(failures));
+    const loadErrors = failures.filter((f): f is SheetLoadError => f instanceof SheetLoadError);
+    this.noAccessSignal.set(
+      loadErrors.length === failures.length && loadErrors.some((e) => e.kind === 'access'),
+    );
+  }
+
+  /** The message naming every failing sheet (shared by load and refresh). */
+  private failureMessage(failures: readonly unknown[]): string | null {
     const loadErrors = failures.filter((f): f is SheetLoadError => f instanceof SheetLoadError);
     if (loadErrors.length < failures.length) {
-      this.errorSignal.set(GENERIC_ERROR);
-      return;
+      return GENERIC_ERROR;
     }
     // An expired session yields null when the user has signed out (they are on the sign-in
     // screen). If they still have a session (e.g. a second 401 after renewal), offer Retry.
     const message = combineLoadErrors(loadErrors);
-    this.errorSignal.set(
-      message === null && loadErrors.length > 0 && this.auth.hasSession() ? INTERRUPTED_ERROR : message,
-    );
-    this.noAccessSignal.set(loadErrors.some((e) => e.kind === 'access'));
+    return message === null && loadErrors.length > 0 && this.auth.hasSession() ? INTERRUPTED_ERROR : message;
   }
 
   private reset(): void {
@@ -169,6 +237,8 @@ export class SheetsStore {
     this.errorSignal.set(null);
     this.noAccessSignal.set(false);
     this.loadingSignal.set(false);
+    this.refreshingSignal.set(false);
+    this.refreshErrorSignal.set(null);
   }
 
   private clearData(): void {

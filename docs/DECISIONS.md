@@ -369,6 +369,12 @@
 - Trade-off: a temporary exception to "tokens in memory only" (AI_CONTRACT). The code is present but inert in the production build (both guards false there). Architecture rule exempts only this file and checks its guard.
 - Action: delete `dev-session.ts`, its calls in `auth.ts` and the architecture-rule exemption as part of the US-27 cutover checklist.
 
+## 2026-10-31: Refresh keeps the last good data on failure (US-58) [confirmed]
+
+- Decision: `SheetsStore.refresh()` reloads both sheets with the same read and mapping as Retry while the loaded data stays on screen (`refreshing`). Success replaces the data and `fetchedAt`; any failure keeps them and sets `refreshError` (shown by US-69). A second call while a load or refresh runs, or before the first load, does nothing (`skipped`).
+- Reason: safe because every write re-reads its rows first, so stale data on screen can never be written.
+- Unchanged: the first load and Retry stay all-or-nothing (any failure shows no data).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
