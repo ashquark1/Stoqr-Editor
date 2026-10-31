@@ -28,6 +28,9 @@ AI_CONTRACT.md
 - Forbidden "writing a value computed from anything but the freshly re-read sheet value + the approved delta" → "writing a quantity other than the approved absolute value, and only after the re-read shows the master quantity the user saw".
 - Linked Sheets: "the review step must show a non-blocking note when it differs" → "the adjuster's saved strip says what Dr Trust had ('Dr Trust had N.'), and the details review shows the 'will be set to' note"; Forbidden "…without showing it in the review step" → "…without showing it to the user".
 - Product Details: "Stock Qty, Stock Status, Last Updated and Created At are never inputs" → "Stock Status, Last Updated and Created At are never inputs; Stock qty is an ordinary required field (whole number 0–1,000,000, `MAX_QUANTITY`)".
+- Product Details (owner, 2026-10-31): a Stock qty change in the details form of a linked product guards the MASTER qty only, like the adjuster; Dr Trust's qty is overwritten (review shows "will be set to"). Other changed fields keep the per-sheet guard.
+- "Rule: stock and details reviews share `ReviewFlow` … never fork its steps per review." → "Rule: every approved save (stock Apply, Undo, Retry, details Save changes) uses `ReviewFlow` (`core/sheets/review-flow.ts`) for saving, outcomes and Retry; stock starts at saving (no review step). Never fork its steps."
+- Writes: "ONLY after the user has explicitly approved…" also in Writes (cross-cutting) → same "explicit user tap" wording; values written are absolute, guarded by the re-read master qty the user saw (Undo: the qty just saved).
 CLAUDE.md
 - "Quantity is a whole number ≥ 0. Never write without the approval step." → "… Never write without an explicit user tap (Apply, Undo, Retry, Save changes)."
 DECISIONS.md (new entry)
