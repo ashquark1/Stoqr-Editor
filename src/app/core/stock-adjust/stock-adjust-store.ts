@@ -31,7 +31,7 @@ export class StockAdjustStore {
   readonly proposal = computed<Proposal | null>(() => {
     const mode = this.modeSignal();
     const amount = parseAmount(this.amountTextSignal());
-    return mode === null || amount === null ? null : proposeQuantity(this.current(), mode, amount);
+    return mode === null || amount === null ? null : proposeQuantity(this.current(), { way: 'amount', mode, amount });
   });
 
   /** "+15" / "−15" for a valid proposal. */

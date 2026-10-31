@@ -19,8 +19,8 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Owns:** `proposeQuantity` (pure: current ± amount, whole numbers, blocks < 0), `deriveStockStatus` (pure: quantity + Low Stock Threshold → `In Stock` / `Low Stock` / `Out of Stock`; Stock Status is typed text in the sheet so the app keeps it in step), the adjuster state (mode add/subtract, amount, proposed quantity), the review/approve state machine, and the low-stock warning preview.
 - **Does NOT own:** the write itself (Data Source) or product identity (Products).
 - **Code lives in:** `src/app/core/stock-adjust/` — landed: `stock-status.ts` (`deriveStockStatus`, the one Stock Status rule), `stock-status-display.ts` (display only), `stock-adjust.ts` (`proposeQuantity`, `parseAmount`, `formatDelta`; 1,000,000 cap), `stock-adjust-store.ts` (adjuster state; resets on product change), `stock-review-store.ts` (review → approve → write, plus Retry after a partial save, via the shared `ReviewFlow`; the only caller of `approve()` for stock changes).
-- **The rule:** quantity changes only via adjuster → review → approve; the proposed value is computed in exactly one place.
-- **Forbidden:** clamping silently; decimals; computing the written value from anything but the re-read sheet value + approved delta.
+- **The rule:** quantity changes only via adjuster Apply, Undo, Retry or the details form's Stock qty (CR-04); the proposed value (amount or new total) is computed in exactly one place.
+- **Forbidden:** clamping silently; decimals; writing anything but the approved absolute value after the re-read shows the master qty the user saw.
 
 ### Product Details
 - **Owns:** the details field list (groups, kinds, required, locked), validation, form state (the user's edits over current data, errors, changes by value, the "Discard changes?" step), the changed-fields diff, and the review/approval of details edits (US-23, US-24, US-36).

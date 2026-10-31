@@ -35,7 +35,7 @@ V2 scope: a single-page, frontend-only editor for the Stoqr Google Sheet. Pick a
 - No manual `.subscribe()` in components — use the `async` pipe or `toSignal()`.
 - No business logic in components — it belongs in services/stores/pure functions.
 - Components never call `HttpClient` or Google APIs directly.
-- Quantity is a whole number ≥ 0. Never write without the approval step. Never write `id`.
+- Quantity is a whole number ≥ 0. Never write without an explicit user tap (Apply, Undo, Retry, Save changes). Never write `id`.
 - Stock Status is derived (`deriveStockStatus`) and written with every quantity change; never typed, never computed in a component.
 - Standalone components only. No NgModules.
 

@@ -75,7 +75,7 @@
 - Decision [confirmed 2026-10-29]: in the details form Stock Status is read-only (derived); users do not type it. The review step previews the new status and the low-stock warning from the same function.
 - Note: this deliberately supersedes V1's rule that stock status is "read verbatim, never derived". That rule belongs to V1's read-only contract; V2 owns the write, so it must own the derivation.
 
-## 2026-10-21: Quantity is edited only via the adjuster [confirmed 2026-10-29]
+## 2026-10-21: Quantity is edited only via the adjuster [confirmed 2026-10-29; superseded 2026-10-31 by CR-04]
 
 - Decision: the details form shows Stock Qty read-only; all quantity changes go through adjuster → review → approve. Created At is read-only; Last Updated is app-stamped; Stock Status is app-derived; `id` is excluded.
 - Reason: one reviewed path for quantity prevents unreviewed changes.
@@ -408,6 +408,17 @@
 
 - Decision: the open product is a card under the toolbar; no "Change product" or mode buttons. A product closes only through the search box (clear × or emptied box, US-59 rules). Opening a product closes both floating panels (`ProductSearchStore.select()`).
 - Decision (interim, until US-64): the pencil / eye is disabled while a save runs or a stock review or its outcome (including a half-saved Retry) is showing, so the form never hides that result.
+
+## 2026-10-31: CR-04 — quantity rules and the contract (US-62) [confirmed]
+
+- Decision (owner): writes happen only after an explicit user tap — Apply (after the preview), Undo, Retry, or Save changes (details review) — still only via `approve()` → `SheetsWriter`. Quantity may change through exactly those four paths.
+- Decision: "set a new total" is a second way in the SAME function, `proposeQuantity(current, entry)`; entry is an amount with a sign or a total (0–1,000,000, not the current quantity). `parseAmount` reads a leading minus so negatives get the sign message.
+- Decision: written quantities are ABSOLUTE, sent only after the re-read shows the master qty the user saw (Undo: the qty just saved). Rejected: converting totals or Undo to a delta at write time (would apply on top of someone else's change).
+- Decision: the Dr Trust overwrite stays visible without a review: "Dr Trust sheet has N." in the Stock qty tile before Apply, "Dr Trust had N." in the saved strip; the details review keeps "will be set to".
+- Decision: a Stock qty change in the details form guards the MASTER qty only (Dr Trust overwritten), like the adjuster; other changed fields keep the per-sheet guard.
+- Decision: `ReviewFlow` stays the one save/outcome/Retry engine for every approved save; a stock change starts at saving. Rejected: a separate stock flow (duplication).
+- Risk (owner-accepted): no review page for stock, so a slip such as 500 for 5 is written at once. Guards: the live preview, red limit messages, Undo for about 10 s. A confirmation for large changes is a later option.
+- Supersedes: "Quantity is edited only via the adjuster", and the review step of "Approval flow with a re-read guard" for stock (the re-read guard stays).
 
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).

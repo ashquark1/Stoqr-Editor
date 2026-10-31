@@ -2,7 +2,7 @@
 # If a forbidden pattern isn't written here, Claude is allowed to use it.
 
 ## Non-Negotiable Rules
-- The Google Sheet is edited ONLY through the single write service (`SheetsWriter`, `src/app/core/sheets/`), ONLY after the user has explicitly approved the change in the review step, and ONLY to allowlisted columns. If a task seems to require a write outside this path, stop and ask.
+- The Google Sheet is edited ONLY through the single write service (`SheetsWriter`, `src/app/core/sheets/`), ONLY after an explicit user tap (Apply after the preview, Undo, Retry, or Save changes in the details review; CR-04), and ONLY to allowlisted columns. If a task seems to require a write outside this path, stop and ask.
 - All Google access (Sheets API reads/writes, Google sign-in) goes through `src/app/core/sheets/` and `src/app/core/auth/`. Components and templates never call `HttpClient`, `gapi`, or Google Identity Services directly.
 - No business/derivation logic in components or templates. Row→model mapping, quantity maths, validation, search and diffing live in services or pure functions. Components render and call setters.
 - State is exposed as Angular signals from services. No NgRx, Akita, or ad-hoc global mutable singletons.
@@ -28,25 +28,25 @@
 
 ### Stock & Inventory Levels
 - Owner: `core/stock-adjust/` (pure functions) + the Sheets write service.
-- Rule: quantity is a whole number ≥ 0. The adjustment amount is a positive whole number. The proposed final quantity = current ± amount, computed by ONE pure function (`proposeQuantity`), shown live, and never computed in a component.
+- Rule: quantity is a whole number ≥ 0. The adjustment amount is a positive whole number; a new total is a whole number 0–1,000,000 that is not the current quantity. The proposed final quantity = current ± amount, or the new total, computed by ONE pure function (`proposeQuantity`), shown live, and never computed in a component.
 - Rule: a subtraction that would go below 0 is BLOCKED with a clear message — it is never silently clamped.
 - Rule: `proposeQuantity`, `parseAmount` and `deriveStockStatus` are imported only in `core/` (enforced by `architecture.spec.ts`); components only read the store's results. The amount and the resulting quantity are capped at 1,000,000.
-- Rule: quantity changes happen only through the quantity adjuster → review → approve flow. The details form shows Stock Qty read-only.
-- Rule: before writing, re-read the target row, confirm the `id` still matches and the quantity still equals what the user reviewed. If not, abort the write and show the fresh value. No silent overwrite.
+- Rule (CR-04): quantity changes happen only through the adjuster (preview → one Apply tap), its Undo, a Retry of a half-done save, or the details form's Stock qty field (review → Save changes). No other path writes a quantity.
+- Rule: before writing, re-read the target row, confirm the `id` still matches and the master quantity still equals what the user saw (for Undo: the quantity just saved). If not, abort the write and show the fresh value. No silent overwrite.
 - Rule: Stock Status is typed text in the sheet, so it is DERIVED and written with EVERY save — quantity or details — per sheet from that sheet's own final qty and threshold, by ONE pure function, `deriveStockStatus(qty, lowStockThreshold)` in `core/stock-adjust/`. It is never typed by the user and never computed in a component. This supersedes V1's "stock status is read verbatim" rule, which applied only to V1's read-only contract.
 - Rule: every approved change also stamps Last Updated with a static timestamp (never a formula), shown as `dd/MM/yyyy HH:mm:ss`.
-- Forbidden: writing quantity without approval; writing a value computed from anything but the freshly re-read sheet value + the approved delta; writing a quantity without its derived Stock Status in the same request.
+- Forbidden: writing quantity without an explicit user tap; writing a quantity other than the approved absolute value, or before the re-read shows the master quantity the user saw; writing a quantity without its derived Stock Status in the same request.
 
 ### Product Details
 - Owner: `core/details/` (field list, validation, form state).
-- Rule: the details form shows every product field except `id`; Stock Qty, Stock Status, Last Updated and Created At are never inputs. Field rules (groups, kinds, required, locked) live only in `core/details/details-fields.ts`.
+- Rule: the details form shows every product field except `id`; Stock Status, Last Updated and Created At are never inputs. Stock qty is an ordinary required field (whole number 0–1,000,000, `MAX_QUANTITY`; CR-04). Field rules (groups, kinds, required, locked) live only in `core/details/details-fields.ts`.
 - Rule: details validation is pure (`validateDetail`) and imported only inside `core/details/` (enforced by `architecture.spec.ts`). Invalid input blocks Review; it is never corrected.
 - Rule: every step that may drop unsaved work (opening another product, closing it, clearing the search box, a Data health pick, Refresh, leaving the details form) goes through `ProductNavigation` (`core/navigation/`), which asks the one "Discard changes?" question. Unsaved work = details edits, a typed adjuster amount or a chosen sign. One editor (adjuster or details form) is open at a time; whether the form is open is `DetailsStore.formOpen`.
-- Rule: `DetailsReviewStore` is the only caller of `approve()` for details. It approves only the CHANGED fields (compared by value), the same new values in both sheets, each row guarded by that sheet's own current values of those fields.
+- Rule: `DetailsReviewStore` is the only caller of `approve()` for details. It approves only the CHANGED fields (compared by value), the same new values in both sheets, each row guarded by that sheet's own current values of those fields — except Stock qty: like the adjuster, only the master qty is guarded and Dr Trust's is overwritten (the review shows "will be set to").
 - Rule: `DetailsStore` keeps only the user's edits; untouched fields always show current data, so a details save can never undo someone else's change.
 - Rule: a new SKU is checked by `checkNewSku` (`core/sheets/sku-check.ts`) live in the form, and again by `SheetsWriter` on BOTH freshly read sheets whenever an approval changes SKU; any row outside the user's original approval (`ApprovedChange.owners`) holding it stops the write with nothing written.
 - Rule (owner choice 2026-10-29): a master-only product may take the SKU of exactly one unmatched Dr Trust row, which links them; that save writes both rows in one approval. A linked product may not take any other row's SKU.
-- Rule: stock and details reviews share `ReviewFlow` (`core/sheets/review-flow.ts`) for saving, outcomes and Retry; never fork its steps per review.
+- Rule: every approved save (stock Apply, Undo, Retry, details Save changes) uses `ReviewFlow` (`core/sheets/review-flow.ts`) for saving, outcomes and Retry; a stock change starts at saving (no review step). Never fork its steps.
 
 ### Writes (cross-cutting)
 - Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.
@@ -70,14 +70,14 @@
 - Rule: a linked product is always written to BOTH sheets in one approved action, by `SheetsWriter` only. Success is reported only when both writes are API-confirmed. A partial failure names the sheet that was updated and the one that was not, and offers a retry; it is never reported as success and never swallowed.
 - Rule: a linked change is ONE `approve(masterRow, drTrustRow)`, Master first. The writer checks every row before writing any; a failure after an earlier sheet was written is `partial`, never success.
 - Rule: writes use ABSOLUTE final values (re-read value ± approved delta), so retrying is idempotent. Before writing, both rows are re-read and checked (both sheet-local `id`s, and the master quantity the user reviewed); before a retry the failed row is re-read again.
-- Rule: quantity mismatches between the sheets are ALWAYS overridden. A linked quantity adjustment is computed from the MASTER's current quantity and the resulting absolute quantity is written to BOTH sheets, replacing whatever the Dr Trust sheet held. There is no reconcile step and no blocking. The Dr Trust quantity is not part of the re-read guard (it is overwritten by design), but the review step must show a non-blocking note when it differs.
+- Rule: quantity mismatches between the sheets are ALWAYS overridden. A linked quantity adjustment is computed from the MASTER's current quantity and the resulting absolute quantity is written to BOTH sheets, replacing whatever the Dr Trust sheet held. There is no reconcile step and no blocking. The Dr Trust quantity is not part of the re-read guard (it is overwritten by design), but the user must see it: the Stock qty tile shows "Dr Trust sheet has N." before Apply, the saved strip says "Dr Trust had N.", and the details review shows "will be set to".
 - Rule: a duplicate SKU in either sheet makes that product non-editable. Unmatched rows (orphans) are reported as warnings and never synced or guessed.
 - Rule: pairing is computed only by `pairSheets` (pure). A blank SKU never pairs and never counts as a duplicate; rows of a blocked SKU are never reported as orphans.
 - Rule: details edits write only the changed fields, to both sheets. Untouched fields that differ between the sheets are left alone.
 - Rule: SKU is editable, including for linked products. A SKU change is part of the same dual write (both sheets, same approved action). The new SKU must be non-empty, have no spaces at either end and, normalised, must not match any other row's SKU in either sheet (except the single unmatched Dr Trust row a master-only product links to); otherwise the save is blocked. During a write and its retries the linked pair is held in memory by row refs and is never re-matched by SKU.
 - Rule: changing a linked product requires Editor access to both spreadsheets; if one is inaccessible, block the change and name that sheet. A sheet the user can only view is caught by the format step, before any value is written.
 - Rule: data health is display only. Its lists are computed only by `dataHealth` (`core/sheets/data-health.ts`) from the pairing; it never blocks, writes or re-pairs anything. Dr Trust products in Master are recognised only by the configured `brand` of the Dr Trust sheet, never a hard-coded brand.
-- Forbidden: writing a linked product to only one sheet; pairing by `id`, row number, or product name; overwriting a differing Dr Trust quantity without showing it in the review step; writing a SKU change to only one sheet; separate write code paths per sheet (one `SheetsWriter`, parameterised by sheet definition).
+- Forbidden: writing a linked product to only one sheet; pairing by `id`, row number, or product name; overwriting a differing Dr Trust quantity without showing it to the user; writing a SKU change to only one sheet; separate write code paths per sheet (one `SheetsWriter`, parameterised by sheet definition).
 
 ## Forbidden Shortcuts
 - One-off "quick fixes" that bypass the data-access service or the model layer (Q-G2). Solve it in the right layer instead.
@@ -100,7 +100,7 @@ After any core domain change, Claude must:
 1. Update @docs/DECISIONS.md with any trade-off made
 2. Update @docs/projectmap.md if domain ownership changed
 3. Confirm rule-level tests pass, e.g.:
-   - no code path writes without an approval step
+   - no code path writes without an explicit user tap and `approve()`
    - no write payload contains the `id`, `Created At`, or a formula
    - `proposeQuantity` never returns a negative or non-integer value
    - every quantity write also carries `deriveStockStatus(qty, threshold)` for that same quantity
