@@ -196,7 +196,7 @@ describe('quantity rules (US-15–17)', () => {
 describe('write rules (US-10)', () => {
   const isAppCode = (f: SourceFile) => isTs(f) && !f.path.endsWith('.spec.ts');
 
-  it('approve() is called only by the review steps (core/stock-adjust, core/details) and approval.ts', () => {
+  it('approve() is called only by the stock and details stores (core/stock-adjust, core/details) and approval.ts', () => {
     const allowed = (f: SourceFile) =>
       f.path.startsWith('src/app/core/stock-adjust/') ||
       f.path.startsWith('src/app/core/details/') ||

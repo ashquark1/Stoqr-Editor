@@ -42,3 +42,9 @@ A stock change needed Review → Approve, and a save closed the product. CR-04: 
 - [ ] Rules hold (read-through; tests not run)
 - [ ] Typechecks and build pass
 - [ ] Docs updated (DECISIONS, projectmap)
+
+## Rule tests to add when tests resume (US-87, CR-04 §4)
+- No write is reachable except from Apply, Undo, Retry or Save changes (`approve()` call sites: `StockReviewStore.apply` / `writeUndo`, `DetailsReviewStore`; Retry uses only `remaining()`).
+- A double tap on Apply writes once (second call while `saving` sends nothing).
+- Undo is refused when the master quantity changed (conflict, nothing written).
+- The details form's Stock qty uses the shared `MAX_QUANTITY` (1,000,001 blocked, 1,000,000 allowed).

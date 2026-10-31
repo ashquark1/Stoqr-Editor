@@ -1,5 +1,7 @@
 # Feature: Retry a half-done linked save (US-34)
 # Sprint 3, story C. Classification: Core (write path; linked-sheet rules).
+> **Updated by CR-04 (2026-10-31):** Retry is offered from the half-saved result under the adjuster (US-64; a strip in US-76) instead of the review panel. The rules below still hold; no Undo after a half-done save or its Retry (US-65).
+
 
 ## Problem
 A linked save can stop halfway: Master is written and confirmed, Dr Trust is not (no access, network, Google error). Story B reports this but offers no way to finish it, so the sheets stay different until the next change. Staff need a clear message and a safe Retry that completes Dr Trust without touching Master again.
