@@ -190,4 +190,21 @@ bottom bar, in the content column, at most the space between the two bars
 
 ---
 
+## 7. Editor (V2) differences from V1
+The Editor's copy of the design system now differs from V1 on purpose (US-81). V1's copy is untouched.
+
+| Area | Editor (V2) | Story |
+|---|---|---|
+| Page column | One `.stoqr-bounds` class for the top bar row, page content and bottom bar row | US-39 |
+| Bars | Sticky top bar and a matching sticky bottom bar (68.5px, one line); no bottom bar on sign-in | US-41, US-45 |
+| Logo | "stoqr" + "Editor" in the top bar; `EDITOR` sub-label on the sign-in card | US-40, US-44 |
+| Buttons | 44px at every width (`--sm` retired); `.icon-btn`; `--busy` (spinner, aria-busy); `--pressed` (Dew fill, Pine outline) | US-42, US-43, US-75 |
+| Text colours | `--color-text-muted`, `--color-text-error`, `--color-on-success/warning/error` for AA small text | US-26, US-54 |
+| Inputs | `.stoqr-input` (`--mono`, `--invalid`, `--multiline`), 16px on phones | US-21, US-26 |
+| Messages | `<stoqr-strip>` in cards for results; the top toast only for Refresh, sign-in and "product gone" | US-54, US-76, US-80 |
+| Panels | `<stoqr-floating-panel>` above the bottom bar or under the toolbar, one at a time | US-52, US-70, US-71 |
+| Accessibility | `.stoqr-sr-only`; explicit `:focus-visible` rings; reduced-motion rules | US-26, US-79 |
+
+---
+
 *Stoqr Brand Identity v1.0 — in-repo copy*

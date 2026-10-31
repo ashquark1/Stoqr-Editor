@@ -472,6 +472,12 @@
 - Rejected for now: a slim preset (Aura base + only the used component tokens; about −90 kB, risk of an unstyled component when a new PrimeNG piece is added); lazy theme loading (flash of unstyled content). The slim preset is the first lever if the first load nears 550 kB.
 - Supersedes the "4 kB / 3 kB under the warning" notes in earlier entries.
 
+## 2026-10-31: The Editor's design system now differs from V1 on purpose (US-81) [confirmed]
+
+- Decision: the Editor's copy of the Stoqr design system intentionally diverges from V1: shared page bounds (`.stoqr-bounds`), a sticky bottom bar matching the top bar, 44px buttons with `.icon-btn` / `--busy` / `--pressed`, V2 text and on-colour tokens, `.stoqr-input`, `.stoqr-sr-only`, the "Editor" logo, strips and floating panels. One list of the differences lives in `docs/stoqr-brand.md` §7. V1 is untouched.
+- Revisited: a shared design-system package for V1 and the Editor. Still deferred — V1 would have to change (it must stay untouched) and the Editor is not live yet. Revisit after go-live (US-27).
+- Deferred (tests suspended): updating `app.spec.ts` / `logo.spec.ts` for the frame, and a rule test against per-component copies of the bar and button rules (the `stoqr-btn--sm` rule already exists). Listed in `specs/frame-tests-docs.md`.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

@@ -74,7 +74,7 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 - **Forbidden:** `HttpClient`/Google calls, business logic, manual subscriptions, importing PrimeNG outside `shared/ui/`.
 
 ### App shell & architecture rules — cross-cutting
-- **Owns:** the page frame (topbar with the logo, the first name and Sign out, routed content area, bottom bar showing the TEST/LIVE mode, both sheet labels from `AppConfig` and the Data health button) and the contract rule tests.
+- **Owns:** the page frame (topbar with the logo, the first name and Sign out, routed content area, bottom bar showing the TEST/LIVE mode, both sheet labels from `AppConfig` and the Data health button) and the contract rule tests. Where the frame and kit differ from V1: `docs/stoqr-brand.md` §7 (US-81).
 - **Code lives in:** `src/app/app.*` (shell; no logic), `src/app/core/layout/panel-store.ts` (`PanelStore`: which floating panel is open, Data health availability and count; shared by the shell and the editor page; view state only, US-51), `src/app/app.config.ts` (providers), `src/app/app.routes.ts`, `src/app/architecture.spec.ts` (scans `src/` and asserts AI_CONTRACT rules).
 - **The rule:** when the contract gains a rule that can be checked by reading source, add it to `architecture.spec.ts`.
 
