@@ -2,11 +2,11 @@ import { Product } from '@core/models/product';
 import { WritableField } from '@core/sheets/approval';
 
 /**
- * Fields the details form edits (US-21): every writable field except Stock Qty,
- * which changes only through the adjuster (DECISIONS). `id` is not a `Product`
- * field, so it can never appear here.
+ * Fields the details form edits (US-21): every writable field, Stock Qty
+ * included (CR-04, US-63). `id` is not a `Product` field, so it can never
+ * appear here.
  */
-export type DetailField = Exclude<WritableField, 'stockQty'>;
+export type DetailField = WritableField;
 
 export type DetailGroup = 'product' | 'stock' | 'pricing' | 'additional';
 
@@ -25,7 +25,7 @@ export interface EditableDetail {
   readonly multiline?: boolean;
 }
 
-/** Shown, never typed: Stock Qty (adjuster), Stock Status (derived), Last Updated (stamped), Created At. */
+/** Shown, never typed: Stock Status (derived), Last Updated (stamped), Created At. */
 export interface LockedDetail {
   readonly key: Exclude<keyof Product, DetailField>;
   readonly label: string;
@@ -57,7 +57,7 @@ export const DETAIL_FIELDS: readonly DetailDef[] = [
   text('color', 'Color', 'product', false),
   text('status', 'Status', 'product', true),
   // Stock Info
-  { key: 'stockQty', label: 'Stock Qty', group: 'stock', editable: false },
+  { key: 'stockQty', label: 'Stock Qty', group: 'stock', editable: true, kind: 'whole', required: true },
   { key: 'lowStockThreshold', label: 'Low Stock Threshold', group: 'stock', editable: true, kind: 'whole', required: true },
   { key: 'stockStatus', label: 'Stock Status', group: 'stock', editable: false, badge: true },
   text('unitOfMeasure', 'Unit of Measure', 'stock', true),

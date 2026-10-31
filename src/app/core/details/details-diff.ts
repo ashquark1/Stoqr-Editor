@@ -62,14 +62,20 @@ export function diffLines(
   });
 }
 
-/** Stock Status lines for the sheets whose status the save will change (per sheet: its own qty and threshold). */
+/**
+ * Stock Status lines for the sheets whose status the save will change: per
+ * sheet from the new qty when Stock Qty changed (else that sheet's own) and the
+ * new threshold when it changed (else that sheet's own).
+ */
 export function statusLines(
   changed: ReadonlyMap<DetailField, DetailValue>,
   master: Product,
   drTrust: Product | null,
 ): readonly StatusLine[] {
+  const typedQty = changed.get('stockQty');
   const line = (sheet: StatusLine['sheet'], product: Product): StatusLine[] => {
-    if (product.stockQty === null) {
+    const qty = changed.has('stockQty') ? (typeof typedQty === 'number' ? typedQty : null) : product.stockQty;
+    if (qty === null) {
       return [];
     }
     const typedThreshold = changed.get('lowStockThreshold');
@@ -78,7 +84,7 @@ export function statusLines(
         ? typedThreshold
         : null
       : product.lowStockThreshold;
-    const to = deriveStockStatus(product.stockQty, threshold);
+    const to = deriveStockStatus(qty, threshold);
     return to === product.stockStatus ? [] : [{ sheet, from: product.stockStatus, to }];
   };
   return [...line('master', master), ...(drTrust === null ? [] : line('dr-trust', drTrust))];
@@ -89,6 +95,8 @@ export function statusLines(
  * values in both sheets, each guarded by THAT sheet's own current values of
  * those fields (so another person's edit to the same field stops the save,
  * and fields that already differ but were not edited are never written).
+ * Except Stock Qty (US-63): like the adjuster, only Master's qty is guarded;
+ * Dr Trust's is overwritten by design (the review shows "will be set to").
  */
 export function detailRowChanges(
   changed: ReadonlyMap<DetailField, DetailValue>,
@@ -97,11 +105,13 @@ export function detailRowChanges(
 ): RowChange[] {
   // The single cast: every value came from `parseDetail` for its own field's kind.
   const changes = Object.fromEntries(changed) as ProductChanges;
-  const guard = (product: Product): Partial<Product> =>
-    Object.fromEntries([...changed.keys()].map((field) => [field, product[field]])) as Partial<Product>;
-  const rows: RowChange[] = [{ target: master.ref, reviewed: guard(master.product), changes }];
+  const guard = (product: Product, fields: readonly DetailField[]): Partial<Product> =>
+    Object.fromEntries(fields.map((field) => [field, product[field]])) as Partial<Product>;
+  const fields = [...changed.keys()];
+  const rows: RowChange[] = [{ target: master.ref, reviewed: guard(master.product, fields), changes }];
   if (drTrust !== null) {
-    rows.push({ target: drTrust.ref, reviewed: guard(drTrust.product), changes });
+    const notQty = fields.filter((field) => field !== 'stockQty');
+    rows.push({ target: drTrust.ref, reviewed: guard(drTrust.product, notQty), changes });
   }
   return rows;
 }
