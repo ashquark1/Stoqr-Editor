@@ -35,6 +35,12 @@ Data health opened as a card at the top of the page, pushing everything down, an
 - Picking "Ortho Neck & Travel Pillow 3209" opens the product and closes the panel (as before).
 - Light and dark mode both checked.
 
+## US-53 — hide "Missing from Dr Trust" when the brand is not set (S4-b)
+- Rule: when the Dr Trust `brand` is not set in config (`health.missingFromDrTrust` is `null`), the whole section — heading, list and the old "Set the Dr Trust brand in config to see this list." hint — is left out (`@if` around the section; the `@else` is removed). `dataHealth()` / `DataHealthStore` unchanged. The other three lists stay.
+- Checked both ways (signed in): brand set (real config) → four sections, no config hint. Brand unset (list set to `null` in page memory, then restored) → three sections: "Repeated SKUs", "Unmatched Dr Trust rows", "Quantities differ"; no config hint. At 1440 the grid fills two then one (cells 81/728 on the first row, 81 on the second) with no empty gap where the list was; at 320 one column, stacked; no sideways scroll.
+- [x] List and message hidden without a brand; other three stay; layout balanced; tested both ways
+- [ ] Owner: nothing to see today (the brand is set); the safeguard matters only if the config loses the brand
+
 ## Test Plan
 - Unit tests suspended by the owner (2026-10-29); not written or run. The data-health component spec (if any) looks for the old "Close" button.
 - Typechecks and the production build pass; initial bundle 475.9 kB; the data-health chunk (with the floating panel) is 11.1 kB, lazy.

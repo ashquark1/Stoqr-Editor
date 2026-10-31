@@ -52,8 +52,9 @@
       </ul>
     </section>
 
-    <section class="health__section">
-      @if (health.missingFromDrTrust; as missing) {
+    <!-- Only when the Dr Trust brand is set in config; otherwise left out entirely (US-53). -->
+    @if (health.missingFromDrTrust; as missing) {
+      <section class="health__section">
         <h3 class="health__heading">
           Missing from {{ store.drTrustLabel() }} <span class="health__count">{{ missing.length }}</span>
         </h3>
@@ -65,11 +66,8 @@
             <li class="health__none">None.</li>
           }
         </ul>
-      } @else {
-        <h3 class="health__heading">Missing from {{ store.drTrustLabel() }}</h3>
-        <p class="health__hint">Set the {{ store.drTrustLabel() }} brand in config to see this list.</p>
-      }
-    </section>
+      </section>
+    }
 
     <section class="health__section">
       <h3 class="health__heading">Quantities differ <span class="health__count">{{ health.qtyDiffers.length }}</span></h3>
