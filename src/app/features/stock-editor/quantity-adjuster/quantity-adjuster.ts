@@ -1,9 +1,21 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 
 import { StockAdjustStore } from '@core/stock-adjust/stock-adjust-store';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { Badge } from '@shared/ui/badge/badge';
+import { Strip } from '@shared/ui/strip/strip';
 import { StoqrTooltip } from '@shared/ui/tooltip/tooltip';
 
 /**
@@ -11,11 +23,13 @@ import { StoqrTooltip } from '@shared/ui/tooltip/tooltip';
  * then one Apply tap (US-64, US-75; Enter in either box too). Every value and
  * result lives in `StockAdjustStore`; the write is `StockReviewStore.apply()`.
  * The boxes reach the store through their `input` events (AI_CONTRACT: no
- * effect forwarding input); this component only renders and forwards.
+ * effect forwarding input); this component only renders and forwards. Results
+ * show as one shared strip under the footer (US-76); after a save or undo,
+ * focus moves to the strip's first button, else to the Amount box.
  */
 @Component({
   selector: 'app-quantity-adjuster',
-  imports: [Badge, ReactiveFormsModule, StoqrTooltip],
+  imports: [Badge, ReactiveFormsModule, Strip, StoqrTooltip],
   templateUrl: './quantity-adjuster.html',
   styleUrl: './quantity-adjuster.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,12 +38,20 @@ export class QuantityAdjuster {
   protected readonly adjust = inject(StockAdjustStore);
   protected readonly review = inject(StockReviewStore);
 
-  protected readonly amountControl = new FormControl(this.adjust.amountText(), { nonNullable: true });
+  protected readonly amountControl = new FormControl(this.adjust.amountText(), {
+    nonNullable: true,
+  });
   protected readonly totalControl = new FormControl(this.adjust.totalText(), { nonNullable: true });
+
+  private readonly strips = viewChild<ElementRef<HTMLElement>>('strips');
+  private readonly amountBox = viewChild<ElementRef<HTMLInputElement>>('amountBox');
+  private readonly injector = inject(Injector);
 
   /** The way not in use is greyed out: the total is in use, or an amount / sign is. */
   protected readonly dimAmount = computed(() => this.adjust.way() === 'total');
-  protected readonly dimTotal = computed(() => this.adjust.way() === 'amount' && this.adjust.hasEntry());
+  protected readonly dimTotal = computed(
+    () => this.adjust.way() === 'amount' && this.adjust.hasEntry(),
+  );
 
   /** Which box a red message belongs to (for `aria-describedby`), or null. */
   protected readonly errorOn = computed(() => {
@@ -57,6 +79,23 @@ export class QuantityAdjuster {
       if (text !== this.totalControl.value) {
         this.totalControl.setValue(text, { emitEvent: false });
       }
+    });
+    // A result arrived (saving ended): focus its strip's first button, else the Amount box.
+    let wasSaving = false;
+    effect(() => {
+      const saving = this.review.step() === 'saving';
+      if (wasSaving && !saving) {
+        untracked(() =>
+          afterNextRender(
+            () => {
+              const button = this.strips()?.nativeElement.querySelector('button');
+              (button ?? this.amountBox()?.nativeElement)?.focus();
+            },
+            { injector: this.injector },
+          ),
+        );
+      }
+      wasSaving = saving;
     });
     // Off while saving or half saved (US-64).
     effect(() => {

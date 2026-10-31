@@ -3,7 +3,7 @@ import { computed, inject, signal } from '@angular/core';
 import { AppConfig } from '@core/config/app-config';
 import { ApprovedChange, InvalidChangeError } from './approval';
 import { SheetsStore } from './sheets-store';
-import { SheetWritten, SheetsWriter, WriteResult } from './sheets-writer';
+import { SheetWritten, SheetsWriter, WriteFailureKind, WriteResult } from './sheets-writer';
 
 export type ReviewStep = 'editing' | 'reviewing' | 'saving' | 'conflict' | 'partial' | 'failed';
 
@@ -59,10 +59,13 @@ export class ReviewFlow<C> {
   private readonly stepSignal = signal<ReviewStep>('editing');
   private readonly messageSignal = signal<string | null>(null);
   private readonly pendingSignal = signal<PendingRetry<C> | null>(null);
+  private readonly failureKindSignal = signal<WriteFailureKind | null>(null);
 
   readonly step = this.stepSignal.asReadonly();
   /** Why the last save did not fully succeed (conflict / partial / failed), or null. */
   readonly message = this.messageSignal.asReadonly();
+  /** Why the last save failed with the `failed` step (e.g. `unconfirmed`: it may have saved), or null. */
+  readonly failureKind = this.failureKindSignal.asReadonly();
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = computed(() => {
     const pending = this.pendingSignal();
@@ -97,6 +100,7 @@ export class ReviewFlow<C> {
   /** Back to editing, dropping any pending Retry. */
   reset(): void {
     this.pendingSignal.set(null);
+    this.failureKindSignal.set(null);
     this.messageSignal.set(null);
     this.stepSignal.set('editing');
   }
@@ -126,6 +130,7 @@ export class ReviewFlow<C> {
       throw error;
     }
     this.messageSignal.set(null);
+    this.failureKindSignal.set(null);
     this.stepSignal.set('saving');
     this.handle(await this.writer.write(approved), context);
   }
@@ -194,6 +199,7 @@ export class ReviewFlow<C> {
         return;
       }
       case 'failed':
+        this.failureKindSignal.set(result.error.kind);
         this.messageSignal.set(result.error.message);
         this.stepSignal.set('failed');
         return;

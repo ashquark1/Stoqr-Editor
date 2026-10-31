@@ -1,13 +1,4 @@
 <section class="stock-editor">
-  @if (review.notice(); as notice) {
-    <stoqr-toast
-      variant="success"
-      title="Stock saved"
-      [message]="notice"
-      actionLabel=""
-      (dismiss)="review.clearNotice()"
-    />
-  }
   @if (detailsReview.notice(); as notice) {
     <stoqr-toast
       variant="success"

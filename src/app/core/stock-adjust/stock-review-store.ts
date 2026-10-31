@@ -23,6 +23,16 @@ export interface StockSaved {
   readonly retried: boolean;
 }
 
+/** One result strip under the adjuster (US-76): look, text and up to two actions. */
+export type StripAction = 'undo' | 'dismiss' | 'try-again' | 'retry' | 'close';
+export interface StockStrip {
+  readonly variant: 'success' | 'problem' | 'warning';
+  readonly lead: string;
+  readonly message: string;
+  readonly primary: { readonly label: string; readonly action: StripAction } | null;
+  readonly secondary: { readonly label: string; readonly action: StripAction } | null;
+}
+
 /** What a stock save's outcomes need. `undo`: this save writes back the previous quantity (US-65). */
 interface StockSave {
   readonly kind: 'apply' | 'undo';
@@ -52,7 +62,6 @@ export class StockReviewStore {
   private readonly search = inject(ProductSearchStore);
   private readonly config = inject(AppConfig);
 
-  private readonly noticeSignal = signal<string | null>(null);
   private readonly savedSignal = signal<StockSaved | null>(null);
   private readonly undoAvailableSignal = signal(false);
   private readonly restoredSignal = signal<number | null>(null);
@@ -68,9 +77,6 @@ export class StockReviewStore {
         if (save.kind === 'undo') {
           // Undo is final: no Undo of the undo.
           this.restoredSignal.set(save.proposed);
-          this.noticeSignal.set(
-            `${save.productName} restored to ${save.proposed} (${labels.join(' and ')}).`,
-          );
           this.startTimer(RESTORED_MS);
           return;
         }
@@ -84,9 +90,6 @@ export class StockReviewStore {
         });
         // No Undo after a half-done save, even once Retry finished it.
         this.undoAvailableSignal.set(!retried);
-        this.noticeSignal.set(
-          `${save.productName} is now ${save.proposed} (${labels.join(' and ')}).`,
-        );
         this.adjust.reset();
         this.startTimer(UNDO_WINDOW_MS);
       },
@@ -127,8 +130,64 @@ export class StockReviewStore {
   readonly undoing = computed(() => this.step() === 'saving' && this.lastActionSignal() === 'undo');
   /** What the last failure's Try again repeats. */
   readonly lastAction = this.lastActionSignal.asReadonly();
-  /** Success message for the toast (until US-76), or null. */
-  readonly notice = this.noticeSignal.asReadonly();
+  /** The sheets an Apply or Undo writes, by their config labels ("Master and Dr Trust" / "Master"). */
+  readonly targetsText = computed(() => {
+    const master = this.config.sheet('master').label;
+    return this.search.selectedLink() !== null
+      ? `${master} and ${this.config.sheet('dr-trust').label}`
+      : master;
+  });
+
+  /**
+   * The one result strip to show under the adjuster (US-76), or null. Texts
+   * per the CR-03 notes; reasons come from the writer's error mapping.
+   */
+  readonly strip = computed<StockStrip | null>(() => {
+    const drTrust = this.config.sheet('dr-trust').label;
+    const message = this.message() ?? '';
+    switch (this.step()) {
+      case 'conflict':
+        return problem(message, { label: 'Dismiss', action: 'dismiss' });
+      case 'failed': {
+        // "unconfirmed" may have saved; never claim nothing changed then.
+        const certain =
+          this.flow.failureKind() !== 'unconfirmed' &&
+          !/nothing was (saved|changed)/i.test(message);
+        return problem(certain ? `${message} Nothing was changed.` : message, {
+          label: 'Try again',
+          action: 'try-again',
+        });
+      }
+      case 'partial': {
+        const retry = this.retryLabel();
+        return {
+          variant: 'warning',
+          lead: '',
+          message: `${message} The sheets differ until you retry.`,
+          primary: retry === null ? null : { label: `Retry ${retry}`, action: 'retry' },
+          secondary: { label: 'Close', action: 'close' },
+        };
+      }
+      case 'editing':
+        break;
+      default:
+        return null;
+    }
+    const saved = this.savedSignal();
+    if (saved !== null) {
+      if (saved.retried) {
+        return success(`${drTrust} updated.`, `Both sheets now show ${saved.saved}.`, null);
+      }
+      const had = saved.drTrustHad !== null ? ` ${drTrust} had ${saved.drTrustHad}.` : '';
+      return success(
+        'Stock saved.',
+        `Now ${saved.saved} in ${saved.sheetsText}.${had}`,
+        this.undoAvailable() ? { label: 'Undo', action: 'undo' } : null,
+      );
+    }
+    const restored = this.restoredSignal();
+    return restored === null ? null : success('', `Stock restored to ${restored}.`, null);
+  });
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = this.flow.retryLabel;
   /** Saving, or half saved: the adjuster and the pencil are off until Retry or Close. */
@@ -233,8 +292,23 @@ export class StockReviewStore {
     }
   }
 
-  clearNotice(): void {
-    this.noticeSignal.set(null);
+  /** A strip button (US-76). */
+  stripAction(action: StripAction): void {
+    switch (action) {
+      case 'undo':
+        void this.undo();
+        return;
+      case 'try-again':
+        void this.tryAgain();
+        return;
+      case 'retry':
+        void this.retry();
+        return;
+      case 'dismiss':
+      case 'close':
+        this.close();
+        return;
+    }
   }
 
   private async writeUndo(source: StockSaved): Promise<void> {
@@ -290,4 +364,12 @@ export class StockReviewStore {
       this.undoAvailableSignal.set(false);
     }, ms);
   }
+}
+
+function problem(message: string, primary: StockStrip['primary']): StockStrip {
+  return { variant: 'problem', lead: '', message, primary, secondary: null };
+}
+
+function success(lead: string, message: string, primary: StockStrip['primary']): StockStrip {
+  return { variant: 'success', lead, message, primary, secondary: null };
 }

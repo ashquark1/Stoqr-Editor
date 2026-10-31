@@ -22,7 +22,6 @@ import { StoqrTooltip } from '@shared/ui/tooltip/tooltip';
 import { displayValue } from '@shared/util/display-value';
 import { DetailsForm } from '../details-form/details-form';
 import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
-import { ReviewPanel } from '../review-panel/review-panel';
 
 /**
  * The open product as a card under the toolbar (US-72): brand and name, five
@@ -35,7 +34,7 @@ import { ReviewPanel } from '../review-panel/review-panel';
  */
 @Component({
   selector: 'app-product-summary',
-  imports: [Badge, DetailsForm, QuantityAdjuster, ReviewPanel, StatusBadge, StoqrTooltip, SyncBadge],
+  imports: [Badge, DetailsForm, QuantityAdjuster, StatusBadge, StoqrTooltip, SyncBadge],
   templateUrl: './product-summary.html',
   styleUrl: './product-summary.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,10 +48,6 @@ export class ProductSummary {
 
   /** The pencil / eye is off while a save runs or a half-done stock save waits for Retry or Close (US-64). */
   protected readonly iconLocked = computed(() => this.navigation.saving() || this.review.step() === 'partial');
-  /** A stock result to show under the adjuster (interim until the strips of US-76). */
-  protected readonly stockOutcome = computed(
-    () => this.review.step() !== 'editing' || this.review.saved() !== null || this.review.restored() !== null,
-  );
 
   private readonly title = viewChild<ElementRef<HTMLElement>>('titleEl');
   private readonly injector = inject(Injector);

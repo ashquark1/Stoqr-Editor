@@ -443,6 +443,12 @@
 - Decision (reuse, Q-G3): the chosen sign uses a new shared `.stoqr-btn--pressed` (Dew fill, Pine outline) in the theme. Follow-up: the Data health and Filters buttons still carry their own copies of this look and can move to it.
 - Decision: both boxes reach the store through their `input` events (AI_CONTRACT: no effect forwarding input); the old `toSignal` + effect for the amount is gone.
 
+## 2026-10-31: Stock results as strips in the card (US-76) [confirmed]
+
+- Decision: every stock result is ONE shared `<stoqr-strip>` under the adjuster's footer; its look, text and buttons come from `StockReviewStore.strip()` (display text in the store, not the component), buttons through `stripAction()`. The "Stock saved" toast and the interim `review-panel/` are gone.
+- Decision: "Nothing was changed." is added to a failure only when it is certain: not for `unconfirmed` (Google may have saved; `ReviewFlow.failureKind`), and not when the reason already says nothing was saved.
+- Decision: after a save or undo, focus moves to the strip's first button (Undo, Dismiss, Try again, Retry), else the Amount box, because Apply is disabled once the entry clears.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

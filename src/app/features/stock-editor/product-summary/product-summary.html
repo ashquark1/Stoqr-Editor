@@ -85,9 +85,6 @@
         @if (search.selectedEditability(); as check) {
           @if (check.editable) {
             <app-quantity-adjuster />
-            @if (stockOutcome()) {
-              <app-review-panel />
-            }
           } @else {
             <ul class="summary__blocked" aria-label="Why this product cannot be edited">
               @for (reason of check.reasons; track reason) {

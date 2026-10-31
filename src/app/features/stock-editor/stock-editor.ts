@@ -6,7 +6,6 @@ import { PanelStore } from '@core/layout/panel-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { SheetsStore } from '@core/sheets/sheets-store';
-import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { Modal } from '@shared/ui/modal/modal';
 import { Toast } from '@shared/ui/toast/toast';
@@ -35,7 +34,6 @@ export class StockEditor {
   protected readonly sheets = inject(SheetsStore);
   protected readonly search = inject(ProductSearchStore);
   protected readonly auth = inject(Auth);
-  protected readonly review = inject(StockReviewStore);
   protected readonly detailsReview = inject(DetailsReviewStore);
   protected readonly panels = inject(PanelStore);
   protected readonly navigation = inject(ProductNavigation);

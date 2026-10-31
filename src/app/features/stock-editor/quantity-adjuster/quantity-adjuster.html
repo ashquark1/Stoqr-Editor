@@ -7,6 +7,7 @@
       <label class="adjuster__label" for="adjust-amount">Amount</label>
       <div class="adjuster__amount-row">
         <input
+          #amountBox
           id="adjust-amount"
           class="stoqr-input adjuster__box"
           [class.stoqr-input--invalid]="errorOn() === 'amount'"
@@ -69,7 +70,10 @@
   <!-- Preview on the left, Apply on the right; reserved height so nothing jumps. -->
   <div class="adjuster__footer">
     <div class="adjuster__preview" aria-live="polite">
-      @if (adjust.proposal(); as proposal) {
+      @if (review.step() === 'saving') {
+        <!-- The entry and sign stay visible above until the result arrives (US-76). -->
+        <p class="adjuster__hint">{{ review.undoing() ? 'Undoing…' : 'Saving to ' + review.targetsText() + '…' }}</p>
+      } @else if (adjust.proposal(); as proposal) {
         @if (proposal.ok) {
           <p class="adjuster__line">
             Current <strong>{{ proposal.current }}</strong>
@@ -107,5 +111,20 @@
         Apply
       }
     </button>
+  </div>
+
+  <!-- One result strip at a time, under the footer (US-76). -->
+  <div #strips class="adjuster__strips">
+    @if (review.strip(); as strip) {
+      <stoqr-strip
+        [variant]="strip.variant"
+        [lead]="strip.lead"
+        [message]="strip.message"
+        [primaryLabel]="strip.primary?.label ?? ''"
+        [secondaryLabel]="strip.secondary?.label ?? ''"
+        (primary)="strip.primary && review.stripAction(strip.primary.action)"
+        (secondary)="strip.secondary && review.stripAction(strip.secondary.action)"
+      />
+    }
   </div>
 </section>

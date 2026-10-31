@@ -174,3 +174,7 @@
 .adjuster__error {
   color: var(--color-text-error);
 }
+
+.adjuster__strips:empty {
+  display: none;
+}

@@ -16,7 +16,6 @@ import {
 } from '@core/sheets/testing/sheet-fixtures';
 import { DetailsForm } from '../details-form/details-form';
 import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
-import { ReviewPanel } from '../review-panel/review-panel';
 import { ProductSummary } from './product-summary';
 
 @Component({ selector: 'app-quantity-adjuster', template: 'adjuster', changeDetection: ChangeDetectionStrategy.OnPush })
@@ -86,8 +85,8 @@ describe('ProductSummary', () => {
       ],
     });
     TestBed.overrideComponent(ProductSummary, {
-      remove: { imports: [DetailsForm, QuantityAdjuster, ReviewPanel] },
-      add: { imports: [DetailsFormStub, AdjusterStub, ReviewPanelStub] },
+      remove: { imports: [DetailsForm, QuantityAdjuster] },
+      add: { imports: [DetailsFormStub, AdjusterStub] },
     });
     // The @defer block's dependencies are resolved asynchronously.
     await TestBed.compileComponents();
