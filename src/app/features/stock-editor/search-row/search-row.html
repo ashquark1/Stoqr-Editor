@@ -10,7 +10,7 @@
       [formControl]="queryControl"
       (keyup.enter)="submit()"
     />
-    @if (search.query()) {
+    @if (search.typed()) {
       <button type="button" class="search-row__clear" aria-label="Clear search" (click)="clear()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
           <path d="M18 6 6 18M6 6l12 12" />
