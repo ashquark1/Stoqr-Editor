@@ -8,12 +8,19 @@
 
     <!-- The button and Remember me sit together as one group (owner). -->
     <div class="sign-in__actions">
+      <!-- Busy (spinner, aria-busy) while waiting on Google (US-43, shared pattern from US-42). -->
+      @let busy = !auth.gisReady() || auth.status() === 'signing-in';
       <button
         type="button"
         class="stoqr-btn stoqr-btn--primary sign-in__button"
-        [disabled]="!auth.gisReady() || auth.status() === 'signing-in'"
+        [class.stoqr-btn--busy]="busy"
+        [disabled]="busy"
+        [attr.aria-busy]="busy"
         (click)="auth.signIn()"
       >
+        @if (busy) {
+          <span class="stoqr-spinner" aria-hidden="true"></span>
+        }
         @if (!auth.gisReady()) {
           Loading Google sign-in…
         } @else if (auth.status() === 'signing-in') {

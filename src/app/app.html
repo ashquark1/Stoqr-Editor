@@ -5,9 +5,23 @@
     @if (auth.hasSession()) {
       <div class="app-user">
         <span class="app-user__name">{{ auth.userLabel() }}</span>
-        <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="auth.signOut()">
-          Sign out
-        </button>
+        <!-- Icon-only under 768px (US-43). The tooltip loads once the page is idle (same lazy chunk as the footer's). -->
+        @defer (on idle) {
+          <button
+            type="button"
+            class="stoqr-btn stoqr-btn--ghost icon-btn"
+            aria-label="Sign out"
+            stoqrTooltip="Sign out"
+            stoqrTooltipPosition="bottom"
+            (click)="auth.signOut()"
+          >
+            <ng-container [ngTemplateOutlet]="signOutContent" />
+          </button>
+        } @placeholder {
+          <button type="button" class="stoqr-btn stoqr-btn--ghost icon-btn" aria-label="Sign out" (click)="auth.signOut()">
+            <ng-container [ngTemplateOutlet]="signOutContent" />
+          </button>
+        }
       </div>
     }
   </div>
@@ -83,4 +97,14 @@
   @for (sheet of config.sheets(); track sheet.key) {
     <span class="app-footer__sheet">{{ sheet.label }} ({{ sheet.tab }})</span>
   }
+</ng-template>
+
+<!-- Sign out's icon and label (US-43): a door with an arrow, 18px, 2px stroke. -->
+<ng-template #signOutContent>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5" />
+    <path d="M21 12H9" />
+  </svg>
+  <span class="icon-btn__label">Sign out</span>
 </ng-template>

@@ -17,13 +17,17 @@
       <p class="session__error" role="alert">{{ message }}</p>
     }
     <div class="session__actions">
+      <!-- Busy while Google renews the session (US-43, shared pattern from US-42). -->
       <button
         type="button"
         class="stoqr-btn stoqr-btn--primary"
+        [class.stoqr-btn--busy]="auth.status() === 'renewing'"
         [disabled]="auth.status() === 'renewing'"
+        [attr.aria-busy]="auth.status() === 'renewing'"
         (click)="auth.renew()"
       >
         @if (auth.status() === 'renewing') {
+          <span class="stoqr-spinner" aria-hidden="true"></span>
           Continuing…
         } @else {
           Continue
