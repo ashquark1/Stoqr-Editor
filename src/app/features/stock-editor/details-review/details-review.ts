@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject
 
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { Badge } from '@shared/ui/badge/badge';
+import { Strip } from '@shared/ui/strip/strip';
 import { displayValue } from '@shared/util/display-value';
 import { ReviewActions } from '../review-actions/review-actions';
 
@@ -14,7 +15,7 @@ import { ReviewActions } from '../review-actions/review-actions';
  */
 @Component({
   selector: 'app-details-review',
-  imports: [Badge, ReviewActions],
+  imports: [Badge, ReviewActions, Strip],
   templateUrl: './details-review.html',
   styleUrl: './details-review.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

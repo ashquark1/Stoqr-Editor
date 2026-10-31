@@ -152,7 +152,7 @@ describe('DetailsReviewStore (US-23, US-24, US-36)', () => {
     await store.approve();
 
     expect(store.step()).toBe('editing');
-    expect(store.notice()).toBe('Pulse Oximeter: details saved (Master and Dr Trust).');
+    expect(store.savedSheets()).toBe('Master and Dr Trust');
     expect(search.selected()?.ref).toBe(linkedRow.ref);
     expect(details.texts().brand).toBe('Dr. Trust');
     expect(details.hasChanges()).toBe(false);
@@ -214,7 +214,7 @@ describe('DetailsReviewStore (US-23, US-24, US-36)', () => {
     write.mockResolvedValueOnce(written({ notes: 'n' }, drTrustRow));
     await store.retry();
     expect(write.mock.calls[1][0]).toBe(remaining);
-    expect(store.notice()).toBe('Pulse Oximeter: details saved (Master and Dr Trust).');
+    expect(store.savedSheets()).toBe('Master and Dr Trust');
   });
 
   it('returns to editing when another product is selected', () => {

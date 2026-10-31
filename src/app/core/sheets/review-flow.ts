@@ -7,6 +7,15 @@ import { SheetWritten, SheetsWriter, WriteFailureKind, WriteResult } from './she
 
 export type ReviewStep = 'editing' | 'reviewing' | 'saving' | 'conflict' | 'partial' | 'failed';
 
+/** One result strip in the card (US-76, US-80): look, text and up to two actions of the store's own kind. */
+export interface ResultStrip<A extends string> {
+  readonly variant: 'success' | 'problem' | 'warning';
+  readonly lead: string;
+  readonly message: string;
+  readonly primary: { readonly label: string; readonly action: A } | null;
+  readonly secondary: { readonly label: string; readonly action: A } | null;
+}
+
 /** What differs between the review steps that use this flow (stock, details). */
 export interface ReviewOutcomes<C> {
   /**
@@ -17,7 +26,10 @@ export interface ReviewOutcomes<C> {
   /** Called on a conflict (e.g. to clear an entry made against the old value). */
   readonly conflict?: (context: C) => void;
   /** Nothing was saved: a reviewed value changed underneath. */
-  readonly conflictMessage: (result: Extract<WriteResult, { kind: 'conflict' }>, context: C) => string;
+  readonly conflictMessage: (
+    result: Extract<WriteResult, { kind: 'conflict' }>,
+    context: C,
+  ) => string;
   /**
    * Some sheets written, the rest not. `retried`: this is a Retry that still
    * did not finish. `notUpdated` names the sheet(s) still behind.
@@ -66,6 +78,21 @@ export class ReviewFlow<C> {
   readonly message = this.messageSignal.asReadonly();
   /** Why the last save failed with the `failed` step (e.g. `unconfirmed`: it may have saved), or null. */
   readonly failureKind = this.failureKindSignal.asReadonly();
+  /**
+   * The failure's reason plus " Nothing was changed." — added only when that
+   * is certain: never for `unconfirmed` (Google may have saved), and not when
+   * the reason already says nothing was saved (US-76, US-80).
+   */
+  readonly failureText = computed(() => {
+    const message = this.messageSignal() ?? '';
+    const certain =
+      this.failureKindSignal() !== 'unconfirmed' && !/nothing was (saved|changed)/i.test(message);
+    return certain ? `${message} Nothing was changed.` : message;
+  });
+  /** The half-saved message plus " The sheets differ until you retry." */
+  readonly partialText = computed(
+    () => `${this.messageSignal() ?? ''} The sheets differ until you retry.`,
+  );
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = computed(() => {
     const pending = this.pendingSignal();
@@ -163,7 +190,10 @@ export class ReviewFlow<C> {
         writtenLabels: [...pending.writtenLabels, ...labelsOf(result.written)],
       };
     }
-    const reason = result.kind === 'conflict' ? `${result.sheet.label} changed while saving.` : result.error.message;
+    const reason =
+      result.kind === 'conflict'
+        ? `${result.sheet.label} changed while saving.`
+        : result.error.message;
     this.toPartial(
       next,
       this.outcomes.partialMessage(
@@ -194,7 +224,13 @@ export class ReviewFlow<C> {
         const writtenLabels = labelsOf(result.written);
         this.toPartial(
           { approved: result.remaining, context, writtenLabels },
-          this.outcomes.partialMessage(context, writtenLabels, result.error.sheetLabel, result.error.message, false),
+          this.outcomes.partialMessage(
+            context,
+            writtenLabels,
+            result.error.sheetLabel,
+            result.error.message,
+            false,
+          ),
         );
         return;
       }

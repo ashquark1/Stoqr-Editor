@@ -11,12 +11,14 @@ import {
   viewChild,
 } from '@angular/core';
 
+import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { Badge } from '@shared/ui/badge/badge';
 import { StatusBadge } from '@shared/ui/status-badge/status-badge';
+import { Strip } from '@shared/ui/strip/strip';
 import { SyncBadge } from '@shared/ui/sync-badge/sync-badge';
 import { StoqrTooltip } from '@shared/ui/tooltip/tooltip';
 import { displayValue } from '@shared/util/display-value';
@@ -34,7 +36,7 @@ import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
  */
 @Component({
   selector: 'app-product-summary',
-  imports: [Badge, DetailsForm, QuantityAdjuster, StatusBadge, StoqrTooltip, SyncBadge],
+  imports: [Badge, DetailsForm, QuantityAdjuster, StatusBadge, StoqrTooltip, Strip, SyncBadge],
   templateUrl: './product-summary.html',
   styleUrl: './product-summary.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,6 +45,7 @@ export class ProductSummary {
   protected readonly search = inject(ProductSearchStore);
   protected readonly review = inject(StockReviewStore);
   protected readonly details = inject(DetailsStore);
+  protected readonly detailsReview = inject(DetailsReviewStore);
   protected readonly navigation = inject(ProductNavigation);
   protected readonly display = displayValue;
 

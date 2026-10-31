@@ -3,9 +3,9 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { ReviewStep } from '@core/sheets/review-flow';
 
 /**
- * The buttons under the details review (US-79): Save changes / Back while
- * reviewing, a disabled "Saving…", then the outcome's own buttons (Review
- * again, Try again, Retry <sheet> / Close). The store decides what the clicks
+ * The buttons under the details review (US-79, US-80): Save changes / Back
+ * while reviewing; a busy "Saving…" and a disabled Back while saving. Outcomes
+ * are strips with their own buttons (US-80). The store decides what the clicks
  * do. (Stock has no review since CR-04; its results are strips, US-76.)
  */
 @Component({
@@ -16,11 +16,6 @@ import { ReviewStep } from '@core/sheets/review-flow';
 })
 export class ReviewActions {
   readonly step = input.required<ReviewStep>();
-  /** The sheet(s) Retry would finish; null hides Retry. */
-  readonly retryLabel = input<string | null>(null);
-
   readonly approve = output<void>();
   readonly back = output<void>();
-  readonly reviewAgain = output<void>();
-  readonly retry = output<void>();
 }

@@ -39,16 +39,22 @@
     </ul>
   }
 
-  @if (review.message(); as message) {
-    <p class="dreview__message" role="alert">{{ message }}</p>
+  @if (review.step() === 'saving') {
+    <p class="dreview__sheets" role="status">Saving to {{ review.review()?.sheetsText }}…</p>
   }
 
-  <app-review-actions
-    [step]="review.step()"
-    [retryLabel]="review.retryLabel()"
-    (approve)="review.approve()"
-    (back)="review.back()"
-    (reviewAgain)="review.open()"
-    (retry)="review.retry()"
-  />
+  <!-- Outcomes as one shared strip (US-80); Save changes / Back while reviewing or saving. -->
+  @if (review.strip(); as strip) {
+    <stoqr-strip
+      [variant]="strip.variant"
+      [lead]="strip.lead"
+      [message]="strip.message"
+      [primaryLabel]="strip.primary?.label ?? ''"
+      [secondaryLabel]="strip.secondary?.label ?? ''"
+      (primary)="strip.primary && review.stripAction(strip.primary.action)"
+      (secondary)="strip.secondary && review.stripAction(strip.secondary.action)"
+    />
+  } @else {
+    <app-review-actions [step]="review.step()" (approve)="review.approve()" (back)="review.back()" />
+  }
 </section>

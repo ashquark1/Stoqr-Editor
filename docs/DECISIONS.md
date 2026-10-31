@@ -311,7 +311,7 @@
 
 - Decision: only CHANGED fields are written, compared by value (`18.0` for 18 is no change), the same new values to both sheets of a linked product. Each sheet's row is guarded by THAT sheet's own current values of the changed fields: someone else's edit to the same field is a conflict; an edit to another field is not, and is never overwritten. Untouched fields that differ between the sheets are left alone.
 - Decision: `DetailsStore` keeps only the user's edits; untouched fields show current data, so after a conflict or save they follow the fresh values and a save can never undo someone else's change.
-- Decision (owner): after a successful details save the product stays open showing the saved values ("Details saved" toast). Stock saves still clear the selection.
+- Decision (owner): after a successful details save the product stays open showing the saved values ("Details saved" toast). Stock saves still clear the selection. [Superseded 2026-10-31 by US-64 / US-80: stock saves keep the product open too; the form closes after a details save and a 5 s strip replaces the toast.]
 - Decision: Stock Status is written on EVERY save (stock or details), derived per sheet from that sheet's own qty and threshold; this also repairs rows whose status was blank or stale.
 - Decision: a text field whose fresh cell holds a number is written back as a number when the new text is a plain number (`12`, `0.5`); `007`, `1.50` and `12 pcs` stay text. Reason: RAW would store `"12"` as text, and gviz (V1) drops a column's minority-type values.
 - Decision: a changed SKU blocked Review until US-38 (superseded the same day by "SKU change").
@@ -448,6 +448,12 @@
 - Decision: every stock result is ONE shared `<stoqr-strip>` under the adjuster's footer; its look, text and buttons come from `StockReviewStore.strip()` (display text in the store, not the component), buttons through `stripAction()`. The "Stock saved" toast and the interim `review-panel/` are gone.
 - Decision: "Nothing was changed." is added to a failure only when it is certain: not for `unconfirmed` (Google may have saved; `ReviewFlow.failureKind`), and not when the reason already says nothing was saved.
 - Decision: after a save or undo, focus moves to the strip's first button (Undo, Dismiss, Try again, Retry), else the Amount box, because Apply is disabled once the entry clears.
+
+## 2026-10-31: Details results as strips (US-80) [confirmed]
+
+- Decision: after a details save the review and the form close and "Details saved. <sheets>." shows under the card header for 5 s; conflict / failure / half-saved are strips inside the review with their own buttons; the "Details saved" toast is gone.
+- Decision (reuse, Q-G3): the strip shape (`ResultStrip<A>`), the "Nothing was changed." certainty rule (`failureText`) and the half-saved suffix (`partialText`) live once in `ReviewFlow` and serve both the stock and details strips.
+- Decision: `review-actions/` now covers only reviewing (Save changes / Back) and saving (busy Saving…, Back off); outcome buttons live on the strips.
 
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).

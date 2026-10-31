@@ -43,6 +43,11 @@
         }
       </header>
 
+      @if (detailsReview.savedSheets(); as sheets) {
+        <!-- Details saved (US-80): under the header for about 5 s; no product name, no Undo. -->
+        <stoqr-strip variant="success" lead="Details saved." [message]="sheets + '.'" />
+      }
+
       @if (details.formOpen()) {
         <!-- The form replaces the whole body; the header stays (US-74). -->
         <div class="summary__body">

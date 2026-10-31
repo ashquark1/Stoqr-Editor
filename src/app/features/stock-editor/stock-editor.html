@@ -1,13 +1,4 @@
 <section class="stock-editor">
-  @if (detailsReview.notice(); as notice) {
-    <stoqr-toast
-      variant="success"
-      title="Details saved"
-      [message]="notice"
-      actionLabel=""
-      (dismiss)="detailsReview.clearNotice()"
-    />
-  }
   @if (sheets.refreshError(); as message) {
     <!-- The old list stays on screen (US-58); Retry runs the same refresh. -->
     <stoqr-toast

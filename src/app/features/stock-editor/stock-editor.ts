@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
 import { Auth } from '@core/auth/auth';
-import { DetailsReviewStore } from '@core/details/details-review-store';
 import { PanelStore } from '@core/layout/panel-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
@@ -34,7 +33,6 @@ export class StockEditor {
   protected readonly sheets = inject(SheetsStore);
   protected readonly search = inject(ProductSearchStore);
   protected readonly auth = inject(Auth);
-  protected readonly detailsReview = inject(DetailsReviewStore);
   protected readonly panels = inject(PanelStore);
   protected readonly navigation = inject(ProductNavigation);
 

@@ -3,7 +3,7 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 import { AppConfig } from '@core/config/app-config';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { RowChange, approve } from '@core/sheets/approval';
-import { ReviewFlow } from '@core/sheets/review-flow';
+import { ResultStrip, ReviewFlow } from '@core/sheets/review-flow';
 import { StockAdjustStore } from './stock-adjust-store';
 
 export type { ReviewStep } from '@core/sheets/review-flow';
@@ -25,13 +25,7 @@ export interface StockSaved {
 
 /** One result strip under the adjuster (US-76): look, text and up to two actions. */
 export type StripAction = 'undo' | 'dismiss' | 'try-again' | 'retry' | 'close';
-export interface StockStrip {
-  readonly variant: 'success' | 'problem' | 'warning';
-  readonly lead: string;
-  readonly message: string;
-  readonly primary: { readonly label: string; readonly action: StripAction } | null;
-  readonly secondary: { readonly label: string; readonly action: StripAction } | null;
-}
+export type StockStrip = ResultStrip<StripAction>;
 
 /** What a stock save's outcomes need. `undo`: this save writes back the previous quantity (US-65). */
 interface StockSave {
@@ -148,22 +142,14 @@ export class StockReviewStore {
     switch (this.step()) {
       case 'conflict':
         return problem(message, { label: 'Dismiss', action: 'dismiss' });
-      case 'failed': {
-        // "unconfirmed" may have saved; never claim nothing changed then.
-        const certain =
-          this.flow.failureKind() !== 'unconfirmed' &&
-          !/nothing was (saved|changed)/i.test(message);
-        return problem(certain ? `${message} Nothing was changed.` : message, {
-          label: 'Try again',
-          action: 'try-again',
-        });
-      }
+      case 'failed':
+        return problem(this.flow.failureText(), { label: 'Try again', action: 'try-again' });
       case 'partial': {
         const retry = this.retryLabel();
         return {
           variant: 'warning',
           lead: '',
-          message: `${message} The sheets differ until you retry.`,
+          message: this.flow.partialText(),
           primary: retry === null ? null : { label: `Retry ${retry}`, action: 'retry' },
           secondary: { label: 'Close', action: 'close' },
         };
