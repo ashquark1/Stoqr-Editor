@@ -465,6 +465,13 @@
 - Owner setup: add `http://localhost:4200/` and the hosted site's address as Authorized redirect URIs on the OAuth client (Google Cloud).
 - Cost: the first load is 499.1 kB (+2.2 kB), 0.9 kB under the 500 kB warning. The bundle budget needs the separate review the owner deferred before any further first-load growth.
 
+## 2026-10-31: First-load budget warning raised to 550 kB (owner) [confirmed]
+
+- Finding (bundle review): first load 499.1 kB raw, 119.8 kB transferred. Angular core/router/common/browser 251 kB; PrimeNG theme tokens (`@primeuix/themes`, the full Aura preset: tokens for ~80 components, 5 used) 106 kB; PrimeNG config/utils 46 kB; rxjs 16 kB; app code 33 kB.
+- Decision (owner): raise the `initial` budget warning in `angular.json` from 500 kB to 550 kB; the 1 MB error stays. No code change.
+- Rejected for now: a slim preset (Aura base + only the used component tokens; about −90 kB, risk of an unstyled component when a new PrimeNG piece is added); lazy theme loading (flash of unstyled content). The slim preset is the first lever if the first load nears 550 kB.
+- Supersedes the "4 kB / 3 kB under the warning" notes in earlier entries.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
