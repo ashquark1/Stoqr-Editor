@@ -7,6 +7,8 @@ import { RowRef } from '@core/sheets/row-ref';
 import { syncStatuses } from '@core/sheets/sheet-pairing';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { SyncBadgeKind, linkedQtyDiffers, syncBadges } from '@core/sheets/sync-badge';
+import { FilterStore } from './filter-store';
+import { applyFilters, applyStatusVisibility } from './product-filter';
 import { filterProducts, tokenize } from './product-matcher';
 import { SearchValidation } from './search-validation';
 
@@ -20,14 +22,16 @@ export const AUTO_SEARCH_DELAY_MS = 300;
  * MASTER products only, every status, with V1's matching rules. The TYPED text
  * and the SUBMITTED query are separate (US-56): typing (`setTyped`) runs the
  * search after a 300 ms pause once it has 3+ characters; `setQuery` runs a
- * text at once (Enter/Search, any length); `clear` empties both. Only the submitted query filters. Nothing about search
- * lives in a component (AI_CONTRACT: Forbidden Shortcuts).
+ * text at once (Enter/Search, any length); `clear` empties both. Only the
+ * submitted query filters, and the filters (`FilterStore`, US-57) apply on top.
+ * Nothing about search lives in a component (AI_CONTRACT: Forbidden Shortcuts).
  */
 @Injectable({ providedIn: 'root' })
 export class ProductSearchStore {
   private readonly sheets = inject(SheetsStore);
   private readonly validation = inject(SearchValidation);
   private readonly auth = inject(Auth);
+  private readonly filters = inject(FilterStore);
 
   private readonly typedSignal = signal('');
   private readonly querySignal = signal('');
@@ -49,8 +53,9 @@ export class ProductSearchStore {
   );
 
   /**
-   * Master rows matching the query, in sheet order; empty for an empty or
-   * unsupported query. All of them are listed — there is no cap (US-55).
+   * Master rows matching the query AND the filters (US-57), in sheet order;
+   * empty for an empty or unsupported query. All of them are listed — there is
+   * no cap (US-55).
    */
   readonly matches = computed<readonly LoadedProduct[]>(() => {
     if (!this.hasQuery() || this.message() !== null) {
@@ -58,13 +63,17 @@ export class ProductSearchStore {
     }
     // V1's matcher returns the same Product objects it is given: map them back to their rows.
     const rowOf = new Map(this.sheets.master().map((row) => [row.product, row]));
-    return filterProducts(this.masterProducts(), this.querySignal()).flatMap((product) => {
+    const searched = filterProducts(this.masterProducts(), this.querySignal()).flatMap((product) => {
       const row = rowOf.get(product);
       return row ? [row] : [];
     });
+    const visible = applyStatusVisibility(searched, this.filters.statusToggles());
+    return applyFilters(visible, this.filters.selectedFilters());
   });
 
   readonly totalMatches = computed(() => this.matches().length);
+  /** A filter is changed from its default (for "…and filters" wording, US-70). */
+  readonly filtersChanged = computed(() => this.filters.changedCount() > 0);
 
   private readonly statuses = computed(() => syncStatuses(this.sheets.pairing()));
 
