@@ -488,12 +488,13 @@ a {
     border: 0.5px solid var(--color-error-border);
     &:hover:not(:disabled) { background: var(--color-error-bg); }
   }
-  // Pressed / chosen (V2, US-75): Dew fill, Pine outline; with aria-pressed or aria-expanded.
+  // Pressed / chosen / open (V2, US-75): Dew fill, Pine outline; pair with
+  // aria-pressed or aria-expanded. Used by the + / − signs, Filters and Data health.
   &--pressed,
   &--pressed:hover:not(:disabled) {
     background: var(--color-dew);
     color: var(--color-pine);
-    border-color: var(--color-pine);
+    border: 1.5px solid var(--color-pine);
   }
 }
 

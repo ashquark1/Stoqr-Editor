@@ -440,7 +440,7 @@
 
 - Decision: Amount (+ / −) and New total side by side from 768px with an "or" divider, stacked on phones; a footer with the preview and Apply. The way not in use gets a grey fill (not reduced opacity, so its label keeps AA contrast).
 - Decision (owner): an amount with no sign shows "Choose + or −."; nothing typed shows "Enter an amount or a new total.".
-- Decision (reuse, Q-G3): the chosen sign uses a new shared `.stoqr-btn--pressed` (Dew fill, Pine outline) in the theme. Follow-up: the Data health and Filters buttons still carry their own copies of this look and can move to it.
+- Decision (reuse, Q-G3): the chosen sign uses a new shared `.stoqr-btn--pressed` (Dew fill, Pine outline) in the theme. Done 2026-10-31: the Data health and Filters buttons now use it too (their local copies removed; the modifier sets the 1.5px Pine border so it also works on ghost buttons).
 - Decision: both boxes reach the store through their `input` events (AI_CONTRACT: no effect forwarding input); the old `toSignal` + effect for the amount is gone.
 
 ## 2026-10-31: Stock results as strips in the card (US-76) [confirmed]
