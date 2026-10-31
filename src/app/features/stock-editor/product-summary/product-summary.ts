@@ -50,9 +50,21 @@ export class ProductSummary {
   protected readonly iconLocked = computed(() => this.navigation.saving() || this.review.step() === 'partial');
 
   private readonly title = viewChild<ElementRef<HTMLElement>>('titleEl');
+  private readonly detailsIcon = viewChild<ElementRef<HTMLElement>>('detailsIcon');
   private readonly injector = inject(Injector);
 
   constructor() {
+    // The form closed (Cancel, Close, Discard, a save): focus back on the pencil / eye (US-77, US-78).
+    let wasOpen = untracked(() => this.details.formOpen());
+    effect(() => {
+      const open = this.details.formOpen();
+      if (wasOpen && !open) {
+        untracked(() =>
+          afterNextRender(() => this.detailsIcon()?.nativeElement.focus(), { injector: this.injector }),
+        );
+      }
+      wasOpen = open;
+    });
     // Focus moves to the card heading when a product opens (US-72); a refresh keeps the key.
     effect(() => {
       this.search.selectionKey();

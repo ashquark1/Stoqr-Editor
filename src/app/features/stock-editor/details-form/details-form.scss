@@ -17,12 +17,38 @@
   color: var(--color-text-muted);
 }
 
-// Crimson, not amber: amber text on white is below WCAG AA at this size.
+// Read-only (US-78): a heading with an icon, then the reasons. Crimson, not
+// amber: amber text on white is below WCAG AA at this size.
+.details__blocked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text-error);
+}
+
+.details__blocked-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: 600;
+
+  svg {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  }
+}
+
 .details__reasons {
   margin: 0;
-  padding-left: var(--space-4);
+  padding-left: var(--space-6);
   font-size: var(--text-small);
-  color: var(--color-text-error);
+}
+
+.details__title:focus {
+  outline: none;
 }
 
 .details__group {
@@ -44,7 +70,7 @@
   border-bottom: var(--border-thin);
 }
 
-// Mobile: one column. Tablet and up: two.
+// Mobile: one column. Tablet: two. Desktop: three (US-77). Notes spans the row.
 .details__grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -58,6 +84,12 @@
 
   .details__field--wide {
     grid-column: 1 / -1;
+  }
+}
+
+@include bp.from(desktop) {
+  .details__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

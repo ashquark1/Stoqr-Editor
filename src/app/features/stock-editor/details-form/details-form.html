@@ -1,13 +1,25 @@
 @if (search.selected(); as row) {
-  <section class="details" aria-labelledby="details-title">
-    <h3 id="details-title" class="details__title">{{ details.editable() ? 'Edit details' : 'Details' }}</h3>
+  <section #formSection class="details" aria-labelledby="details-title">
+    <h3 #formTitle id="details-title" class="details__title" tabindex="-1">
+      {{ details.editable() ? 'Edit details' : 'Details' }}
+    </h3>
 
     @if (!details.editable()) {
-      <ul class="details__reasons" aria-label="Why this product cannot be edited">
-        @for (reason of details.reasons(); track reason) {
-          <li>{{ reason }}</li>
-        }
-      </ul>
+      <!-- Read-only (US-78): the same form, every field as text, with the reasons first. -->
+      <div class="details__blocked">
+        <p id="details-blocked-title" class="details__blocked-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5M12 16h.01" />
+          </svg>
+          Why this product can't be edited
+        </p>
+        <ul class="details__reasons" aria-labelledby="details-blocked-title">
+          @for (reason of details.reasons(); track reason) {
+            <li>{{ reason }}</li>
+          }
+        </ul>
+      </div>
     }
 
     @if (review.step() !== 'editing') {

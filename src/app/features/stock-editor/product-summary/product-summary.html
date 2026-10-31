@@ -11,6 +11,7 @@
         @if (!details.formOpen()) {
           @if (details.editable()) {
             <button
+              #detailsIcon
               type="button"
               class="summary__icon"
               aria-label="Edit details"
@@ -25,6 +26,7 @@
             </button>
           } @else {
             <button
+              #detailsIcon
               type="button"
               class="summary__icon"
               aria-label="View details"
