@@ -72,6 +72,10 @@ export class ProductSearchStore {
   });
 
   readonly totalMatches = computed(() => this.matches().length);
+  /** The results toolbar shows once a search has run, and stays while a product is open (US-69). */
+  readonly toolbarShown = computed(() => this.hasQuery() || this.selectedRefSignal() !== null);
+  /** Filters changed from the defaults, for "Filters (n)". */
+  readonly filterCount = computed(() => this.filters.changedCount());
   /** A filter is changed from its default (for "…and filters" wording, US-70). */
   readonly filtersChanged = computed(() => this.filters.changedCount() > 0);
 
@@ -109,6 +113,13 @@ export class ProductSearchStore {
     const row = this.selected();
     return row === null ? undefined : this.badges().get(row.ref);
   });
+
+  /**
+   * Refresh may run (US-69): not while one runs, and — until US-60 adds the
+   * open-product rules — not while a product is open, since a reload makes new
+   * row refs and would close it, dropping unsaved edits.
+   */
+  readonly refreshAvailable = computed(() => !this.sheets.refreshing() && this.selectedRefSignal() === null);
 
   readonly selectedEditability = computed<Editability | null>(() => {
     const row = this.selected();

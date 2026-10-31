@@ -1,0 +1,42 @@
+<div class="toolbar">
+  <button
+    type="button"
+    class="stoqr-btn stoqr-btn--ghost icon-btn toolbar__filters"
+    [class.toolbar__filters--open]="panels.filtersOpen()"
+    [attr.aria-expanded]="panels.filtersOpen()"
+    [attr.aria-label]="search.filterCount() ? 'Filters, ' + search.filterCount() + ' changed' : 'Filters'"
+    (click)="panels.toggleFilters()"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+    <span class="icon-btn__label">Filters{{ search.filterCount() ? ' (' + search.filterCount() + ')' : '' }}</span>
+  </button>
+
+  <span class="toolbar__count" aria-live="polite">
+    {{ search.totalMatches() }} result{{ search.totalMatches() === 1 ? '' : 's' }}
+  </span>
+
+  @if (sheets.fetchedAt(); as at) {
+    <!-- Focusable so the exact time is reachable by keyboard (UXQ). -->
+    <span class="toolbar__updated" tabindex="0" [stoqrTooltip]="exactTime(at)">
+      Last updated: {{ at | relativeTime }}
+    </span>
+  }
+
+  <button
+    type="button"
+    class="stoqr-btn stoqr-btn--secondary icon-btn toolbar__refresh"
+    [class.stoqr-btn--busy]="sheets.refreshing()"
+    [disabled]="!search.refreshAvailable()"
+    [attr.aria-busy]="sheets.refreshing()"
+    [attr.aria-label]="sheets.refreshing() ? 'Refreshing' : 'Refresh Results'"
+    (click)="sheets.refresh()"
+  >
+    @if (sheets.refreshing()) {
+      <span class="stoqr-spinner" aria-hidden="true"></span>
+      <span class="icon-btn__label">Refreshing…</span>
+    } @else {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
+      <span class="icon-btn__label">Refresh Results</span>
+    }
+  </button>
+</div>

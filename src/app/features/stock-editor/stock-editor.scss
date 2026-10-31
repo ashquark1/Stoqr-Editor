@@ -49,7 +49,9 @@ app-data-health {
   display: contents;
 }
 
-.stock-editor__search {
+.stock-editor__search,
+.stock-editor__toolbar {
+  display: block;
   margin-bottom: var(--space-4);
 }
 

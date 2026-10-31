@@ -4,8 +4,8 @@ import { Auth } from '@core/auth/auth';
 import { DataHealthStore } from '@core/sheets/data-health-store';
 import { SheetsStore } from '@core/sheets/sheets-store';
 
-/** The floating panels; one may be open at a time (the filter panel joins in US-71). */
-export type PanelKey = 'data-health';
+/** The floating panels; one may be open at a time (US-71). */
+export type PanelKey = 'data-health' | 'filters';
 
 /**
  * Which panel is open, shared by the app shell (its buttons live in the bottom
@@ -21,6 +21,8 @@ export class PanelStore {
   private readonly openSignal = signal<PanelKey | null>(null);
 
   readonly healthOpen = computed(() => this.openSignal() === 'data-health');
+  /** The filter panel (US-69 button, US-70 panel). */
+  readonly filtersOpen = computed(() => this.openSignal() === 'filters');
 
   /** The Data health button's count, and its accessible name ("Data health, 2 issues"). */
   readonly healthCount = computed(() => this.health.health().total);
@@ -52,5 +54,13 @@ export class PanelStore {
 
   closeHealth(): void {
     this.openSignal.update((open) => (open === 'data-health' ? null : open));
+  }
+
+  toggleFilters(): void {
+    this.openSignal.update((open) => (open === 'filters' ? null : 'filters'));
+  }
+
+  closeFilters(): void {
+    this.openSignal.update((open) => (open === 'filters' ? null : open));
   }
 }

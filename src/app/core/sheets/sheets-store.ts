@@ -10,6 +10,8 @@ import { pairSheets, pairingCounts } from './sheet-pairing';
 import { SheetsReader } from './sheets-reader';
 
 const GENERIC_ERROR = "Couldn't load the products. Please try again.";
+/** A refresh that failed for no named reason: the old list is still shown (US-58). */
+const REFRESH_GENERIC_ERROR = 'The list shown is unchanged. Please try again.';
 export const INTERRUPTED_ERROR = 'Loading was interrupted by the session ending. Please retry.';
 
 /** Outcome of `refresh()` (US-58). */
@@ -122,7 +124,10 @@ export class SheetsStore {
       }
       if (masterRead.status === 'rejected' || drTrustRead.status === 'rejected') {
         this.refreshErrorSignal.set(
-          this.failureMessage([masterRead, drTrustRead].flatMap((r) => (r.status === 'rejected' ? [r.reason] : []))),
+          this.failureMessage(
+            [masterRead, drTrustRead].flatMap((r) => (r.status === 'rejected' ? [r.reason] : [])),
+            REFRESH_GENERIC_ERROR,
+          ),
         );
         return 'failed';
       }
@@ -136,7 +141,7 @@ export class SheetsStore {
       if (generation !== this.generation) {
         return 'skipped';
       }
-      this.refreshErrorSignal.set(this.failureMessage([mappingError]));
+      this.refreshErrorSignal.set(this.failureMessage([mappingError], REFRESH_GENERIC_ERROR));
       return 'failed';
     } finally {
       if (generation === this.generation) {
@@ -219,10 +224,10 @@ export class SheetsStore {
   }
 
   /** The message naming every failing sheet (shared by load and refresh). */
-  private failureMessage(failures: readonly unknown[]): string | null {
+  private failureMessage(failures: readonly unknown[], generic = GENERIC_ERROR): string | null {
     const loadErrors = failures.filter((f): f is SheetLoadError => f instanceof SheetLoadError);
     if (loadErrors.length < failures.length) {
-      return GENERIC_ERROR;
+      return generic;
     }
     // An expired session yields null when the user has signed out (they are on the sign-in
     // screen). If they still have a session (e.g. a second 401 after renewal), offer Retry.

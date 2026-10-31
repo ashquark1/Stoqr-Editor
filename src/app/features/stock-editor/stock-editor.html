@@ -17,6 +17,16 @@
       (dismiss)="detailsReview.clearNotice()"
     />
   }
+  @if (sheets.refreshError(); as message) {
+    <!-- The old list stays on screen (US-58); Retry runs the same refresh. -->
+    <stoqr-toast
+      title="Couldn't refresh the products"
+      [message]="message"
+      [autoDismissMs]="8000"
+      (retry)="sheets.refresh()"
+      (dismiss)="sheets.clearRefreshError()"
+    />
+  }
   @if (sheets.loading()) {
     <!-- In the page, not a full-screen overlay, so both bars stay visible (US-49). -->
     <div class="stock-editor__loading-state" role="status" aria-live="polite">
@@ -62,6 +72,9 @@
     } @else {
       <!-- Full content width, above the results and the summary (US-50, owner). -->
       <app-search-row class="stock-editor__search" />
+      @if (search.toolbarShown()) {
+        <app-results-toolbar class="stock-editor__toolbar" />
+      }
       <div class="stock-editor__layout">
         <app-product-picker class="stock-editor__picker" />
         @if (search.selected()) {

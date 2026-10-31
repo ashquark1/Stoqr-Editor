@@ -375,6 +375,13 @@
 - Reason: safe because every write re-reads its rows first, so stale data on screen can never be written.
 - Unchanged: the first load and Retry stay all-or-nothing (any failure shows no data).
 
+## 2026-10-31: Results toolbar (US-69) [confirmed]
+
+- Decision: V1's toolbar and its `relativeTime` pipe are copied (V1 untouched). The exact time in the tooltip is a small pure `exactTime` (Angular's `d MMM y, h:mm a`) instead of `DatePipe`, which added 13 kB to the first load.
+- Decision: the filter panel's open state is a second key in `PanelStore` (`filters`), so Data health and filters already share one "which panel is open" (US-71).
+- Decision (interim, until US-60): Refresh is disabled while a product is open, because a reload makes new row refs and would close the product and drop unsaved edits.
+- Decision: a refresh failing for no named reason says "The list shown is unchanged. Please try again." under the title "Couldn't refresh the products".
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

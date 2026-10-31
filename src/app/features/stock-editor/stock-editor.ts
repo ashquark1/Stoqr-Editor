@@ -11,6 +11,7 @@ import { Toast } from '@shared/ui/toast/toast';
 import { DataHealth } from './data-health/data-health';
 import { ProductPicker } from './product-picker/product-picker';
 import { ProductSummary } from './product-summary/product-summary';
+import { ResultsToolbar } from './results-toolbar/results-toolbar';
 import { SearchRow } from './search-row/search-row';
 
 /**
@@ -22,7 +23,7 @@ import { SearchRow } from './search-row/search-row';
  */
 @Component({
   selector: 'app-stock-editor',
-  imports: [DataHealth, EmptyState, ProductPicker, ProductSummary, SearchRow, Toast],
+  imports: [DataHealth, EmptyState, ProductPicker, ProductSummary, ResultsToolbar, SearchRow, Toast],
   templateUrl: './stock-editor.html',
   styleUrl: './stock-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
