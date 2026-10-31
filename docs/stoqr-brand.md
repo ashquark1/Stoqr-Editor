@@ -172,7 +172,7 @@ Component classes are defined in `stoqr-theme.scss`: `.stoqr-logo`,
 `.icon-btn` (icon-only under 768px, V1's name),
 `.stoqr-table` + `.stoqr-table-wrap`, `.stoqr-modal*` + `.stoqr-field-group`/
 `.stoqr-field` (+ `__error`, V2), `.stoqr-input` (`--mono`/`--invalid`/
-`--multiline`, V2), `.stoqr-toast*`, `.stoqr-pagination*`, `.stoqr-spinner*`,
+`--multiline`, V2), `.stoqr-sr-only` (screen-reader text, V2), `.stoqr-toast*`, `.stoqr-pagination*`, `.stoqr-spinner*`,
 `.stoqr-refresh`, and the page shells `.stoqr-page`/`.stoqr-topbar`/`.stoqr-results`.
 
 Refer to `stoqr-theme.scss` for the authoritative values.

@@ -1039,3 +1039,16 @@ a {
     animation-duration: 3s;
   }
 }
+
+// V2 (US-79): text for screen readers only (e.g. "changes from … to …" beside an arrow).
+.stoqr-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

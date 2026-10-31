@@ -1,6 +1,6 @@
 @switch (step()) {
   @case ('reviewing') {
-    <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="approve.emit()">Approve</button>
+    <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="approve.emit()">Save changes</button>
     <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="back.emit()">Back</button>
   }
   @case ('saving') {

@@ -3,10 +3,10 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { ReviewStep } from '@core/sheets/review-flow';
 
 /**
- * The buttons under every review (stock and details): Approve / Back while
+ * The buttons under the details review (US-79): Save changes / Back while
  * reviewing, a disabled "Saving…", then the outcome's own buttons (Review
- * again, Try again, Retry <sheet> / Close). Shared so both reviews behave the
- * same; the store behind each review decides what the clicks do.
+ * again, Try again, Retry <sheet> / Close). The store decides what the clicks
+ * do. (Stock has no review since CR-04; its results are strips, US-76.)
  */
 @Component({
   selector: 'app-review-actions',

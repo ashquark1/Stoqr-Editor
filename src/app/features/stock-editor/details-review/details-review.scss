@@ -78,3 +78,7 @@
 .dreview__message {
   color: var(--color-text-error);
 }
+
+.dreview__title:focus {
+  outline: none;
+}

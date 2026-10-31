@@ -1,8 +1,10 @@
 @if (search.selected(); as row) {
-  <section #formSection class="details" aria-labelledby="details-title">
-    <h3 #formTitle id="details-title" class="details__title" tabindex="-1">
-      {{ details.editable() ? 'Edit details' : 'Details' }}
-    </h3>
+  <section #formSection class="details" [attr.aria-labelledby]="review.step() === 'editing' ? 'details-title' : 'details-review-title'">
+    @if (review.step() === 'editing') {
+      <h3 #formTitle id="details-title" class="details__title" tabindex="-1">
+        {{ details.editable() ? 'Edit details' : 'Details' }}
+      </h3>
+    }
 
     @if (!details.editable()) {
       <!-- Read-only (US-78): the same form, every field as text, with the reasons first. -->
