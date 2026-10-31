@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -72,6 +74,41 @@
   &:focus-visible {
     outline: 2px solid var(--color-pine);
     outline-offset: 2px;
+  }
+}
+
+// Data health (US-51): 44px secondary icon button at the right end; never
+// shrinks (`.icon-btn`). Pressed look while its panel is open.
+.app-footer__health {
+  position: relative;
+
+  &--pressed,
+  &--pressed:hover:not(:disabled) {
+    background: var(--color-dew);
+    border-color: var(--color-pine);
+  }
+}
+
+// Phones only (icon-only button): the count as a small amber badge on the icon;
+// none at 0. From tablet the label shows the count instead.
+.app-footer__count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  color: var(--color-on-warning);
+  font-size: var(--text-label);
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+
+  @include bp.from(tablet) {
+    display: none;
   }
 }
 

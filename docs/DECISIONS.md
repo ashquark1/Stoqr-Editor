@@ -356,6 +356,12 @@
 - Decision: the tooltip library is about 45 kB; in the shell it pushed the first load to 503 kB, so the footer labels span is `@defer (on idle)` with a plain-text placeholder (first load 458 kB; tooltip a lazy chunk).
 - Trade-off: the footer labels are one extra Tab stop, even when nothing is cut short.
 
+## 2026-10-31: Data health button in the bottom bar (US-51) [confirmed]
+
+- Decision: the button lives in the shell's bottom bar, so the panel's open state moved into a shared `PanelStore` (`core/layout/panel-store.ts`), read by the shell and the editor page; features never import each other. One "open panel" value, ready for the filter panel and "one at a time" (US-71). It closes on a session change.
+- Decision (owner): the button shows once the sheets have loaded with no error and are not reloading — including an empty master sheet; never on sign-in, loading or error.
+- Trade-off: the shell now reads the data-health count, which brings the pairing code into the first load (+14.6 kB, 475.4 kB; about 25 kB before the 500 kB warning). Accepted rather than deferring the button; later stories should lazy-load where they can.
+
 ## Open Questions
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)

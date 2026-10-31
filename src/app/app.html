@@ -31,6 +31,7 @@
   with "…" first, the full text shows in a tooltip on hover or keyboard focus. The
   tooltip library loads once the page is idle (keeps the first load under 500 kB);
   until then the same labels show as plain text. Not on the sign-in screen (US-45).
+  Data health button at the right end once the sheets have loaded (US-51).
 -->
 @if (showBottomBar()) {
   <footer class="app-footer">
@@ -55,6 +56,24 @@
         <span class="app-footer__sheets">
           <ng-container [ngTemplateOutlet]="sheetLabels" />
         </span>
+      }
+      @if (panels.healthAvailable()) {
+        <button
+          type="button"
+          class="stoqr-btn stoqr-btn--secondary icon-btn app-footer__health"
+          [class.app-footer__health--pressed]="panels.healthOpen()"
+          [attr.aria-label]="panels.healthLabel()"
+          [attr.aria-expanded]="panels.healthOpen()"
+          (click)="panels.toggleHealth()"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 12h4l2-5 4 10 2-5h6" />
+          </svg>
+          @if (panels.healthCount() > 0) {
+            <span class="app-footer__count" aria-hidden="true">{{ panels.healthCount() }}</span>
+          }
+          <span class="icon-btn__label">Data health ({{ panels.healthCount() }})</span>
+        </button>
       }
     </div>
   </footer>

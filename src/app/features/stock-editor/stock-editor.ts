@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
 import { Auth } from '@core/auth/auth';
 import { DetailsReviewStore } from '@core/details/details-review-store';
+import { PanelStore } from '@core/layout/panel-store';
 import { ProductSearchStore } from '@core/search/product-search-store';
-import { DataHealthStore } from '@core/sheets/data-health-store';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
@@ -17,7 +17,8 @@ import { SearchRow } from './search-row/search-row';
  * The editor page (US-12–14): loading and error states for both sheets, then
  * the product picker and, once a product is chosen, its summary with the
  * quantity adjuster or details form. A saved change is confirmed in a toast
- * (stock US-20, details US-24). Data health (US-31) opens above them.
+ * (stock US-20, details US-24). Data health (US-31) opens above them, from
+ * the bottom bar's button (US-51; its open state is in `PanelStore`).
  */
 @Component({
   selector: 'app-stock-editor',
@@ -32,10 +33,7 @@ export class StockEditor {
   protected readonly auth = inject(Auth);
   protected readonly review = inject(StockReviewStore);
   protected readonly detailsReview = inject(DetailsReviewStore);
-  protected readonly health = inject(DataHealthStore);
-
-  /** Whether the data-health panel (US-31, lazy) is open. */
-  protected readonly healthOpen = signal(false);
+  protected readonly panels = inject(PanelStore);
 
   constructor() {
     void this.sheets.ensureLoaded();

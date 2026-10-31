@@ -42,6 +42,14 @@
       </div>
     </stoqr-empty-state>
   } @else if (sheets.fetchedAt()) {
+    <!-- Opened from the bottom bar's Data health button (US-51); floats above it in US-52. -->
+    @if (panels.healthOpen()) {
+      @defer {
+        <app-data-health (closed)="panels.closeHealth()" />
+      } @loading {
+        <p class="stock-editor__loading">Loading data health…</p>
+      }
+    }
     @if (sheets.master().length === 0) {
       <stoqr-empty-state heading="No products yet" message="The master sheet has no products to edit.">
         <!-- Same reload as Retry (US-48); the loading screen replaces the card while it runs. -->
@@ -52,23 +60,6 @@
         </div>
       </stoqr-empty-state>
     } @else {
-      <div class="stock-editor__health-bar">
-        <button
-          type="button"
-          class="stoqr-btn stoqr-btn--secondary"
-          [attr.aria-expanded]="healthOpen()"
-          (click)="healthOpen.set(!healthOpen())"
-        >
-          Data health ({{ health.health().total }})
-        </button>
-      </div>
-      @if (healthOpen()) {
-        @defer {
-          <app-data-health (closed)="healthOpen.set(false)" />
-        } @loading {
-          <p class="stock-editor__loading">Loading data health…</p>
-        }
-      }
       <!-- Full content width, above the results and the summary (US-50, owner). -->
       <app-search-row class="stock-editor__search" />
       <div class="stock-editor__layout">

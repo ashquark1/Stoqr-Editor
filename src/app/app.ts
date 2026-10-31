@@ -6,6 +6,7 @@ import { filter, map } from 'rxjs';
 
 import { Auth } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
+import { PanelStore } from '@core/layout/panel-store';
 import { SessionPrompts } from '@features/session/session-prompts';
 import { Logo } from '@shared/ui/logo/logo';
 import { StoqrTooltip } from '@shared/ui/tooltip/tooltip';
@@ -21,6 +22,7 @@ import { StoqrTooltip } from '@shared/ui/tooltip/tooltip';
 export class App {
   protected readonly config = inject(AppConfig);
   protected readonly auth = inject(Auth);
+  protected readonly panels = inject(PanelStore);
   private readonly router = inject(Router);
 
   /**

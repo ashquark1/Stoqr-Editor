@@ -38,12 +38,6 @@
   gap: var(--space-2);
 }
 
-.stock-editor__health-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-3);
-}
-
 .stock-editor__loading {
   margin: 0 0 var(--space-3);
   font-size: var(--text-small);
