@@ -100,11 +100,19 @@
           }
         </div>
       }
+      <!-- One list (US-73): the home list, or floated over the open product, which stays dimmed and untouched. -->
       <div class="stock-editor__layout">
-        <app-product-picker class="stock-editor__picker" />
         @if (search.selected()) {
-          <app-product-summary class="stock-editor__summary" />
+          <app-product-summary
+            class="stock-editor__summary"
+            [class.stock-editor__summary--dimmed]="search.overlayOpen()"
+            [inert]="search.overlayOpen()"
+          />
         }
+        <app-product-picker
+          class="stock-editor__picker"
+          [class.stock-editor__picker--overlay]="search.overlayOpen() && search.selected() !== null"
+        />
       </div>
     }
   }
