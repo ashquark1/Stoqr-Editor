@@ -7,6 +7,7 @@ import { ProductSearchStore } from '@core/search/product-search-store';
 import { DataHealthStore } from '@core/sheets/data-health-store';
 import { RowRef } from '@core/sheets/row-ref';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
+import { FloatingPanel } from '@shared/ui/floating-panel/floating-panel';
 import { displayValue } from '@shared/util/display-value';
 
 /**
@@ -18,7 +19,7 @@ import { displayValue } from '@shared/util/display-value';
  */
 @Component({
   selector: 'app-data-health',
-  imports: [NgTemplateOutlet],
+  imports: [FloatingPanel, NgTemplateOutlet],
   templateUrl: './data-health.html',
   styleUrl: './data-health.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

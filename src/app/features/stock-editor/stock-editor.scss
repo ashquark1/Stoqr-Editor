@@ -44,9 +44,9 @@
   color: var(--color-text-muted);
 }
 
+// The panel floats (fixed, US-52), so it takes no space in the page.
 app-data-health {
-  display: block;
-  margin-bottom: var(--space-6);
+  display: contents;
 }
 
 .stock-editor__search {

@@ -184,6 +184,10 @@ Spacing tokens `--space-1`…`--space-16`. Page horizontal padding: 24px (mobile
 40px (tablet ≥768), 64px (desktop ≥1024). Page max-width 1440px, centered.
 Search bar hero max-width 640px. Results table 100% width in a scrollable wrapper.
 
+Editor (V2, US-52): floating panels (`<stoqr-floating-panel>`) open just above the
+bottom bar, in the content column, at most the space between the two bars
+(`--bar-height`, 8px gap each side), and are layered under both bars.
+
 ---
 
 *Stoqr Brand Identity v1.0 — in-repo copy*

@@ -112,6 +112,11 @@
 
   // --- Transitions ---
   --transition-fast: 150ms ease;
+
+  // --- Frame (V2, US-52) ---
+  // Height of the top and bottom bars: 12px padding, a 44px row, 0.5px border.
+  // Floating panels sit between the bars using it.
+  --bar-height: calc(var(--space-3) * 2 + 44px + 0.5px);
 }
 
 // Dark mode overrides

@@ -1,0 +1,22 @@
+<div class="stoqr-floating-layer">
+  <div class="stoqr-bounds stoqr-floating-layer__bounds">
+    <section class="stoqr-floating-panel" role="dialog" [attr.aria-labelledby]="headingId">
+      <header class="stoqr-floating-panel__header">
+        <h2 #headingEl class="stoqr-floating-panel__heading" [id]="headingId" tabindex="-1">{{ heading() }}</h2>
+        <button
+          type="button"
+          class="stoqr-floating-panel__close"
+          [attr.aria-label]="closeLabel()"
+          (click)="closed.emit()"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </header>
+      <div class="stoqr-floating-panel__body">
+        <ng-content />
+      </div>
+    </section>
+  </div>
+</div>

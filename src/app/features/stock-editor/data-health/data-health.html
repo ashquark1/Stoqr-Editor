@@ -1,9 +1,7 @@
 @let health = store.health();
-<section class="health" aria-labelledby="health-title">
-  <header class="health__header">
-    <h2 id="health-title" class="health__title">Data health</h2>
-    <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="closed.emit()">Close</button>
-  </header>
+<!-- Floats above the bottom bar; closes with ✕, Escape or the bar's button (US-52). -->
+<stoqr-floating-panel heading="Data health" closeLabel="Close data health" (closed)="closed.emit()">
+<div class="health">
   <p class="health__intro">Where the sheets disagree. Nothing here is changed or blocked by this view.</p>
 
   <!-- A row: name and SKU; Master rows can be opened in the editor. -->
@@ -90,4 +88,5 @@
       </ul>
     </section>
   </div>
-</section>
+</div>
+</stoqr-floating-panel>
