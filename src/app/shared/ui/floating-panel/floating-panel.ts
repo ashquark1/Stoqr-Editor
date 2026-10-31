@@ -66,8 +66,12 @@ export class FloatingPanel implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Back to the button that opened it, if it is still on the page.
-    if (this.opener?.isConnected) {
+    // Back to the button that opened it, if it is still on the page — but only
+    // when focus is in this panel (or lost). When another panel's button closed
+    // it, focus stays on that button, so the new panel returns there (US-71).
+    const active = document.activeElement;
+    const focusHere = active === null || active === document.body || this.layerEl().nativeElement.contains(active);
+    if (focusHere && this.opener?.isConnected) {
       this.opener.focus();
     }
   }
