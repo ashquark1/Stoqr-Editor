@@ -49,6 +49,14 @@ export class FilterStore {
     brand: this.selected.brand(),
   }));
 
+  /** The selected values per facet as arrays, for the dropdowns (US-70). */
+  readonly selectedValues = computed<Readonly<Record<FacetKey, readonly string[]>>>(() => ({
+    status: [...this.selected.status()],
+    category: [...this.selected.category()],
+    subCategory: [...this.selected.subCategory()],
+    brand: [...this.selected.brand()],
+  }));
+
   /** "Filters (n)": dropdowns with a selection plus toggles switched off (A-UI-8). */
   readonly changedCount = computed(
     () =>

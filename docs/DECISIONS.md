@@ -382,6 +382,13 @@
 - Decision (interim, until US-60): Refresh is disabled while a product is open, because a reload makes new row refs and would close the product and drop unsaved edits.
 - Decision: a refresh failing for no named reason says "The list shown is unchanged. Please try again." under the title "Couldn't refresh the products".
 
+## 2026-10-31: Floating filter panel (US-70) [confirmed]
+
+- Decision (reuse, Q-G3): the filter panel uses the shared `<stoqr-floating-panel>` with a new `placement="below"` (under the toolbar, inside a relative anchor) instead of a second floating piece. Its height is measured on open/resize so it stops above the bottom bar.
+- Decision: V1's `<stoqr-filter-select>` (PrimeNG MultiSelect with "All") and `<stoqr-toggle>` are copied into `shared/ui` (V1 untouched); the toggle is 44px at every width (US-42).
+- Decision: opening a product closes the filter panel from `ProductSearchStore.select()`. Rejected: an effect in `PanelStore` reading the search store, which put the whole search store into the first load (+23 kB, over 500 kB).
+- Trade-off: the panel chunk is lazy (133 kB), but the MultiSelect shares PrimeNG utility modules with the start-up PrimeNG setup, so the first load grew 480 → 496 kB (4 kB under the warning). Later stories must not add to the first load; candidates to win it back: deferring more of the shell.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

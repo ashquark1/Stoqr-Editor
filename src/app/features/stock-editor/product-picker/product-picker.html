@@ -2,8 +2,10 @@
   @if (search.message(); as message) {
     <p class="picker__hint">{{ message }}</p>
   } @else if (search.totalMatches() === 0) {
-    <!-- V1's wording (US-55); the "…and filters" variant comes with the filters (US-70). -->
-    <stoqr-empty-state message="No products match your search." />
+    <!-- V1's wording (US-55, US-70). -->
+    <stoqr-empty-state
+      [message]="search.filtersChanged() ? 'No products match your search and filters.' : 'No products match your search.'"
+    />
   } @else {
     <!-- Every match, no cap (US-55); the page scrolls. -->
     <ul class="picker__results" aria-label="Matching products">

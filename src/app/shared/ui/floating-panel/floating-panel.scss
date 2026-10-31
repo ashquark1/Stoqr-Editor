@@ -11,6 +11,21 @@
   bottom: calc(var(--bar-height) + var(--space-2));
   z-index: 90;
   pointer-events: none;
+
+  // Under the element before it (the results toolbar), as wide as the parent,
+  // over the results; still under both bars (US-70).
+  &--below {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    bottom: auto;
+
+    .stoqr-floating-panel {
+      max-height: max(
+        12rem,
+        calc(100dvh - var(--floating-top, 0px) - var(--bar-height) - var(--space-2))
+      );
+    }
+  }
 }
 
 .stoqr-floating-panel {

@@ -73,7 +73,15 @@
       <!-- Full content width, above the results and the summary (US-50, owner). -->
       <app-search-row class="stock-editor__search" />
       @if (search.toolbarShown()) {
-        <app-results-toolbar class="stock-editor__toolbar" />
+        <!-- The filter panel floats under the toolbar, over the results (US-70). -->
+        <div class="stock-editor__toolbar">
+          <app-results-toolbar />
+          @if (panels.filtersOpen()) {
+            @defer {
+              <app-filter-panel (closed)="panels.closeFilters()" />
+            }
+          }
+        </div>
       }
       <div class="stock-editor__layout">
         <app-product-picker class="stock-editor__picker" />

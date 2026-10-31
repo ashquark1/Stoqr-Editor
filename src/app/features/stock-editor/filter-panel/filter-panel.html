@@ -1,0 +1,39 @@
+<stoqr-floating-panel heading="Filters" closeLabel="Close filters" placement="below" (closed)="closed.emit()">
+  <div class="filters">
+    <div class="filters__selects">
+      @for (facet of facets; track facet.key) {
+        <stoqr-filter-select
+          [label]="facet.label"
+          [options]="filters.options()[facet.key]"
+          [selected]="filters.selectedValues()[facet.key]"
+          [showSearch]="facet.search"
+          (selectedChange)="filters.setSelected(facet.key, $event)"
+        />
+      }
+    </div>
+
+    <hr class="filters__divider" />
+
+    <div class="filters__row">
+      <stoqr-toggle
+        label="Show Inactive Products"
+        [checked]="filters.showInactive()"
+        (checkedChange)="filters.setShowInactive($event)"
+      />
+      <stoqr-toggle
+        label="Show Discontinued Products"
+        [checked]="filters.showDiscontinued()"
+        (checkedChange)="filters.setShowDiscontinued($event)"
+      />
+      <!-- Looks disabled while every filter is at its default (UXQ). -->
+      <button
+        type="button"
+        class="stoqr-btn stoqr-btn--ghost filters__reset"
+        [disabled]="filters.changedCount() === 0"
+        (click)="filters.reset()"
+      >
+        Reset Filters
+      </button>
+    </div>
+  </div>
+</stoqr-floating-panel>

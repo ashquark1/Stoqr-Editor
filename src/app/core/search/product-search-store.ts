@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
 import { Auth } from '@core/auth/auth';
+import { PanelStore } from '@core/layout/panel-store';
 import { LoadedProduct } from '@core/models/product';
 import { Editability, editability } from '@core/sheets/editability';
 import { RowRef } from '@core/sheets/row-ref';
@@ -32,6 +33,7 @@ export class ProductSearchStore {
   private readonly validation = inject(SearchValidation);
   private readonly auth = inject(Auth);
   private readonly filters = inject(FilterStore);
+  private readonly panels = inject(PanelStore);
 
   private readonly typedSignal = signal('');
   private readonly querySignal = signal('');
@@ -178,8 +180,10 @@ export class ProductSearchStore {
     this.pending = undefined;
   }
 
+  /** Opens a product; this closes the filter panel (US-70). */
   select(ref: RowRef): void {
     this.selectedRefSignal.set(ref);
+    this.panels.closeFilters();
   }
 
   clearSelection(): void {

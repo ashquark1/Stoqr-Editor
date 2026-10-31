@@ -9,6 +9,7 @@ import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { Toast } from '@shared/ui/toast/toast';
 import { DataHealth } from './data-health/data-health';
+import { FilterPanel } from './filter-panel/filter-panel';
 import { ProductPicker } from './product-picker/product-picker';
 import { ProductSummary } from './product-summary/product-summary';
 import { ResultsToolbar } from './results-toolbar/results-toolbar';
@@ -23,7 +24,7 @@ import { SearchRow } from './search-row/search-row';
  */
 @Component({
   selector: 'app-stock-editor',
-  imports: [DataHealth, EmptyState, ProductPicker, ProductSummary, ResultsToolbar, SearchRow, Toast],
+  imports: [DataHealth, EmptyState, FilterPanel, ProductPicker, ProductSummary, ResultsToolbar, SearchRow, Toast],
   templateUrl: './stock-editor.html',
   styleUrl: './stock-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

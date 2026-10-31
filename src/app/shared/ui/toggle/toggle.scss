@@ -1,0 +1,54 @@
+.stoqr-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-small);
+  color: var(--color-ink);
+  // 44px tap target at every width (US-42).
+  min-height: 44px;
+  width: fit-content;
+}
+
+// Native checkbox: visually hidden but focusable; the label click toggles it.
+.stoqr-toggle__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+}
+
+.stoqr-toggle__track {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--color-fog);
+  transition: background var(--transition-fast);
+}
+
+.stoqr-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-white);
+  transition: transform var(--transition-fast);
+}
+
+.stoqr-toggle__input:checked + .stoqr-toggle__track {
+  background: var(--color-pine);
+
+  .stoqr-toggle__thumb {
+    transform: translateX(16px);
+  }
+}
+
+.stoqr-toggle__input:focus-visible + .stoqr-toggle__track {
+  outline: 2px solid var(--color-pine);
+  outline-offset: 2px;
+}

@@ -1,0 +1,15 @@
+<label class="filter-select">
+  <span class="filter-select__label">{{ label() }}</span>
+  <p-multiSelect
+    [options]="displayOptions()"
+    [ngModel]="uiSelected()"
+    (ngModelChange)="onChange($event)"
+    optionLabel="label"
+    optionValue="value"
+    [filter]="showSearch()"
+    [showToggleAll]="false"
+    placeholder="All"
+    appendTo="body"
+    styleClass="stoqr-multiselect"
+  />
+</label>

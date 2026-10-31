@@ -1,5 +1,10 @@
-<div class="stoqr-floating-layer">
-  <div class="stoqr-bounds stoqr-floating-layer__bounds">
+<div
+  #layerEl
+  class="stoqr-floating-layer"
+  [class.stoqr-floating-layer--below]="placement() === 'below'"
+  [style.--floating-top.px]="topPx()"
+>
+  <div class="stoqr-floating-layer__bounds" [class.stoqr-bounds]="placement() === 'bottom'">
     <section class="stoqr-floating-panel" role="dialog" [attr.aria-labelledby]="headingId">
       <header class="stoqr-floating-panel__header">
         <h2 #headingEl class="stoqr-floating-panel__heading" [id]="headingId" tabindex="-1">{{ heading() }}</h2>
