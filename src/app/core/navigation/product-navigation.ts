@@ -47,10 +47,8 @@ export class ProductNavigation {
     () => this.stockReview.step() === 'saving' || this.detailsReview.step() === 'saving',
   );
 
-  /** Details edits, a typed adjuster amount or a chosen sign. */
-  readonly unsaved = computed(
-    () => this.details.hasChanges() || this.adjust.mode() !== null || this.adjust.amountText().trim() !== '',
-  );
+  /** Details edits, or anything typed in the adjuster (amount, new total) or a chosen sign. */
+  readonly unsaved = computed(() => this.details.hasChanges() || this.adjust.hasEntry());
 
   /** True while "Discard changes?" waits for an answer. */
   readonly leavePending = computed(() => this.pendingSignal() !== null);
@@ -184,12 +182,17 @@ export class ProductNavigation {
     this.ask(() => void this.reload());
   }
 
-  /** Opens the details form; a typed adjuster amount and sign are dropped silently (A-UI-30). */
+  /**
+   * Opens the details form; a typed adjuster entry and sign are dropped
+   * silently (A-UI-30), and a stock result is cleared. Not while saving or
+   * while a half-done stock save waits for Retry or Close (US-64).
+   */
   openDetails(): void {
-    if (this.saving()) {
+    if (this.saving() || this.stockReview.step() === 'partial') {
       return;
     }
     this.adjust.reset();
+    this.stockReview.close();
     this.details.openForm();
   }
 

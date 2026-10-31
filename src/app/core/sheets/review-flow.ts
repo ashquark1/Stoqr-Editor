@@ -9,8 +9,13 @@ export type ReviewStep = 'editing' | 'reviewing' | 'saving' | 'conflict' | 'part
 
 /** What differs between the review steps that use this flow (stock, details). */
 export interface ReviewOutcomes<C> {
-  /** Every sheet confirmed; `labels` are all the sheets written, in order. The flow then returns to editing. */
-  readonly written: (context: C, labels: readonly string[]) => void;
+  /**
+   * Every sheet confirmed; `labels` are all the sheets written, in order;
+   * `retried`: a Retry finished a half-done save. The flow then returns to editing.
+   */
+  readonly written: (context: C, labels: readonly string[], retried: boolean) => void;
+  /** Called on a conflict (e.g. to clear an entry made against the old value). */
+  readonly conflict?: (context: C) => void;
   /** Nothing was saved: a reviewed value changed underneath. */
   readonly conflictMessage: (result: Extract<WriteResult, { kind: 'conflict' }>, context: C) => string;
   /**
@@ -38,8 +43,8 @@ interface PendingRetry<C> {
 }
 
 /**
- * The review → save → outcome steps shared by every review (stock US-18–20,
- * 33–35; details US-23, 24, 36): writes through `SheetsWriter`, puts confirmed
+ * The save → outcome steps shared by every approved save (stock Apply US-64,
+ * details review US-23, 24, 36): writes through `SheetsWriter`, puts confirmed
  * values into the loaded data, reports conflict / failed / partial, and
  * finishes a partial save with Retry from the ORIGINAL approval (never a new
  * one). Create it inside a store (it injects its services); the store builds
@@ -64,7 +69,15 @@ export class ReviewFlow<C> {
     return pending === null ? null : this.labelsOf(pending.approved).join(' and ');
   });
 
-  constructor(private readonly outcomes: ReviewOutcomes<C>) {}
+  /**
+   * `saveFrom`: the steps a save may start from. Details: after its review (or
+   * a failure). Stock (CR-04, no review): editing, conflict or failed. Never
+   * saving or partial, so one tap writes once.
+   */
+  constructor(
+    private readonly outcomes: ReviewOutcomes<C>,
+    private readonly saveFrom: readonly ReviewStep[] = ['reviewing', 'failed'],
+  ) {}
 
   /** Opens the review (not while saving); the store checks the change is ready first. */
   open(): void {
@@ -88,10 +101,9 @@ export class ReviewFlow<C> {
     this.stepSignal.set('editing');
   }
 
-  /** Saving may start only from the review or after a failure with nothing written (no double writes). */
+  /** Saving may start only from this flow's `saveFrom` steps (never while saving or half saved). */
   canSave(): boolean {
-    const step = this.stepSignal();
-    return step === 'reviewing' || step === 'failed';
+    return this.saveFrom.includes(this.stepSignal());
   }
 
   /**
@@ -133,7 +145,7 @@ export class ReviewFlow<C> {
     const result = await this.writer.write(pending.approved);
     if (result.kind === 'written') {
       this.applyWritten(result.sheets);
-      this.succeed(pending.context, [...pending.writtenLabels, ...labelsOf(result.sheets)]);
+      this.succeed(pending.context, [...pending.writtenLabels, ...labelsOf(result.sheets)], true);
       return;
     }
     // An earlier sheet is already written: whatever happened now, it is still partial.
@@ -163,10 +175,11 @@ export class ReviewFlow<C> {
     switch (result.kind) {
       case 'written':
         this.applyWritten(result.sheets);
-        this.succeed(context, labelsOf(result.sheets));
+        this.succeed(context, labelsOf(result.sheets), false);
         return;
       case 'conflict':
         this.sheets.applyRow(result.ref, result.current.product, result.current.issues);
+        this.outcomes.conflict?.(context);
         this.messageSignal.set(this.outcomes.conflictMessage(result, context));
         this.stepSignal.set('conflict');
         return;
@@ -191,8 +204,8 @@ export class ReviewFlow<C> {
     sheets.forEach((s) => this.sheets.applyRow(s.ref, s.product));
   }
 
-  private succeed(context: C, labels: readonly string[]): void {
-    this.outcomes.written(context, labels);
+  private succeed(context: C, labels: readonly string[], retried: boolean): void {
+    this.outcomes.written(context, labels, retried);
     this.reset();
   }
 

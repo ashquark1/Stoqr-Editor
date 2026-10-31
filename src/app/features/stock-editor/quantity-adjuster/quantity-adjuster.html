@@ -8,6 +8,7 @@
       [class.stoqr-btn--primary]="adjust.mode() === 'add'"
       [class.stoqr-btn--ghost]="adjust.mode() !== 'add'"
       [attr.aria-pressed]="adjust.mode() === 'add'"
+      [disabled]="review.locked()"
       (click)="adjust.setMode('add')"
     >
       Add
@@ -18,6 +19,7 @@
       [class.stoqr-btn--primary]="adjust.mode() === 'subtract'"
       [class.stoqr-btn--ghost]="adjust.mode() !== 'subtract'"
       [attr.aria-pressed]="adjust.mode() === 'subtract'"
+      [disabled]="review.locked()"
       (click)="adjust.setMode('subtract')"
     >
       Subtract
@@ -33,6 +35,7 @@
     autocomplete="off"
     placeholder="e.g. 15"
     [formControl]="amountControl"
+    (keydown.enter)="review.apply()"
   />
 
   <div class="adjuster__result" aria-live="polite">
@@ -62,9 +65,16 @@
   <button
     type="button"
     class="stoqr-btn stoqr-btn--primary adjuster__review"
-    [disabled]="!adjust.readyForReview()"
-    (click)="review.open()"
+    [class.stoqr-btn--busy]="review.step() === 'saving'"
+    [attr.aria-busy]="review.step() === 'saving'"
+    [disabled]="!adjust.applyReady() || review.locked()"
+    (click)="review.apply()"
   >
-    Review
+    @if (review.step() === 'saving') {
+      <span class="stoqr-spinner" aria-hidden="true"></span>
+      Saving…
+    } @else {
+      Apply
+    }
   </button>
 </section>

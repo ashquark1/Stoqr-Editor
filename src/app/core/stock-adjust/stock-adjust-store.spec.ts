@@ -39,7 +39,7 @@ describe('StockAdjustStore', () => {
     store.setAmount('15');
     expect(store.mode()).toBeNull();
     expect(store.proposal()).toBeNull();
-    expect(store.readyForReview()).toBe(false);
+    expect(store.applyReady()).toBe(false);
   });
 
   it('works from the master quantity and shows the change', () => {
@@ -48,7 +48,7 @@ describe('StockAdjustStore', () => {
     expect(store.current()).toBe(120);
     expect(store.proposal()).toEqual({ ok: true, current: 120, delta: -15, proposed: 105 });
     expect(store.deltaText()).toBe('−15');
-    expect(store.readyForReview()).toBe(true);
+    expect(store.applyReady()).toBe(true);
   });
 
   it('rule: the preview status is deriveStockStatus for the proposed quantity', () => {
@@ -85,7 +85,7 @@ describe('StockAdjustStore', () => {
     store.setMode('subtract');
     store.setAmount('500');
     expect(store.proposal()).toMatchObject({ ok: false, reason: 'below-zero' });
-    expect(store.readyForReview()).toBe(false);
+    expect(store.applyReady()).toBe(false);
   });
 
   it('a non-editable product is never ready for review', () => {
@@ -93,7 +93,7 @@ describe('StockAdjustStore', () => {
     store.setMode('add');
     store.setAmount('1');
     expect(store.proposal()?.ok).toBe(true);
-    expect(store.readyForReview()).toBe(false);
+    expect(store.applyReady()).toBe(false);
   });
 
   it('resets when another product is selected, and when the selection clears', () => {

@@ -47,12 +47,10 @@ export class ProductSummary {
   protected readonly navigation = inject(ProductNavigation);
   protected readonly display = displayValue;
 
-  /**
-   * The pencil / eye is off while a save runs or a stock review (or its outcome,
-   * e.g. a half-saved Retry) is showing, so the form never hides it. Interim
-   * until US-64 removes the stock review.
-   */
-  protected readonly iconLocked = computed(() => this.navigation.saving() || this.review.step() !== 'editing');
+  /** The pencil / eye is off while a save runs or a half-done stock save waits for Retry or Close (US-64). */
+  protected readonly iconLocked = computed(() => this.navigation.saving() || this.review.step() === 'partial');
+  /** A stock result to show under the adjuster (interim until the strips of US-76). */
+  protected readonly stockOutcome = computed(() => this.review.step() !== 'editing' || this.review.saved() !== null);
 
   private readonly title = viewChild<ElementRef<HTMLElement>>('titleEl');
   private readonly injector = inject(Injector);

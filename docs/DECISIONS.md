@@ -407,7 +407,7 @@
 ## 2026-10-31: Product card — tiles and one icon (US-72, US-74) [confirmed]
 
 - Decision: the open product is a card under the toolbar; no "Change product" or mode buttons. A product closes only through the search box (clear × or emptied box, US-59 rules). Opening a product closes both floating panels (`ProductSearchStore.select()`).
-- Decision (interim, until US-64): the pencil / eye is disabled while a save runs or a stock review or its outcome (including a half-saved Retry) is showing, so the form never hides that result.
+- Decision: the pencil / eye is disabled while a save runs or a half-done stock save waits for Retry or Close, so the form never hides that result (narrowed by US-64: no stock review any more).
 
 ## 2026-10-31: CR-04 — quantity rules and the contract (US-62) [confirmed]
 
@@ -419,6 +419,14 @@
 - Decision: `ReviewFlow` stays the one save/outcome/Retry engine for every approved save; a stock change starts at saving. Rejected: a separate stock flow (duplication).
 - Risk (owner-accepted): no review page for stock, so a slip such as 500 for 5 is written at once. Guards: the live preview, red limit messages, Undo for about 10 s. A confirmation for large changes is a later option.
 - Supersedes: "Quantity is edited only via the adjuster", and the review step of "Approval flow with a re-read guard" for stock (the re-read guard stays).
+
+## 2026-10-31: Apply without review; outcomes as state (US-64) [confirmed]
+
+- Decision: `StockReviewStore.apply()` writes on one tap (button or Enter) through the shared `ReviewFlow`; stock saves may start from editing, conflict or failed (`ReviewFlow` takes the start steps per store; details keep reviewing / failed). One tap writes once.
+- Decision: after a save the product stays open; `saved()` holds the previous and saved qty, the sheets and what Dr Trust had (the base for Undo, US-65). A conflict clears the entry; a failure keeps it (Try again); a half save locks the adjuster and the pencil until Retry or Close.
+- Decision: `StockAdjustStore` holds amount + sign OR a new total; typing one way clears the other. `ProductNavigation` counts any entry (`hasEntry`) as unsaved; opening the form also clears a stock result.
+- Interim (until US-75/76): the old adjuster gets an Apply button (no New total box yet), `review-panel/` shows the outcomes with its own buttons, and the "Stock saved" toast stays.
+- Tests: `stock-review-store.spec.ts` and `review-panel.spec.ts` tested only the removed review step and were deleted; rewrite in US-88/89 when tests resume (owner suspension, 2026-10-29).
 
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).

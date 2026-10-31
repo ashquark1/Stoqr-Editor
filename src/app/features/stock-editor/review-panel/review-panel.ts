@@ -1,22 +1,21 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
+import { AppConfig } from '@core/config/app-config';
 import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
-import { Badge } from '@shared/ui/badge/badge';
-import { ReviewActions } from '../review-actions/review-actions';
 
 /**
- * Review & approve a quantity change (US-18, 35): shows exactly what will be
- * written and to which sheets, then the outcome. All state and the write
- * itself live in `StockReviewStore`; this component renders and forwards
- * clicks.
+ * The result of a stock Apply (US-64), shown under the adjuster: saving,
+ * saved, conflict, failed (Try again) or half saved (Retry / Close). Interim
+ * until US-76 replaces it with the shared strips. All state and the write
+ * live in `StockReviewStore`; this component renders and forwards clicks.
  */
 @Component({
   selector: 'app-review-panel',
-  imports: [Badge, ReviewActions],
   templateUrl: './review-panel.html',
   styleUrl: './review-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReviewPanel {
   protected readonly review = inject(StockReviewStore);
+  protected readonly drTrustLabel = inject(AppConfig).sheet('dr-trust').label;
 }

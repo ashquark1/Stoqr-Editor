@@ -1,36 +1,47 @@
-<section class="review" aria-labelledby="review-title">
-  <h3 id="review-title" class="review__title">Review change</h3>
-
-  @if (review.review(); as summary) {
-    <p class="review__sheets">Saves to: <strong>{{ summary.sheetsText }}</strong></p>
-    <p class="review__line">
-      Current <strong>{{ summary.current }}</strong>
-      <span aria-hidden="true">→</span>
-      <strong>{{ summary.deltaText }}</strong>
-      <span aria-hidden="true">→</span>
-      New <strong class="review__new">{{ summary.proposed }}</strong>
-      @if (summary.status; as status) {
-        <stoqr-badge [status]="status" />
+<!-- Interim outcome panel under the adjuster (US-64); US-76 replaces it with the shared strips. -->
+<section class="review" aria-label="Stock change result">
+  @switch (review.step()) {
+    @case ('saving') {
+      <p class="review__line" role="status">Saving…</p>
+    }
+    @case ('editing') {
+      @if (review.saved(); as saved) {
+        <p class="review__line" role="status">
+          @if (saved.retried) {
+            <strong>{{ drTrustLabel }} updated.</strong> Both sheets now show {{ saved.saved }}.
+          } @else {
+            <strong>Stock saved.</strong> Now {{ saved.saved }} in {{ saved.sheetsText }}.
+            @if (saved.drTrustHad !== null) {
+              {{ drTrustLabel }} had {{ saved.drTrustHad }}.
+            }
+          }
+        </p>
+        <div class="review__actions">
+          <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.close()">Dismiss</button>
+        </div>
       }
-    </p>
-    @if (summary.lowStockWarning) {
-      <p class="review__warning">Below the low-stock threshold.</p>
     }
-    @if (summary.drTrustNote; as note) {
-      <p class="review__note">{{ note }}</p>
+    @default {
+      @if (review.message(); as message) {
+        <p class="review__message" role="alert">{{ message }}</p>
+      }
+      <div class="review__actions">
+        @switch (review.step()) {
+          @case ('failed') {
+            <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.apply()">Try again</button>
+            <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.close()">Dismiss</button>
+          }
+          @case ('conflict') {
+            <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.close()">Dismiss</button>
+          }
+          @case ('partial') {
+            @if (review.retryLabel(); as label) {
+              <button type="button" class="stoqr-btn stoqr-btn--primary" (click)="review.retry()">Retry {{ label }}</button>
+            }
+            <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="review.close()">Close</button>
+          }
+        }
+      </div>
     }
   }
-
-  @if (review.message(); as message) {
-    <p class="review__message" role="alert">{{ message }}</p>
-  }
-
-  <app-review-actions
-    [step]="review.step()"
-    [retryLabel]="review.retryLabel()"
-    (approve)="review.approve()"
-    (back)="review.back()"
-    (reviewAgain)="review.open()"
-    (retry)="review.retry()"
-  />
 </section>

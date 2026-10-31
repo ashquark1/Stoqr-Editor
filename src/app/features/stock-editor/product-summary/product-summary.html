@@ -84,9 +84,8 @@
 
         @if (search.selectedEditability(); as check) {
           @if (check.editable) {
-            @if (review.step() === 'editing') {
-              <app-quantity-adjuster />
-            } @else {
+            <app-quantity-adjuster />
+            @if (stockOutcome()) {
               <app-review-panel />
             }
           } @else {
