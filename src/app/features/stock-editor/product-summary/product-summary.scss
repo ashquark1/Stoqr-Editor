@@ -22,8 +22,14 @@
   }
 }
 
+// The form replacing the body fades in the same way (US-74).
+.summary__body {
+  animation: summary-in 150ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .summary {
+  .summary,
+  .summary__body {
     animation: none;
   }
 }

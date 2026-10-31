@@ -223,7 +223,7 @@ export class ProductSearchStore {
   /**
    * Opens a product (call through `ProductNavigation`, which asks first when
    * needed). The overlay closes and the box text is remembered; this closes
-   * the filter panel (US-70).
+   * the filter panel (US-70) and the Data health panel (US-72).
    */
   select(ref: RowRef): void {
     if (ref !== this.selectedRefSignal()) {
@@ -234,6 +234,7 @@ export class ProductSearchStore {
     this.overlaySignal.set(false);
     this.rememberedSignal.set(this.typedSignal());
     this.panels.closeFilters();
+    this.panels.closeHealth();
   }
 
   /** The same product under the ref a refresh gave it (US-60): nothing else changes. */

@@ -4,6 +4,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  computed,
   effect,
   inject,
   untracked,
@@ -46,8 +47,12 @@ export class ProductSummary {
   protected readonly navigation = inject(ProductNavigation);
   protected readonly display = displayValue;
 
-  /** A stock or details save is running: the icon is disabled (its result must not be lost). */
-  protected readonly saving = this.navigation.saving;
+  /**
+   * The pencil / eye is off while a save runs or a stock review (or its outcome,
+   * e.g. a half-saved Retry) is showing, so the form never hides it. Interim
+   * until US-64 removes the stock review.
+   */
+  protected readonly iconLocked = computed(() => this.navigation.saving() || this.review.step() !== 'editing');
 
   private readonly title = viewChild<ElementRef<HTMLElement>>('titleEl');
   private readonly injector = inject(Injector);

@@ -15,7 +15,7 @@
               class="summary__icon"
               aria-label="Edit details"
               stoqrTooltip="Edit details"
-              [disabled]="saving()"
+              [disabled]="iconLocked()"
               (click)="navigation.openDetails()"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -29,7 +29,7 @@
               class="summary__icon"
               aria-label="View details"
               stoqrTooltip="View details"
-              [disabled]="saving()"
+              [disabled]="iconLocked()"
               (click)="navigation.openDetails()"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -43,11 +43,13 @@
 
       @if (details.formOpen()) {
         <!-- The form replaces the whole body; the header stays (US-74). -->
-        @defer {
-          <app-details-form />
-        } @loading {
-          <p class="summary__note">Loading details…</p>
-        }
+        <div class="summary__body">
+          @defer {
+            <app-details-form />
+          } @loading {
+            <p class="summary__note">Loading details…</p>
+          }
+        </div>
       } @else {
         <!-- Five facts, one tile style (US-74). Not controls: no hover. -->
         <dl class="summary__tiles">
