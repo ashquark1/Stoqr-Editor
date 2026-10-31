@@ -1,80 +1,111 @@
 <section class="adjuster" aria-labelledby="adjust-title">
   <h3 id="adjust-title" class="adjuster__title">Adjust stock</h3>
 
-  <div class="adjuster__modes" role="group" aria-label="Add or subtract">
-    <button
-      type="button"
-      class="stoqr-btn"
-      [class.stoqr-btn--primary]="adjust.mode() === 'add'"
-      [class.stoqr-btn--ghost]="adjust.mode() !== 'add'"
-      [attr.aria-pressed]="adjust.mode() === 'add'"
-      [disabled]="review.locked()"
-      (click)="adjust.setMode('add')"
-    >
-      Add
-    </button>
-    <button
-      type="button"
-      class="stoqr-btn"
-      [class.stoqr-btn--primary]="adjust.mode() === 'subtract'"
-      [class.stoqr-btn--ghost]="adjust.mode() !== 'subtract'"
-      [attr.aria-pressed]="adjust.mode() === 'subtract'"
-      [disabled]="review.locked()"
-      (click)="adjust.setMode('subtract')"
-    >
-      Subtract
-    </button>
+  <!-- Two ways (US-75): an amount with + / −, or a new total. Typing one way clears and dims the other. -->
+  <div class="adjuster__ways">
+    <div class="adjuster__way" [class.adjuster__way--dim]="dimAmount()">
+      <label class="adjuster__label" for="adjust-amount">Amount</label>
+      <div class="adjuster__amount-row">
+        <input
+          id="adjust-amount"
+          class="stoqr-input adjuster__box"
+          [class.stoqr-input--invalid]="errorOn() === 'amount'"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          [formControl]="amountControl"
+          [attr.aria-describedby]="errorOn() === 'amount' ? 'adjust-error' : null"
+          [attr.aria-invalid]="errorOn() === 'amount'"
+          (input)="adjust.setAmount(textOf($event))"
+          (keydown.enter)="review.apply()"
+        />
+        <button
+          type="button"
+          class="stoqr-btn stoqr-btn--secondary adjuster__sign"
+          [class.stoqr-btn--pressed]="adjust.mode() === 'add'"
+          [attr.aria-pressed]="adjust.mode() === 'add'"
+          aria-label="Add"
+          stoqrTooltip="Add"
+          [disabled]="review.locked()"
+          (click)="adjust.setMode('add')"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          class="stoqr-btn stoqr-btn--secondary adjuster__sign"
+          [class.stoqr-btn--pressed]="adjust.mode() === 'subtract'"
+          [attr.aria-pressed]="adjust.mode() === 'subtract'"
+          aria-label="Subtract"
+          stoqrTooltip="Subtract"
+          [disabled]="review.locked()"
+          (click)="adjust.setMode('subtract')"
+        >
+          −
+        </button>
+      </div>
+    </div>
+
+    <div class="adjuster__or" aria-hidden="true"><span>or</span></div>
+
+    <div class="adjuster__way" [class.adjuster__way--dim]="dimTotal()">
+      <label class="adjuster__label" for="adjust-total">New total</label>
+      <input
+        id="adjust-total"
+        class="stoqr-input adjuster__box"
+        [class.stoqr-input--invalid]="errorOn() === 'total'"
+        type="text"
+        inputmode="numeric"
+        autocomplete="off"
+        [formControl]="totalControl"
+        [attr.aria-describedby]="errorOn() === 'total' ? 'adjust-error' : null"
+        [attr.aria-invalid]="errorOn() === 'total'"
+        (input)="adjust.setTotal(textOf($event))"
+        (keydown.enter)="review.apply()"
+      />
+    </div>
   </div>
 
-  <label class="adjuster__label" for="adjust-amount">Amount</label>
-  <input
-    id="adjust-amount"
-    class="stoqr-input"
-    type="text"
-    inputmode="numeric"
-    autocomplete="off"
-    placeholder="e.g. 15"
-    [formControl]="amountControl"
-    (keydown.enter)="review.apply()"
-  />
-
-  <div class="adjuster__result" aria-live="polite">
-    @if (adjust.mode() === null) {
-      <p class="adjuster__hint">Choose Add or Subtract.</p>
-    } @else if (adjust.proposal(); as proposal) {
-      @if (proposal.ok) {
-        <p class="adjuster__line">
-          Current <strong>{{ proposal.current }}</strong>
-          <span aria-hidden="true">→</span>
-          <strong>{{ adjust.deltaText() }}</strong>
-          <span aria-hidden="true">→</span>
-          New <strong class="adjuster__new">{{ proposal.proposed }}</strong>
-          @if (adjust.proposedStatus(); as status) {
-            <stoqr-badge [status]="status" />
+  <!-- Preview on the left, Apply on the right; reserved height so nothing jumps. -->
+  <div class="adjuster__footer">
+    <div class="adjuster__preview" aria-live="polite">
+      @if (adjust.proposal(); as proposal) {
+        @if (proposal.ok) {
+          <p class="adjuster__line">
+            Current <strong>{{ proposal.current }}</strong>
+            <span aria-hidden="true">→</span>
+            <strong>{{ adjust.deltaText() }}</strong>
+            <span aria-hidden="true">→</span>
+            New <strong class="adjuster__new">{{ proposal.proposed }}</strong>
+            @if (adjust.proposedStatus(); as status) {
+              <stoqr-badge [status]="status" />
+            }
+          </p>
+          @if (adjust.lowStockWarning()) {
+            <p class="adjuster__warning">Below the low-stock threshold ({{ adjust.threshold() }}).</p>
           }
-        </p>
-        @if (adjust.lowStockWarning()) {
-          <p class="adjuster__warning">Below the low-stock threshold ({{ adjust.threshold() }}).</p>
+        } @else {
+          <p id="adjust-error" class="adjuster__error" role="alert">{{ proposal.message }}</p>
         }
       } @else {
-        <p class="adjuster__error" role="alert">{{ proposal.message }}</p>
+        <p class="adjuster__hint">{{ hint() }}</p>
       }
-    }
-  </div>
+    </div>
 
-  <button
-    type="button"
-    class="stoqr-btn stoqr-btn--primary adjuster__review"
-    [class.stoqr-btn--busy]="review.step() === 'saving'"
-    [attr.aria-busy]="review.step() === 'saving'"
-    [disabled]="!adjust.applyReady() || review.locked()"
-    (click)="review.apply()"
-  >
-    @if (review.step() === 'saving') {
-      <span class="stoqr-spinner" aria-hidden="true"></span>
-      Saving…
-    } @else {
-      Apply
-    }
-  </button>
+    <button
+      type="button"
+      class="stoqr-btn stoqr-btn--primary adjuster__apply"
+      [class.stoqr-btn--busy]="review.step() === 'saving'"
+      [attr.aria-busy]="review.step() === 'saving'"
+      [disabled]="!adjust.applyReady() || review.locked()"
+      (click)="review.apply()"
+    >
+      @if (review.step() === 'saving') {
+        <span class="stoqr-spinner" aria-hidden="true"></span>
+        Saving…
+      } @else {
+        Apply
+      }
+    </button>
+  </div>
 </section>

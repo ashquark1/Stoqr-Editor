@@ -1,7 +1,9 @@
+@use 'breakpoints' as bp;
+
 .adjuster {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding-top: var(--space-3);
   border-top: var(--border-thin);
 }
@@ -15,22 +17,130 @@
   color: var(--color-text-muted);
 }
 
-.adjuster__modes {
+// Phones: Amount, a horizontal "or", New total, stacked. From 768px: two equal
+// columns with a vertical "or" between them, aligned at the top.
+.adjuster__ways {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  @include bp.from(tablet) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-4);
+  }
+}
+
+.adjuster__way {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
+
+  // The way not in use: grey fill (labels keep AA contrast), still usable —
+  // typing in it switches over.
+  &--dim .adjuster__box {
+    background: var(--color-paper);
+  }
 }
 
 .adjuster__label {
   font-size: var(--text-small);
+  font-weight: 500;
   color: var(--color-ink-mid);
 }
 
-.adjuster__review {
-  align-self: flex-start;
+.adjuster__amount-row {
+  display: flex;
+  gap: var(--space-2);
 }
 
-.adjuster__result {
-  min-height: var(--space-6);
+// Boxes fill the space on phones (the signs keep 44px), and stop at about 240px.
+.adjuster__box {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+
+  @include bp.from(tablet) {
+    max-width: 240px;
+  }
+}
+
+.adjuster__sign {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 0;
+  font-size: var(--text-h3);
+  font-weight: 600;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+// "or" with a line each side; vertical between the columns from 768px.
+.adjuster__or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-top: var(--border-thin);
+  }
+
+  @include bp.from(tablet) {
+    flex-direction: column;
+    align-self: stretch;
+
+    &::before,
+    &::after {
+      border-top: none;
+      border-left: var(--border-thin);
+    }
+  }
+}
+
+// Preview left, Apply right; the line above separates it. Reserved height so
+// a preview, a message or the hint never shifts the layout.
+.adjuster__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border-thin);
+
+  @include bp.from(tablet) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.adjuster__preview {
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.adjuster__apply {
+  width: 100%;
+
+  @include bp.from(tablet) {
+    width: auto;
+    min-width: 120px;
+    flex-shrink: 0;
+  }
 }
 
 .adjuster__hint,
