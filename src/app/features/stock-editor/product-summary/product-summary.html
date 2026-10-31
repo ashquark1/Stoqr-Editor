@@ -1,99 +1,101 @@
 @if (search.selected(); as row) {
-  <!-- Not a live region (US-26): it would re-read the whole card while typing; messages announce themselves. -->
-  <article class="summary" aria-labelledby="summary-title">
-    <header class="summary__header">
-      <h2 id="summary-title" class="summary__title">{{ display(row.product.productName) }}</h2>
-      <button
-        type="button"
-        class="stoqr-btn stoqr-btn--ghost"
-        [disabled]="saving()"
-        (click)="changeProduct()"
-      >
-        Change product
-      </button>
-    </header>
+  <!-- Re-created when another product opens (short fade, US-72); a refresh keeps it. -->
+  @for (key of [search.selectionKey()]; track key) {
+    <!-- Not a live region (US-26): it would re-read the whole card while typing; messages announce themselves. -->
+    <article class="summary" aria-labelledby="summary-title">
+      <header class="summary__header">
+        <div class="summary__heading">
+          <p class="summary__brand">{{ display(row.product.brand) }}</p>
+          <h2 #titleEl id="summary-title" class="summary__title" tabindex="-1">{{ display(row.product.productName) }}</h2>
+        </div>
+        @if (!details.formOpen()) {
+          @if (details.editable()) {
+            <button
+              type="button"
+              class="summary__icon"
+              aria-label="Edit details"
+              stoqrTooltip="Edit details"
+              [disabled]="saving()"
+              (click)="navigation.openDetails()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="summary__icon"
+              aria-label="View details"
+              stoqrTooltip="View details"
+              [disabled]="saving()"
+              (click)="navigation.openDetails()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          }
+        }
+      </header>
 
-    <div class="stoqr-field-group">
-      <div class="stoqr-field-group__grid">
-        <div class="stoqr-field">
-          <div class="stoqr-field__label">Brand</div>
-          <div class="stoqr-field__value">{{ display(row.product.brand) }}</div>
-        </div>
-        <div class="stoqr-field">
-          <div class="stoqr-field__label">SKU</div>
-          <div class="stoqr-field__value stoqr-field__value--mono">{{ display(row.product.sku) }}</div>
-        </div>
-        <div class="stoqr-field">
-          <div class="stoqr-field__label">Stock qty</div>
-          <div class="stoqr-field__value summary__qty">{{ display(row.product.stockQty) }}</div>
-        </div>
-        <div class="stoqr-field">
-          <div class="stoqr-field__label">Stock status</div>
-          <div class="stoqr-field__value"><stoqr-badge [status]="row.product.stockStatus" /></div>
-        </div>
-        <div class="stoqr-field">
-          <div class="stoqr-field__label">Status</div>
-          <div class="stoqr-field__value"><stoqr-status-badge [status]="row.product.status" /></div>
-        </div>
-        <div class="stoqr-field">
-          <div class="stoqr-field__label">Sync</div>
-          <div class="stoqr-field__value"><stoqr-sync-badge [kind]="search.selectedSyncBadge()" /></div>
-        </div>
-      </div>
-    </div>
-
-    @if (search.drTrustQtyDiffers()) {
-      @if (search.selectedLink(); as link) {
-        <p class="summary__note">Dr Trust sheet has {{ display(link.product.stockQty) }}.</p>
-      }
-    }
-
-    @if (search.selectedEditability(); as check) {
-      <!-- One editor at a time: a stock save clears the selection, which must never drop unsaved details. -->
-      <div class="summary__modes" role="group" aria-label="What to do with this product">
-        <button
-          type="button"
-          class="stoqr-btn"
-          [class.stoqr-btn--primary]="mode() === 'adjust'"
-          [class.stoqr-btn--ghost]="mode() !== 'adjust'"
-          [attr.aria-pressed]="mode() === 'adjust'"
-          [disabled]="reviewOpen()"
-          (click)="show('adjust')"
-        >
-          Adjust stock
-        </button>
-        <button
-          type="button"
-          class="stoqr-btn"
-          [class.stoqr-btn--primary]="mode() === 'details'"
-          [class.stoqr-btn--ghost]="mode() !== 'details'"
-          [attr.aria-pressed]="mode() === 'details'"
-          [disabled]="reviewOpen()"
-          (click)="show('details')"
-        >
-          {{ check.editable ? 'Edit details' : 'Details' }}
-        </button>
-      </div>
-
-      @if (mode() === 'details') {
+      @if (details.formOpen()) {
+        <!-- The form replaces the whole body; the header stays (US-74). -->
         @defer {
           <app-details-form />
         } @loading {
           <p class="summary__note">Loading details…</p>
         }
-      } @else if (check.editable) {
-        @if (review.step() === 'editing') {
-          <app-quantity-adjuster />
-        } @else {
-          <app-review-panel />
-        }
       } @else {
-        <ul class="summary__blocked" aria-label="Why this product cannot be edited">
-          @for (reason of check.reasons; track reason) {
-            <li>{{ reason }}</li>
+        <!-- Five facts, one tile style (US-74). Not controls: no hover. -->
+        <dl class="summary__tiles">
+          <div class="summary__tile summary__tile--sku">
+            <dt class="summary__tile-label">SKU</dt>
+            <dd class="summary__tile-value summary__tile-value--mono">{{ display(row.product.sku) }}</dd>
+          </div>
+          <div class="summary__tile">
+            <dt class="summary__tile-label">Stock qty</dt>
+            <dd class="summary__tile-value">
+              <span class="summary__qty">{{ display(row.product.stockQty) }}</span>
+              @if (search.drTrustQtyDiffers()) {
+                @if (search.selectedLink(); as link) {
+                  <span class="summary__tile-note">Dr Trust sheet has {{ display(link.product.stockQty) }}.</span>
+                }
+              }
+            </dd>
+          </div>
+          <div class="summary__tile">
+            <dt class="summary__tile-label">Stock status</dt>
+            <dd class="summary__tile-value"><stoqr-badge [status]="row.product.stockStatus" /></dd>
+          </div>
+          <div class="summary__tile">
+            <dt class="summary__tile-label">Status</dt>
+            <dd class="summary__tile-value"><stoqr-status-badge [status]="row.product.status" /></dd>
+          </div>
+          <div class="summary__tile">
+            <dt class="summary__tile-label">Sync</dt>
+            <dd class="summary__tile-value"><stoqr-sync-badge [kind]="search.selectedSyncBadge()" /></dd>
+          </div>
+        </dl>
+
+        @if (search.selectedEditability(); as check) {
+          @if (check.editable) {
+            @if (review.step() === 'editing') {
+              <app-quantity-adjuster />
+            } @else {
+              <app-review-panel />
+            }
+          } @else {
+            <ul class="summary__blocked" aria-label="Why this product cannot be edited">
+              @for (reason of check.reasons; track reason) {
+                <li>{{ reason }}</li>
+              }
+            </ul>
           }
-        </ul>
+        }
       }
-    }
-  </article>
+    </article>
+  }
 }

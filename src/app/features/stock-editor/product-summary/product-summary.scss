@@ -1,13 +1,34 @@
+@use 'breakpoints' as bp;
+
+// The card under the toolbar, full content width (US-72); short fade when a
+// product opens, none with reduced motion.
 .summary {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   padding: var(--space-4);
   background: var(--color-white);
   border: var(--border-thin);
   border-radius: var(--radius-2xl);
+  animation: summary-in 150ms ease-out;
 }
 
+@keyframes summary-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .summary {
+    animation: none;
+  }
+}
+
+// Brand small and muted above the name; the pencil / eye in the top-right corner.
 .summary__header {
   display: flex;
   align-items: flex-start;
@@ -15,21 +36,134 @@
   gap: var(--space-3);
 }
 
+.summary__heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.summary__brand {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 .summary__title {
   margin: 0;
-  font-size: var(--text-h3);
+  font-size: var(--text-h2);
+  overflow-wrap: anywhere;
+  outline: none;
+}
+
+// Icon-only, 44px tap area (US-74).
+.summary__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-pine);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--color-dew);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--color-mint);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Five tiles: 2 columns on phones (SKU across both), 3 from 768px (SKU across
+// two, beside Stock qty), one row of 5 from 1024px. Equal height per row.
+.summary__tiles {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @include bp.from(tablet) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @include bp.from(desktop) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.summary__tile {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--color-paper);
+  border-radius: var(--radius-lg);
+
+  &--sku {
+    grid-column: span 2;
+
+    @include bp.from(desktop) {
+      grid-column: auto;
+    }
+  }
+}
+
+.summary__tile-label {
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.summary__tile-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+
+  &--mono {
+    font-family: var(--font-mono);
+  }
 }
 
 .summary__qty {
-  font-size: var(--text-h3);
+  font-size: var(--text-h2);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--color-ink);
 }
 
-.summary__modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+.summary__tile-note {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
 }
 
 .summary__note {
