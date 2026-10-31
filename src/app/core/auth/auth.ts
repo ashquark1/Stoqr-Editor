@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { AppConfig } from '@core/config/app-config';
 import { REQUESTED_SCOPES, SHEETS_SCOPE } from './auth-scope';
+import { clearDevSession, devSessionEnabled, loadDevSession, saveDevSession } from './dev-session';
 import { GIS_LOADER } from './gis-loader';
 import { GisClientError, GisOAuth2, GisTokenClient, GisTokenResponse } from './gis-types';
 import { UserProfile, UserProfileReader } from './user-profile';
@@ -51,7 +52,8 @@ interface TokenWaiter {
 /**
  * Google sign-in with the GIS token flow (US-05), sign-out and the first name
  * (US-07, D1), and in-place renewal (US-06). The access token lives in a
- * private field (memory only, never browser storage); `core/sheets` gets it
+ * private field (memory only, never browser storage — except the
+ * development-only session keeper in `dev-session.ts`, removed before go-live); `core/sheets` gets it
  * only through `freshToken()`. Expiry never clears work: only sign-out, or a
  * different account on renewal, starts a new `sessionId`.
  */
@@ -118,6 +120,21 @@ export class Auth {
   private expiryTimer: ReturnType<typeof setTimeout> | undefined;
   /** Bumped whenever a token is replaced or dropped, so a late profile lookup is discarded. */
   private tokenGeneration = 0;
+  /** DEVELOPMENT ONLY (dev-session.ts): keep the session across reloads. Remove before go-live. */
+  private readonly keepDevSession = devSessionEnabled(this.config.mode());
+
+  constructor() {
+    // DEVELOPMENT ONLY: a reload in a dev build on the TEST sheets resumes the
+    // saved session instead of asking for sign-in again (dev-session.ts).
+    const saved = this.keepDevSession ? loadDevSession() : null;
+    if (saved !== null) {
+      this.startToken(saved.token, saved.expiresAt);
+      this.accountId = saved.accountId;
+      this.firstNameSignal.set(saved.firstName);
+      this.statusSignal.set('signed-in');
+      this.sessionIdSignal.update((id) => id + 1);
+    }
+  }
 
   /** Loads GIS and creates the token client. Safe to call repeatedly; Retry calls it again. */
   prepare(): Promise<void> {
@@ -301,6 +318,7 @@ export class Auth {
     }
     this.accountId = profile?.id ?? null;
     this.firstNameSignal.set(profile?.firstName ?? null);
+    this.saveDevSession();
   }
 
   private isDifferentPerson(profile: UserProfile | null): boolean {
@@ -338,10 +356,15 @@ export class Auth {
   }
 
   private setToken(token: string, lifetimeSeconds: number): void {
+    this.startToken(token, Date.now() + (lifetimeSeconds - EXPIRY_MARGIN_SECONDS) * 1000);
+    this.saveDevSession();
+  }
+
+  /** Holds a token until `expiresAt` (margin applied) and starts the session clock. */
+  private startToken(token: string, expiresAt: number): void {
     this.clearTimers();
     this.tokenGeneration++;
     this.token = token;
-    const expiresAt = Date.now() + (lifetimeSeconds - EXPIRY_MARGIN_SECONDS) * 1000;
     this.expiresAtSignal.set(expiresAt);
     this.expiringSoonSignal.set(false);
 
@@ -360,6 +383,23 @@ export class Auth {
     this.token = null;
     this.expiresAtSignal.set(null);
     this.expiringSoonSignal.set(false);
+    if (this.keepDevSession) {
+      clearDevSession();
+    }
+  }
+
+  /** DEVELOPMENT ONLY (dev-session.ts): remember the current token for the next reload. */
+  private saveDevSession(): void {
+    const expiresAt = this.expiresAtSignal();
+    if (!this.keepDevSession || this.token === null || expiresAt === null) {
+      return;
+    }
+    saveDevSession({
+      token: this.token,
+      expiresAt,
+      firstName: this.firstNameSignal(),
+      accountId: this.accountId,
+    });
   }
 
   /** Sign-out (or refused access): forget everyone and everything; reject waiting requests. */

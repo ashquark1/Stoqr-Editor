@@ -138,11 +138,19 @@ describe('auth rules (US-05)', () => {
 
   it('core/auth and core/sheets never use browser storage or cookies', () => {
     const storage = /\b(?:localStorage|sessionStorage|indexedDB)\b|document\.cookie/;
+    // DEVELOPMENT ONLY exception (owner, 2026-10-31): dev-session.ts keeps the
+    // session across reloads in dev builds on TEST. Remove with the file before go-live.
+    const devOnly = 'src/app/core/auth/dev-session.ts';
     const offending = offenders(
-      (f) => isTs(f) && (inAuth(f) || inSheets(f)) && !f.path.endsWith('.spec.ts'),
+      (f) => isTs(f) && (inAuth(f) || inSheets(f)) && !f.path.endsWith('.spec.ts') && f.path !== devOnly,
       storage,
     );
     expect(offending).toEqual([]);
+  });
+
+  it('the dev session keeper only runs in dev builds on TEST', () => {
+    const devSession = files.find((f) => f.path === 'src/app/core/auth/dev-session.ts');
+    expect(devSession?.code).toMatch(/isDevMode\(\)\s*&&\s*mode === 'test'/);
   });
 });
 

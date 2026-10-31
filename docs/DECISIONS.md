@@ -362,7 +362,15 @@
 - Decision (owner): the button shows once the sheets have loaded with no error and are not reloading — including an empty master sheet; never on sign-in, loading or error.
 - Trade-off: the shell now reads the data-health count, which brings the pairing code into the first load (+14.6 kB, 475.4 kB; about 25 kB before the 500 kB warning). Accepted rather than deferring the button; later stories should lazy-load where they can.
 
+## 2026-10-31: Development-only session keeper — REMOVE BEFORE GO-LIVE [confirmed, temporary]
+
+- Owner request: stop having to sign in after every code change during development. Skipping sign-in outright would leave no Google token, so the sheets could not load; the owner chose "keep me signed in" over fake data or no data.
+- Decision: `core/auth/dev-session.ts` saves the access token, its expiry, the first name and account id in this tab's `sessionStorage` after sign-in; `Auth` resumes it on start-up. It runs only when `isDevMode()` (false in every production build) AND `mode === 'test'`; it is cleared on sign-out and on expiry. The token still lasts about an hour, so a sign-in is still needed hourly.
+- Trade-off: a temporary exception to "tokens in memory only" (AI_CONTRACT). The code is present but inert in the production build (both guards false there). Architecture rule exempts only this file and checks its guard.
+- Action: delete `dev-session.ts`, its calls in `auth.ts` and the architecture-rule exemption as part of the US-27 cutover checklist.
+
 ## Open Questions
+- REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
 - Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).
