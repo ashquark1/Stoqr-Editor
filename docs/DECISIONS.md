@@ -436,6 +436,13 @@
 - Decision: Try again after a failed Undo repeats the Undo (the store remembers the last action).
 - Cost: the stock store's timers added 0.4 kB to the first load (497.0 kB; 3 kB under the warning).
 
+## 2026-10-31: New adjuster layout (US-75) [confirmed]
+
+- Decision: Amount (+ / −) and New total side by side from 768px with an "or" divider, stacked on phones; a footer with the preview and Apply. The way not in use gets a grey fill (not reduced opacity, so its label keeps AA contrast).
+- Decision (owner): an amount with no sign shows "Choose + or −."; nothing typed shows "Enter an amount or a new total.".
+- Decision (reuse, Q-G3): the chosen sign uses a new shared `.stoqr-btn--pressed` (Dew fill, Pine outline) in the theme. Follow-up: the Data health and Filters buttons still carry their own copies of this look and can move to it.
+- Decision: both boxes reach the store through their `input` events (AI_CONTRACT: no effect forwarding input); the old `toSignal` + effect for the amount is gone.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

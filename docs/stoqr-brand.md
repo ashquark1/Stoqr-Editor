@@ -168,7 +168,7 @@ badges `--radius-pill`; table wrapper `--radius-lg` (8px).
 ## 5. Component Styling
 Component classes are defined in `stoqr-theme.scss`: `.stoqr-logo`,
 `.stoqr-search`, `.stoqr-badge` (`--in-stock`/`--low-stock`/`--out-of-stock`/
-`--unknown`), `.stoqr-btn` (`--primary`/`--secondary`/`--ghost`/`--danger`/`--busy`, V2) +
+`--unknown`), `.stoqr-btn` (`--primary`/`--secondary`/`--ghost`/`--danger`/`--busy`/`--pressed`, V2) +
 `.icon-btn` (icon-only under 768px, V1's name),
 `.stoqr-table` + `.stoqr-table-wrap`, `.stoqr-modal*` + `.stoqr-field-group`/
 `.stoqr-field` (+ `__error`, V2), `.stoqr-input` (`--mono`/`--invalid`/
