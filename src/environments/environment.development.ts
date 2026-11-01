@@ -25,7 +25,7 @@ export const environment: AppEnvironment = {
   ],
   stockLog: {
     label: 'Stock Log',
-    spreadsheetId: '1F8c1lJpGhIal_azVBDexzGHVtdrsGVipM78cqLzxpWg',
+    spreadsheetId: '1NPTFfZIGcDkW2ZcLH2sabkP3FZjLz0QX0MFYPF88VPc',
     tab: 'Stock Log',
   },
 };
