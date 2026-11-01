@@ -43,6 +43,13 @@ export interface ReviewOutcomes<C> {
   ) => string;
   /** Called on the first partial result (e.g. to clear an amount that must not be applied twice). */
   readonly partial?: (context: C) => void;
+  /**
+   * A FIRST save confirmed the Master row (`written`, or `partial` with Master
+   * written; US-95): the Stock Log line follows. Called before `written` /
+   * `partial`. Never from `retry()` (Master is never rewritten there), never
+   * for conflict or failed (incl. unconfirmed).
+   */
+  readonly masterConfirmed?: (context: C, master: SheetWritten) => void;
 }
 
 /** A half-done linked save that Retry can finish (US-34). */
@@ -210,6 +217,7 @@ export class ReviewFlow<C> {
     switch (result.kind) {
       case 'written':
         this.applyWritten(result.sheets);
+        this.confirmMaster(context, result.sheets);
         this.succeed(context, labelsOf(result.sheets), false);
         return;
       case 'conflict':
@@ -220,6 +228,7 @@ export class ReviewFlow<C> {
         return;
       case 'partial': {
         this.applyWritten(result.written);
+        this.confirmMaster(context, result.written);
         this.outcomes.partial?.(context);
         const writtenLabels = labelsOf(result.written);
         this.toPartial(
@@ -239,6 +248,13 @@ export class ReviewFlow<C> {
         this.messageSignal.set(result.error.message);
         this.stepSignal.set('failed');
         return;
+    }
+  }
+
+  private confirmMaster(context: C, sheets: readonly SheetWritten[]): void {
+    const master = sheets.find((s) => s.sheet.key === 'master');
+    if (master !== undefined) {
+      this.outcomes.masterConfirmed?.(context, master);
     }
   }
 

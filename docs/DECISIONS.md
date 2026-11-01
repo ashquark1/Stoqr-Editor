@@ -504,6 +504,16 @@
 - Decision: Retry / Try again after an append re-read first; a row with the same SKU and product name counts as already written, so nothing is added twice.
 - Details: `specs/stock-log.md`, `specs/create-product.md`.
 
+## 2026-11-01: Stock log lines for every confirmed stock change (US-95) [confirmed]
+
+- Decision: one optional `ReviewFlow` hook, `masterConfirmed`, fires when a FIRST save confirms the Master row (`written`, or `partial` with Master written), never from `retry()`, so Retry Dr Trust never logs again. Stock: Apply (Add / Subtract / New total) and Undo (Note `Reverses <Change ID>`); details: Form edit only when Stock qty changed and the confirmed Master qty differs.
+- Decision: `StockLogStore.record()` is the one caller of `appendLogLine` for stock. The line is built once (fixed Change ID, kept on `StockSaved` for Undo) and is not awaited by the save, so the stock outcome never depends on the log.
+- Decision (owner): lines go out in order; while one is pending, new lines queue behind it. Retry log (one tap, not while sending) first reads the log's Change ID column and drops lines already there, so an unconfirmed append that landed is never added twice; if that read fails, nothing is sent.
+- Decision (owner): pending lines live in memory: kept across products, Refresh and expiry; dropped on sign-out, another account or a page reload.
+- Decision: stock changes are off while the log is `no-access` or `unusable` (incl. not set up): Apply, Undo, a changed Stock qty in the form (a field error blocks Review; other fields still save) and Add product. `checking` and `unknown` stay on. Refresh re-checks.
+- Accepted gap (owner): an unconfirmed Master write that did land gets no line (Try again sees a conflict); the owner adds it by hand.
+- Note: the owner set the env files himself (deny rule): `1F8c…pWg` is the LIVE log, TEST has its own ID (they share none).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

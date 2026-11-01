@@ -1,5 +1,5 @@
 # Feature: Stock log integration — line per confirmed change, Retry log, switch-off (US-95, C5-h CORE)
-# Sprint 11. Classification: CORE (write path, stock and details stores). Spec for approval. Rules: `specs/cr05-docs-rules.md`, `specs/stock-log.md` (US-94, built).
+# Sprint 11. Classification: CORE (write path, stock and details stores). Approved 2026-11-01; built 2026-11-01 (tests not run). Rules: `specs/cr05-docs-rules.md`, `specs/stock-log.md` (US-94, built).
 
 ## Problem
 US-94 built the log's config, header check, line builder and `SheetsWriter.appendLogLine`, but nothing calls them. Each confirmed Master stock change must add its line as part of the same tap; a failed line must be retryable; without log access stock changes must be off.
@@ -34,6 +34,10 @@ US-94 built the log's config, header check, line builder and `SheetsWriter.appen
 - `StockLogStore.stockChangesOff` = status `no-access` or `unusable` (incl. "not set up"), with `offReason` = the status message. `checking` and `unknown` stay ON (a failed append becomes Retry log).
 - While off, refused in core (UI shows it in US-96): `StockReviewStore.apply()` and `undo()` (and `undoAvailable` false); a details save that changes Stock qty (`DetailsStore.stockQtyLocked` for the form; `DetailsReviewStore.approve()` refuses it — other fields still save); Add product (`ProductNavigation` does not open the New product shell).
 - Re-checked on every Refresh (US-94), so sharing the log and refreshing switches stock changes back on.
+
+## As built (2026-11-01)
+- `ReviewFlow.masterConfirmed` hook; `SheetsReader.readColumn`; `StockLogStore` (`record`, `pending`, `hasPending`, `logging`, `failure`, `retryLog`, `stockChangesOff`, `offReason`, reset on `sessionId`); `StockSaved.changeId`; `DetailsStore.stockQtyLocked` / `stockQtyLockedReason` (a changed Stock qty gets that field error); `DetailsReviewStore` Form edit line; `ProductNavigation.toggleNewProduct` refuses while off.
+- UI (strip, "Logging…", the no-access message, visibly disabled controls) is US-96.
 
 ## Edge Cases
 - An `unconfirmed` Master write that did land: Try again re-reads, sees the new qty and is a conflict, so no line is written for it. Rare (5xx/network after Google saved); the owner can add the line by hand. Accepted.

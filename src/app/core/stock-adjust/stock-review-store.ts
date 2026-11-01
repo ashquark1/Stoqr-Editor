@@ -5,6 +5,7 @@ import { ProductSearchStore } from '@core/search/product-search-store';
 import { RowChange, approve } from '@core/sheets/approval';
 import { ResultStrip, ReviewFlow } from '@core/sheets/review-flow';
 import { StockAdjustStore } from './stock-adjust-store';
+import { LogMode } from './stock-log-line';
 import { StockLogStore } from './stock-log-store';
 
 export type { ReviewStep } from '@core/sheets/review-flow';
@@ -22,6 +23,8 @@ export interface StockSaved {
   readonly drTrustHad: number | null;
   /** True when a Retry finished a half-done save (no Undo for it). */
   readonly retried: boolean;
+  /** The Stock Log Change ID of this save's line (US-95), named by its Undo. */
+  readonly changeId: string | null;
 }
 
 /** One result strip under the adjuster (US-76): look, text and up to two actions. */
@@ -31,6 +34,10 @@ export type StockStrip = ResultStrip<StripAction>;
 /** What a stock save's outcomes need. `undo`: this save writes back the previous quantity (US-65). */
 interface StockSave {
   readonly kind: 'apply' | 'undo';
+  /** The log's Mode for this save (US-95). */
+  readonly mode: LogMode;
+  /** For Undo: the Change ID of the save it reverses. */
+  readonly reverses: string | null;
   readonly productName: string;
   readonly previous: number;
   readonly proposed: number;
@@ -56,8 +63,10 @@ export class StockReviewStore {
   private readonly adjust = inject(StockAdjustStore);
   private readonly search = inject(ProductSearchStore);
   private readonly config = inject(AppConfig);
-  /** The Stock Log check runs with the stock store (US-94); its use in Apply / Undo is US-95. */
+  /** The Stock Log (US-94, US-95): a line after each confirmed Master write; off without log access. */
   readonly log = inject(StockLogStore);
+  /** The Change ID of the last first-save's line, for `StockSaved` (US-95). */
+  private lastChangeId: string | null = null;
 
   private readonly savedSignal = signal<StockSaved | null>(null);
   private readonly undoAvailableSignal = signal(false);
@@ -84,6 +93,7 @@ export class StockReviewStore {
           sheetsText: labels.join(' and '),
           drTrustHad: save.drTrustHad,
           retried,
+          changeId: this.lastChangeId,
         });
         // No Undo after a half-done save, even once Retry finished it.
         this.undoAvailableSignal.set(!retried);
@@ -101,6 +111,16 @@ export class StockReviewStore {
         if (save.kind === 'apply') {
           this.adjust.reset();
         }
+      },
+      // CR-05: the log line follows the confirmed Master write of the same tap (never on Retry).
+      masterConfirmed: (save, master) => {
+        this.lastChangeId = this.log.record({
+          mode: save.mode,
+          sku: master.product.sku,
+          before: save.previous,
+          after: master.product.stockQty ?? save.proposed,
+          ...(save.reverses !== null ? { reverses: save.reverses } : {}),
+        });
       },
       partialMessage: ({ proposed }, writtenLabels, notUpdated, reason, retried) =>
         `${writtenLabels.join(' and ')} was updated to ${proposed}. ${notUpdated} ${retried ? 'still not updated' : 'was not updated'}: ${reason}`,
@@ -120,7 +140,9 @@ export class StockReviewStore {
   /** The last confirmed save, or null (cleared after 10 s). */
   readonly saved = this.savedSignal.asReadonly();
   /** Undo is offered for the last save (US-65). */
-  readonly undoAvailable = computed(() => this.undoAvailableSignal() && this.step() === 'editing');
+  readonly undoAvailable = computed(
+    () => this.undoAvailableSignal() && this.step() === 'editing' && !this.log.stockChangesOff(),
+  );
   /** "Stock restored to N." after an Undo (for 5 s), or null. */
   readonly restored = this.restoredSignal.asReadonly();
   /** An Undo is being written. */
@@ -199,7 +221,7 @@ export class StockReviewStore {
    * failed — so a double tap writes once and Try again repeats the same Apply.
    */
   async apply(): Promise<void> {
-    if (!this.flow.canSave() || !this.adjust.applyReady()) {
+    if (!this.flow.canSave() || !this.adjust.applyReady() || this.log.stockChangesOff()) {
       return;
     }
     const selected = this.search.selected();
@@ -226,6 +248,8 @@ export class StockReviewStore {
     const drTrustQty = link?.product.stockQty ?? null;
     await this.flow.save(() => approve(...rows), {
       kind: 'apply',
+      mode: this.adjust.way() === 'total' ? 'New total' : this.adjust.mode() === 'subtract' ? 'Subtract' : 'Add',
+      reverses: null,
       productName: selected.product.productName,
       previous: proposal.current,
       proposed: proposal.proposed,
@@ -304,6 +328,7 @@ export class StockReviewStore {
     const selected = this.search.selected();
     if (
       !this.flow.canSave() ||
+      this.log.stockChangesOff() ||
       selected === null ||
       this.search.selectedEditability()?.editable !== true
     ) {
@@ -324,6 +349,8 @@ export class StockReviewStore {
     }
     await this.flow.save(() => approve(...rows), {
       kind: 'undo',
+      mode: 'Undo',
+      reverses: source.changeId,
       productName: source.productName,
       previous: source.saved,
       proposed: source.previous,

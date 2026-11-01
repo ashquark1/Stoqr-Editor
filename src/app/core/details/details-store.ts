@@ -5,6 +5,7 @@ import { LoadedProduct, Product } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { SkuCheck, checkNewSku } from '@core/sheets/sku-check';
+import { StockLogStore } from '@core/stock-adjust/stock-log-store';
 import { DetailValue, changedValues, parseDetail } from './details-diff';
 import { DetailField, EDITABLE_DETAILS, byDetailField } from './details-fields';
 import { validateDetail } from './details-validation';
@@ -37,6 +38,7 @@ export class DetailsStore {
   private readonly search = inject(ProductSearchStore);
   private readonly sheets = inject(SheetsStore);
   private readonly config = inject(AppConfig);
+  private readonly log = inject(StockLogStore);
 
   /** The values the form starts from: the selected product as loaded (or as last confirmed). */
   readonly original = computed<DetailTexts>(() => textsOf(this.search.selected()?.product ?? null));
@@ -86,6 +88,12 @@ export class DetailsStore {
     return check?.ok === true ? check.linkTo : null;
   });
 
+  /** Stock qty may not change: no Stock Log access (US-95). The reason is `stockQtyLockedReason`. */
+  readonly stockQtyLocked = this.log.stockChangesOff;
+  readonly stockQtyLockedReason = computed(() =>
+    this.stockQtyLocked() ? `${this.log.offReason() ?? 'The Stock Log sheet can\'t be used.'} Stock qty can't be changed.` : null,
+  );
+
   /** The message per invalid field (the SKU check included); fields that may be saved are absent. */
   readonly errors = computed<Readonly<Partial<Record<DetailField, string>>>>(() => {
     const texts = this.texts();
@@ -99,6 +107,11 @@ export class DetailsStore {
     const sku = this.skuCheck();
     if (errors.sku === undefined && sku !== null && !sku.ok) {
       errors.sku = sku.message;
+    }
+    // No Stock Log access: a changed Stock qty blocks Review (other fields still save; US-95).
+    const locked = this.stockQtyLockedReason();
+    if (locked !== null && texts.stockQty !== this.original().stockQty) {
+      errors.stockQty = locked;
     }
     return errors;
   });

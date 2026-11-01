@@ -72,14 +72,16 @@ export class ProductNavigation {
   /**
    * Opens the New product shell (US-93): asks "Discard changes?" when the open
    * product has unsaved work, then closes it and the floating panels. A second
-   * press closes the shell. Not while a save runs. (Its own rules: US-98.)
+   * press closes the shell. Not while a save runs, nor without Stock Log
+   * access (US-95). (Its own rules: US-98.)
    */
   toggleNewProduct(): void {
     if (this.panels.newProductOpen()) {
       this.closeNewProduct();
       return;
     }
-    if (this.saving()) {
+    // No Stock Log access: Add product is off (its opening stock must be logged; US-95).
+    if (this.saving() || this.stockReview.log.stockChangesOff()) {
       return;
     }
     this.ask(() => {

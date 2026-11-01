@@ -1,6 +1,6 @@
 # Project Map — Stoqr Editor (V2)
 # Domain ownership reference. Read this before any core domain change.
-# Last updated: 2026-10-31
+# Last updated: 2026-11-01
 # NOTE: the scaffold landed 2026-10-28 (US-01–03). Paths marked (planned) do not exist yet. Update as files land.
 
 ## Purpose
@@ -18,7 +18,7 @@ A frontend-only Angular 21 SPA with one page, used by the owner and staff to edi
 ### Stock & Inventory Levels
 - **Owns:** `proposeQuantity` (pure: current ± amount or a new total, whole numbers, blocks < 0), `deriveStockStatus` (pure: quantity + Low Stock Threshold → `In Stock` / `Low Stock` / `Out of Stock`; Stock Status is typed text in the sheet so the app keeps it in step), the adjuster state (sign, amount, new total, proposed quantity), the Apply → outcome state (US-64), the low-stock warning preview, and (CR-05, US-94/95) the Stock Log line builder and the pending "Retry log" state.
 - **Does NOT own:** the write itself (Data Source) or product identity (Products).
-- **Code lives in:** `src/app/core/stock-adjust/` — landed: `stock-status.ts` (`deriveStockStatus`, the one Stock Status rule), `stock-status-display.ts` (display only), `stock-adjust.ts` (`proposeQuantity`, `parseAmount`, `formatDelta`; 1,000,000 cap), `stock-adjust-store.ts` (adjuster state: amount + sign or new total, `applyReady`, `hasEntry`; resets on product change), `stock-log-line.ts` (`logLine`, the one Stock Log line builder; US-94), `stock-log-store.ts` (`StockLogStore`: the log's load-time check — ready / no-access / unusable / unknown; US-94), `stock-review-store.ts` (Apply → write with no review (US-64), and Undo for 10 s (US-65): saving / saved / restored / conflict / failed / half saved with Retry, via the shared `ReviewFlow`; the product stays open; the only caller of `approve()` for stock changes).
+- **Code lives in:** `src/app/core/stock-adjust/` — landed: `stock-status.ts` (`deriveStockStatus`, the one Stock Status rule), `stock-status-display.ts` (display only), `stock-adjust.ts` (`proposeQuantity`, `parseAmount`, `formatDelta`; 1,000,000 cap), `stock-adjust-store.ts` (adjuster state: amount + sign or new total, `applyReady`, `hasEntry`; resets on product change), `stock-log-line.ts` (`logLine`, the one Stock Log line builder; US-94), `stock-log-store.ts` (`StockLogStore`: the log's load-time check — ready / no-access / unusable / unknown; US-94; `record()` after each confirmed Master stock write via `ReviewFlow`'s `masterConfirmed`, lines in order, pending + `retryLog()` with a Change ID check, `stockChangesOff` refusing Apply, Undo, form Stock qty and Add product; US-95), `stock-review-store.ts` (Apply → write with no review (US-64), and Undo for 10 s (US-65): saving / saved / restored / conflict / failed / half saved with Retry, via the shared `ReviewFlow`; the product stays open; the only caller of `approve()` for stock changes).
 - **The rule:** quantity changes only via adjuster Apply, Undo, Retry or the details form's Stock qty (CR-04); the proposed value (amount or new total) is computed in exactly one place.
 - **Forbidden:** clamping silently; decimals; writing anything but the approved absolute value after the re-read shows the master qty the user saw.
 

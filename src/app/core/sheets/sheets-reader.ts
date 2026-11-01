@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { AUTH_MESSAGES, Auth } from '@core/auth/auth';
 import { SheetLocation } from '@core/config/app-environment';
-import { tabRange } from './a1-range';
+import { columnLetter, tabRange } from './a1-range';
 import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, isTransient, retryDelay } from './backoff';
 import { CellValue } from './data-mapping';
 import { SheetLoadError, noAccessMessage } from './sheet-load-error';
@@ -60,6 +60,13 @@ export class SheetsReader {
   async readHeader(sheet: SheetLocation): Promise<CellValue[]> {
     const rows = await this.request(sheet, (token) => this.getValues(sheet, token, '1:1'));
     return rows?.[0] ?? [];
+  }
+
+  /** One whole column of a tab (0-based index), top to bottom, e.g. the Stock Log's Change IDs (US-95). */
+  async readColumn(sheet: SheetLocation, columnIndex: number): Promise<CellValue[]> {
+    const letter = columnLetter(columnIndex);
+    const rows = await this.request(sheet, (token) => this.getValues(sheet, token, `${letter}:${letter}`));
+    return (rows ?? []).map((row) => row[0] ?? '');
   }
 
   /**

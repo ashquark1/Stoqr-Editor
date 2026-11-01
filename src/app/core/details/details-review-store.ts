@@ -4,6 +4,7 @@ import { AppConfig } from '@core/config/app-config';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { approve } from '@core/sheets/approval';
 import { ResultStrip, ReviewFlow } from '@core/sheets/review-flow';
+import { StockLogStore } from '@core/stock-adjust/stock-log-store';
 import { DiffLine, StatusLine, detailRowChanges, diffLines, statusLines } from './details-diff';
 import { DETAIL_FIELDS } from './details-fields';
 import { DetailsStore } from './details-store';
@@ -29,6 +30,9 @@ export const DETAILS_SAVED_MS = 5_000;
 /** What a details save's messages need. */
 interface DetailsSave {
   readonly productName: string;
+  /** Master's Stock qty before the save (the guarded value), and whether the approval changes it (US-95). */
+  readonly qtyBefore: number | null;
+  readonly qtyChanged: boolean;
 }
 
 /**
@@ -46,6 +50,7 @@ export class DetailsReviewStore {
   private readonly details = inject(DetailsStore);
   private readonly search = inject(ProductSearchStore);
   private readonly config = inject(AppConfig);
+  private readonly log = inject(StockLogStore);
 
   private readonly savedSignal = signal<string | null>(null);
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -63,6 +68,13 @@ export class DetailsReviewStore {
       `${writtenLabels.join(' and ')} was updated. ${notUpdated} ${retried ? 'still not updated' : 'was not updated'}: ${reason}`,
     // The written sheet now holds the edits: drop them so they cannot be saved twice.
     partial: () => this.details.reset(),
+    // CR-05: a confirmed Master Stock qty change gets its Form edit line (never other fields, a SKU or Dr Trust).
+    masterConfirmed: (save, master) => {
+      const after = master.product.stockQty;
+      if (save.qtyChanged && after !== null && after !== save.qtyBefore) {
+        this.log.record({ mode: 'Form edit', sku: master.product.sku, before: save.qtyBefore, after });
+      }
+    },
   });
 
   readonly step = this.flow.step;
@@ -209,8 +221,18 @@ export class DetailsReviewStore {
     }
     // A new SKU may link a master-only product to an unmatched Dr Trust row: both are written (US-38).
     const link = this.search.selectedLink() ?? this.details.linkTo();
-    const rows = detailRowChanges(this.details.changes(), selected, link);
-    await this.flow.save(() => approve(...rows), { productName: selected.product.productName });
+    const changes = this.details.changes();
+    const qtyChanged = changes.has('stockQty');
+    // No Stock Log access: a Stock qty change is refused (the form already blocks it; US-95).
+    if (qtyChanged && this.log.stockChangesOff()) {
+      return;
+    }
+    const rows = detailRowChanges(changes, selected, link);
+    await this.flow.save(() => approve(...rows), {
+      productName: selected.product.productName,
+      qtyBefore: selected.product.stockQty,
+      qtyChanged,
+    });
   }
 
   /** Finishes a partial save from the original approval (an already written sheet is never rewritten). */
