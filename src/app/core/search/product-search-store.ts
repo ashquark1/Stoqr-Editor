@@ -9,6 +9,7 @@ import { syncStatuses } from '@core/sheets/sheet-pairing';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { SyncBadgeKind, linkedQtyDiffers, syncBadges } from '@core/sheets/sync-badge';
 import { FilterStore } from './filter-store';
+import { ResultRow, resultRow } from './result-row';
 import { applyFilters, applyStatusVisibility } from './product-filter';
 import { filterProducts, tokenize } from './product-matcher';
 import { SearchValidation } from './search-validation';
@@ -128,6 +129,12 @@ export class ProductSearchStore {
   syncBadgeOf(ref: RowRef): SyncBadgeKind | undefined {
     return this.badges().get(ref);
   }
+
+  /** The listed matches as result rows with their tiles' values (US-91). */
+  readonly rows = computed<readonly ResultRow[]>(() => {
+    const badges = this.badges();
+    return this.matches().map((row) => resultRow(row, badges.get(row.ref)));
+  });
 
   readonly selectedSyncBadge = computed<SyncBadgeKind | undefined>(() => {
     const row = this.selected();

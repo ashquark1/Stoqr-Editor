@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -19,51 +21,224 @@
   list-style: none;
 }
 
-.picker__result {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+// One result row (US-91). Phones: a slim two-line row (name + Qty tile, then
+// "SKU · brand · status" + a sync flag when not plainly Linked). From 768px:
+// brand | status, name, SKU on the left; Qty, Stock and Sync tiles and a
+// chevron on the right. A 4px left edge shows the stock level (grey when
+// blocked); the words in the tiles carry the meaning, never colour alone.
+.row {
+  --row-edge: var(--color-unknown);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name qtym'
+    'line2 flag';
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
   width: 100%;
-  padding: var(--space-3) var(--space-4);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
   text-align: left;
   font-family: var(--font-sans);
+  color: var(--color-ink);
   background: var(--color-white);
   border: var(--border-thin);
-  border-radius: var(--radius-control);
+  border-left: 4px solid var(--row-edge);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+
+  &--in-stock { --row-edge: var(--color-success); }
+  &--low-stock { --row-edge: var(--color-warning); }
+  &--out-of-stock { --row-edge: var(--color-error); }
+  &--unknown,
+  &--blocked { --row-edge: var(--color-unknown); }
+
+  // Blocked: dimmed with a grey fill (not opacity, so the text keeps AA contrast); still opens read-only.
+  &--blocked { background: var(--color-unknown-bg); }
 
   &:hover {
-    background: var(--color-paper);
+    background: var(--color-dew);
     border-color: var(--color-pine);
+    border-left-color: var(--row-edge);
+  }
+
+  &:hover .row__chevron {
+    transform: translateX(2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+
+  @include bp.from(tablet) {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'top tiles chev'
+      'name tiles chev'
+      'sku tiles chev';
+    gap: var(--space-1) var(--space-4);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   }
 }
 
-.picker__name {
+// Desktop-only pieces.
+.row__top,
+.row__sku,
+.row__tiles,
+.row__chevron {
+  display: none;
+
+  @include bp.from(tablet) {
+    display: flex;
+  }
+}
+
+// Phone-only pieces.
+.row__line2,
+.row__qty-m,
+.row__flag {
+  @include bp.from(tablet) {
+    display: none;
+  }
+}
+
+.row__top {
+  grid-area: top;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.row__status {
+  padding-left: var(--space-2);
+  border-left: var(--border-thin);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+// Up to two lines, then cut.
+.row__name {
+  grid-area: name;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: var(--text-body);
   font-weight: 600;
-  color: var(--color-ink);
 }
 
-.picker__meta {
-  font-size: var(--text-small);
-  color: var(--color-ink-mid);
-}
-
-.picker__sku {
+.row__sku {
+  grid-area: sku;
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono);
+  color: var(--color-ink-mid);
+  overflow-wrap: anywhere;
 }
 
-.picker__stock {
+.row__line2 {
+  grid-area: line2;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.row__sku-m {
+  font-family: var(--font-mono);
+}
+
+.row__flag {
+  grid-area: flag;
+  justify-self: end;
+}
+
+// Phone Qty tile: the stock word over the number, tinted by level.
+.row__qty-m {
+  grid-area: qtym;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-unknown-bg);
+  color: var(--color-ink-mid);
+
+  &--in-stock { background: var(--color-success-bg); color: var(--color-on-success); }
+  &--low-stock { background: var(--color-warning-bg); color: var(--color-on-warning); }
+  &--out-of-stock { background: var(--color-error-bg); color: var(--color-on-error); }
+}
+
+.row__qty-word {
+  font-size: var(--text-label);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.row__qty-num,
+.row__tile-value--qty {
+  font-size: var(--text-h3);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// Desktop tiles: the product card's label-over-value style (US-74, D41).
+.row__tiles {
+  grid-area: tiles;
   gap: var(--space-2);
 }
 
-.picker__qty {
-  font-size: var(--text-small);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-ink-mid);
+.row__tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-paper);
+  border-radius: var(--radius-lg);
+
+  &--qty {
+    min-width: 56px;
+  }
+}
+
+.row__tile-label {
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.row__tile-value {
+  display: flex;
+  align-items: center;
+}
+
+.row__chevron {
+  grid-area: chev;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row:hover .row__chevron {
+    transform: none;
+  }
 }
