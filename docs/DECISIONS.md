@@ -512,7 +512,7 @@
 - Decision (owner): pending lines live in memory: kept across products, Refresh and expiry; dropped on sign-out, another account or a page reload.
 - Decision: stock changes are off while the log is `no-access` or `unusable` (incl. not set up): Apply, Undo, a changed Stock qty in the form (a field error blocks Review; other fields still save) and Add product. `checking` and `unknown` stay on. Refresh re-checks.
 - Accepted gap (owner): an unconfirmed Master write that did land gets no line (Try again sees a conflict); the owner adds it by hand.
-- Note: the owner set the env files himself (deny rule): `1F8c…pWg` is the LIVE log, TEST has its own ID (they share none).
+- Note: the owner set the env files (deny rule): `1F8c…pWg` is the LIVE log, TEST has its own ID (they share none).
 
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
