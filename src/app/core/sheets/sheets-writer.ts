@@ -4,12 +4,13 @@ import { firstValueFrom } from 'rxjs';
 
 import { Auth, SessionEndedError } from '@core/auth/auth';
 import { AppConfig } from '@core/config/app-config';
-import { SheetDefinition, SheetKey } from '@core/config/app-environment';
+import { SheetDefinition, SheetKey, SheetLocation } from '@core/config/app-environment';
 import { LoadedProduct, Product } from '@core/models/product';
-import { ApprovedChange, InvalidChangeError, RowChange } from './approval';
+import { ApprovedChange, ApprovedCreate, InvalidChangeError, RowChange } from './approval';
+import { CreatePlan, isSameProduct, planCreate, rowsWithSku } from './create-plan';
 import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, retryDelay } from './backoff';
 import { CellValue } from './data-mapping';
-import { RowRef, rowRefId } from './row-ref';
+import { RowRef, createRowRef, rowRefId } from './row-ref';
 import { SheetLoadError } from './sheet-load-error';
 import { LogRow, logRowCells, resolveLogHeaders } from './stock-log-map';
 import { tabRange } from './a1-range';
@@ -83,6 +84,28 @@ export type LogAppendResult =
   | { readonly kind: 'logged'; readonly changeId: string }
   | { readonly kind: 'failed'; readonly message: string }
   | { readonly kind: 'unconfirmed'; readonly message: string };
+
+/** One sheet's confirmed new product row (US-97); `ref` is made here, so the id stays in `core/sheets/`. */
+export interface CreatedRow {
+  readonly sheet: SheetDefinition;
+  readonly ref: RowRef;
+  readonly product: Product;
+}
+
+export type CreateResult =
+  /** Every target sheet has the product (added now, or by an earlier attempt of this approval). */
+  | { readonly kind: 'written'; readonly sheets: readonly CreatedRow[] }
+  /** Nothing added: the SKU is already on a row. */
+  | { readonly kind: 'conflict'; readonly sheet: SheetDefinition; readonly message: string }
+  /** Nothing added (or, `unconfirmed`, maybe added). */
+  | { readonly kind: 'failed'; readonly error: SheetWriteError }
+  /** Master has it, Dr Trust not; `remaining` appends only Dr Trust (Retry). */
+  | {
+      readonly kind: 'partial';
+      readonly written: readonly CreatedRow[];
+      readonly error: SheetWriteError;
+      readonly remaining: ApprovedCreate;
+    };
 
 /** The part of a `values:append` response the writer checks. */
 interface AppendResponse {
@@ -178,6 +201,8 @@ export class SheetsWriter {
   private readonly reader = inject(SheetsReader);
   private readonly config = inject(AppConfig);
   private readonly wait = inject(RETRY_WAIT);
+  /** New-product approvals whose append was sent at least once (US-97: never added twice). */
+  private readonly sentCreates = new WeakSet<ApprovedCreate>();
 
   /**
    * Appends ONE Stock Log line (CR-05, US-94) — the only kind of row the log
@@ -279,45 +304,234 @@ export class SheetsWriter {
     const loggedAt = header.columns.get('loggedAt');
     const row = appendedRow(response.updates?.updatedRange);
     if (loggedAt !== undefined && row !== null) {
-      await this.formatLogCell(log, row - 1, loggedAt);
+      await this.formatDateCells(log, row - 1, [loggedAt]);
     }
     return { kind: 'logged', changeId: String(line.changeId) };
   }
 
-  /** The Logged At cell's date-time format; best effort (the confirmed line stays either way). */
-  private async formatLogCell(
-    log: { readonly spreadsheetId: string; readonly tab: string; readonly label: string },
+  /**
+   * The date-time format on an APPENDED row's date cells (the log's Logged At;
+   * a new product's Created At and Last Updated), one `repeatCell` per cell,
+   * number format only. Best effort: the confirmed row stays either way, and
+   * the dates show as numbers until formatted by hand.
+   */
+  private async formatDateCells(
+    location: SheetLocation,
     rowIndex: number,
-    columnIndex: number,
+    columns: readonly number[],
   ): Promise<void> {
     try {
-      const tabId = await this.reader.tabId(log);
+      const tabId = await this.reader.tabId(location);
       const token = await this.auth.freshToken();
       await firstValueFrom(
         this.http.post(
-          `${SHEETS_API}/${encodeURIComponent(log.spreadsheetId)}:batchUpdate`,
+          `${SHEETS_API}/${encodeURIComponent(location.spreadsheetId)}:batchUpdate`,
           {
-            requests: [
-              {
-                repeatCell: {
-                  range: {
-                    sheetId: tabId,
-                    startRowIndex: rowIndex,
-                    endRowIndex: rowIndex + 1,
-                    startColumnIndex: columnIndex,
-                    endColumnIndex: columnIndex + 1,
-                  },
-                  cell: { userEnteredFormat: { numberFormat: LAST_UPDATED_FORMAT } },
-                  fields: FORMAT_FIELDS,
+            requests: columns.map((columnIndex) => ({
+              repeatCell: {
+                range: {
+                  sheetId: tabId,
+                  startRowIndex: rowIndex,
+                  endRowIndex: rowIndex + 1,
+                  startColumnIndex: columnIndex,
+                  endColumnIndex: columnIndex + 1,
                 },
+                cell: { userEnteredFormat: { numberFormat: LAST_UPDATED_FORMAT } },
+                fields: FORMAT_FIELDS,
               },
-            ],
+            })),
           },
           { headers: { Authorization: `Bearer ${token}` } },
         ),
       );
     } catch {
-      // The line is confirmed; Logged At shows as a number until formatted by hand.
+      // Confirmed already; only the look of the date cells is missing.
+    }
+  }
+
+  /**
+   * Adds a NEW product (CR-05, US-97) — the only code that appends a product
+   * row; it never deletes one. Takes only a genuine `ApprovedCreate`, then:
+   * 1. re-reads BOTH sheets (the SKU must be new to both) and writes nothing
+   *    if the SKU is on any row (`conflict`) or a sheet can't be read;
+   * 2. appends Master, then Dr Trust (Dr Trust brand only), one
+   *    `values:append` each (RAW, insert rows), the row built by header with
+   *    id = highest numeric id + 1, derived Stock Status, and Created At /
+   *    Last Updated as date serials; confirmed only by Google's echo, then the
+   *    date cells get their format;
+   * 3. reports `written`, or `partial` (Master added, Dr Trust not) with
+   *    `remaining` for Retry. Once an append of this approval has been sent,
+   *    a row with the same SKU and product name counts as already added, so
+   *    Retry / Try again never adds a product twice.
+   * 429 → re-read, re-check, resend; 401 → renewal, once more; 5xx / network
+   * → `unconfirmed`, never resent automatically.
+   */
+  async create(approved: ApprovedCreate): Promise<CreateResult> {
+    if (!ApprovedCreate.isGenuine(approved)) {
+      return { kind: 'failed', error: new SheetWriteError('', 'not-approved', 'This product was not approved, so nothing was added.') };
+    }
+    const resumed = this.sentCreates.has(approved.origin);
+
+    // 1. Both sheets fresh: the SKU must be on no row of either (else nothing is added).
+    const fresh = new Map<SheetKey, CellValue[][] | undefined>();
+    for (const key of SKU_SHEETS) {
+      const sheet = this.config.sheet(key);
+      try {
+        fresh.set(key, await this.reader.read(sheet));
+      } catch (error) {
+        return { kind: 'failed', error: fromLoadError(sheet, error) };
+      }
+    }
+    const done: CreatedRow[] = [];
+    const toAdd: SheetDefinition[] = [];
+    for (const key of SKU_SHEETS) {
+      const sheet = this.config.sheet(key);
+      const check = this.checkNewRow(sheet, fresh.get(key), approved, resumed);
+      if (check.kind === 'taken') {
+        return { kind: 'conflict', sheet, message: check.message };
+      }
+      if (check.kind === 'failed') {
+        return { kind: 'failed', error: check.error };
+      }
+      if (check.kind === 'already') {
+        done.push(check.row);
+      } else if (check.kind === 'add') {
+        toAdd.push(sheet);
+      }
+    }
+
+    // 2. Append in order (Master first); stop at the first failure.
+    for (const sheet of toAdd) {
+      this.sentCreates.add(approved.origin);
+      const added = await this.appendRow(sheet, approved, fresh.get(sheet.key));
+      if (!added.ok) {
+        if (done.length === 0) {
+          return { kind: 'failed', error: added.error };
+        }
+        return {
+          kind: 'partial',
+          written: done,
+          error: added.error,
+          remaining: approved.remaining(done.map((row) => row.sheet.key)),
+        };
+      }
+      done.push(added.row);
+    }
+    return { kind: 'written', sheets: done };
+  }
+
+  /** One sheet's SKU check for a new product, on a freshly read tab. */
+  private checkNewRow(
+    sheet: SheetDefinition,
+    values: CellValue[][] | undefined,
+    approved: ApprovedCreate,
+    resumed: boolean,
+  ):
+    | { readonly kind: 'add' | 'skip' }
+    | { readonly kind: 'already'; readonly row: CreatedRow }
+    | { readonly kind: 'taken'; readonly message: string }
+    | { readonly kind: 'failed'; readonly error: SheetWriteError } {
+    let holders: LoadedProduct[];
+    try {
+      holders = rowsWithSku(sheet, values, approved.values.sku);
+    } catch (error) {
+      return { kind: 'failed', error: fromLoadError(sheet, error) };
+    }
+    const target = approved.sheets.includes(sheet.key);
+    if (holders.length === 0) {
+      return { kind: target ? 'add' : 'skip' };
+    }
+    const [first] = holders;
+    if (target && resumed && holders.length === 1 && isSameProduct(first, approved.values)) {
+      return { kind: 'already', row: { sheet, ref: first.ref, product: first.product } };
+    }
+    return {
+      kind: 'taken',
+      message: `SKU ${approved.values.sku} is already used in ${sheet.label} (${first.product.productName || 'no name'}). Nothing was saved.`,
+    };
+  }
+
+  /** Appends one new product row; 401 renews once and 429 waits, each re-reading and re-checking this sheet. */
+  private async appendRow(
+    sheet: SheetDefinition,
+    approved: ApprovedCreate,
+    values: CellValue[][] | undefined,
+  ): Promise<{ readonly ok: true; readonly row: CreatedRow } | { readonly ok: false; readonly error: SheetWriteError }> {
+    const url = `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values/${tabRange(sheet.tab)}:append`;
+    let renewed = false;
+    let busy = 0;
+    let fresh = values;
+    for (;;) {
+      let plan: CreatePlan;
+      try {
+        plan = planCreate(sheet, fresh, approved.values, new Date());
+      } catch (error) {
+        return { ok: false, error: fromLoadError(sheet, error) };
+      }
+      let response: AppendResponse;
+      try {
+        const token = await this.auth.freshToken();
+        response = await firstValueFrom(
+          this.http.post<AppendResponse>(
+            url,
+            { values: [plan.cells] },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              params: { ...WRITE_OPTIONS, insertDataOption: 'INSERT_ROWS' },
+            },
+          ),
+        );
+      } catch (error) {
+        if (error instanceof SessionEndedError) {
+          return { ok: false, error: new SheetWriteError(sheet.label, 'expired', `You signed out before the product was added to ${sheet.label}.`) };
+        }
+        const status = error instanceof HttpErrorResponse ? error.status : 0;
+        const again = status === 401 && !renewed ? 'renew' : isBusy(error) && busy < RETRY_DELAYS_MS.length ? 'busy' : null;
+        if (again === null) {
+          return { ok: false, error: fromWriteError(sheet, error, status !== 429) };
+        }
+        if (again === 'renew') {
+          renewed = true;
+          this.auth.markExpired();
+        } else {
+          await this.wait(retryDelay(busy, error));
+          busy++;
+        }
+        // Google saved nothing: re-read and re-check this sheet before sending again.
+        try {
+          fresh = await this.reader.read(sheet);
+        } catch (readError) {
+          return { ok: false, error: fromLoadError(sheet, readError) };
+        }
+        const check = this.checkNewRow(sheet, fresh, approved, true);
+        if (check.kind === 'already') {
+          return { ok: true, row: check.row };
+        }
+        if (check.kind === 'taken') {
+          return { ok: false, error: new SheetWriteError(sheet.label, 'sku-taken', check.message) };
+        }
+        if (check.kind === 'failed') {
+          return { ok: false, error: check.error };
+        }
+        continue;
+      }
+
+      const echoed = response.updates?.updatedData?.values?.[0] ?? [];
+      if (!plan.cells.every((cell, i) => sameLogCell(cell, echoed[i]))) {
+        return {
+          ok: false,
+          error: new SheetWriteError(
+            sheet.label,
+            'unconfirmed',
+            `Google didn't confirm the new product in ${sheet.label}, so it may or may not have been added. Try again checks the sheet first.`,
+          ),
+        };
+      }
+      const row = appendedRow(response.updates?.updatedRange);
+      if (row !== null) {
+        await this.formatDateCells(sheet, row - 1, plan.dateColumns);
+      }
+      return { ok: true, row: { sheet, ref: createRowRef(sheet.key, plan.id), product: plan.expected } };
     }
   }
 

@@ -1,5 +1,5 @@
 # Feature: Create-product write path (US-97, C5-f)
-# Sprint 10 (spec) / Sprint 12 (build; needs US-94 built). Classification: CORE (write path). Spec for approval; rules from `specs/cr05-docs-rules.md` (owner, 2026-11-01).
+# Sprint 10 (spec) / Sprint 12 (build; needs US-94 built). Classification: CORE (write path). Approved; built 2026-11-01 (tests not run). Rules from `specs/cr05-docs-rules.md` (owner, 2026-11-01).
 
 ## Problem
 Products can only be edited. CR-05 lets staff add a product: one new row in Master, plus one in Dr Trust for a Dr Trust-brand product, with a log line for the opening stock.
@@ -24,6 +24,10 @@ Products can only be edited. CR-05 lets staff add a product: one new row in Mast
 - The confirmed row(s) go into the loaded data in memory (`SheetsStore.addRow`, which makes the `RowRef` inside `core/sheets/`), so the product appears at once in search, counts, filters, pairing and Data health — no reload.
 - After the Master append is confirmed: ONE log line (US-94 builder): Mode `New product`, Qty Before blank, Change = opening stock, Qty After = opening stock. A log failure uses US-95's "Retry log" (the row stays saved).
 - Outcomes as state (for US-100): saving; saved; conflict; failed; half saved; retry success. On saved, the new product opens (US-98).
+
+## As built (2026-11-01)
+- `approval.ts`: `NewProductValues`, `ApprovedCreate` (`origin`, `remaining()`), `approveCreate(values, drTrustBrand)`. `create-plan.ts`: `planCreate`, `rowsWithSku`, `isSameProduct`. `sheets-writer.ts`: `create()`, `CreateResult`, `CreatedRow`, shared `formatDateCells`. `sheets-store.ts`: `addRow(ref, product)`. `data-health.ts`: `isConfiguredBrand`.
+- No caller yet: the New product review store (US-100) calls `approveCreate`, `create`, `addRow`, and `StockLogStore.record({ mode: 'New product', before: null, after: qty })` once the Master row is confirmed (written or partial; once per approval).
 
 ## Proposed AI_CONTRACT wording (applied on "Apply all")
 - Writes: "Allowlisted columns only: every product field EXCEPT `id` and `Created At`" → add "— except on a NEW row (US-97), where the writer itself fills `id` (highest numeric id + 1), Created At, Last Updated and Stock Status; a create reaches the writer only as an `ApprovedCreate` from `approveCreate()`, called only from `core/details/`."

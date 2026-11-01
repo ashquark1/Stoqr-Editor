@@ -521,6 +521,14 @@
 - Decision: without log access the adjuster shows the message (`StockLogStore.offMessage`) as an amber strip and all its controls are off; the form's Stock qty becomes a read-only value with the message; Add product is `aria-disabled` (focusable, tooltip and name give the reason). The shell reads `PanelStore.addProductOff`, set by `ProductNavigation`, so no stock store enters the first load (502.2 kB).
 - Decision: `.stoqr-btn[aria-disabled='true']` looks like `:disabled` (theme, no hover).
 
+## 2026-11-01: Create-product write path (US-97) [confirmed]
+
+- Decision: `SheetsWriter.create(ApprovedCreate)` reads BOTH sheets fresh, refuses a SKU on any row of either (`conflict`, nothing added), then appends Master, then Dr Trust (configured brand only, via the shared `isConfiguredBrand` rule from Data health). Row built by header in `create-plan.ts` (pure); id = highest numeric id + 1 in that sheet; a text value follows the column's last row's cell type (the US-24 rule).
+- Decision: "never added twice" is tracked by the writer: once an append of an approval (`origin`, kept through `remaining()`) has been sent, a row with the same SKU and product name counts as already added. A first attempt finding such a row is a conflict (someone else added it).
+- Decision: `approveCreate()` re-checks the required text fields, the SKU's spaces, opening stock 0–1,000,000, a whole threshold ≥ 0 and tax rate ≥ 0, so a forged value can't reach the writer; no `id` / Stock Status / dates accepted.
+- Decision: the date cells' format is set after the confirmed append (best effort, shared `formatDateCells`, also used by the log).
+- Left to US-100 (the review store): calling `approveCreate`, `SheetsStore.addRow` for each confirmed row, and the `New product` log line after the Master append is confirmed (once per approval).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

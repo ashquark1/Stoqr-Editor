@@ -47,6 +47,11 @@ const rowOf = (sheet: SheetKey, loaded: LoadedProduct): HealthRow => ({
 /** Brand comparison: trimmed, case-insensitive, inner spaces collapsed. */
 const normalizeBrand = (brand: string) => brand.trim().toLowerCase().replace(/\s+/g, ' ');
 
+/** The one brand rule (US-31): does `brand` name the configured Dr Trust brand? False when none is configured. */
+export function isConfiguredBrand(brand: string, configured: string | undefined): boolean {
+  return configured !== undefined && normalizeBrand(brand) === normalizeBrand(configured);
+}
+
 /**
  * The data-health lists, built only from the pairing (pure; display only).
  * `drTrustBrand` is the configured brand of the Dr Trust sheet's products
