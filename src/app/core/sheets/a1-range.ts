@@ -1,11 +1,12 @@
 /**
- * URL path segment for a whole-tab A1 range in the Sheets API
+ * URL path segment for a whole-tab A1 range (or, with `rows` such as `1:1`, those rows of the tab) in the Sheets API
  * (`/values/{range}`). The tab name is single-quoted with inner apostrophes
  * doubled, so names with spaces or apostrophes resolve to the right tab. The
  * result is fully percent-encoded (`encodeURIComponent` leaves `'` as is).
  */
-export function tabRange(tab: string): string {
-  return encodeURIComponent(quotedTab(tab)).replaceAll("'", '%27');
+export function tabRange(tab: string, rows?: string): string {
+  const range = rows === undefined ? quotedTab(tab) : `${quotedTab(tab)}!${rows}`;
+  return encodeURIComponent(range).replaceAll("'", '%27');
 }
 
 /** A1 column letters for a 0-based column index: 0 → A, 25 → Z, 26 → AA. */

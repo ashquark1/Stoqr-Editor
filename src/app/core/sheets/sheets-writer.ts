@@ -11,6 +11,8 @@ import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, retryDelay } from './backoff';
 import { CellValue } from './data-mapping';
 import { RowRef, rowRefId } from './row-ref';
 import { SheetLoadError } from './sheet-load-error';
+import { LogRow, logRowCells, resolveLogHeaders } from './stock-log-map';
+import { tabRange } from './a1-range';
 import { SHEETS_API, SheetsReader } from './sheets-reader';
 import { freshSkuHolder } from './sku-check';
 import { CellWrite, WritePlan, planRowWrite } from './write-plan';
@@ -73,6 +75,24 @@ export type WriteResult =
     };
 
 /**
+ * One Stock Log append (CR-05, US-94): `logged` only when Google echoes every
+ * value. `unconfirmed` (5xx / network) may have been written, so it is never
+ * resent automatically; `failed` wrote nothing.
+ */
+export type LogAppendResult =
+  | { readonly kind: 'logged'; readonly changeId: string }
+  | { readonly kind: 'failed'; readonly message: string }
+  | { readonly kind: 'unconfirmed'; readonly message: string };
+
+/** The part of a `values:append` response the writer checks. */
+interface AppendResponse {
+  readonly updates?: {
+    readonly updatedRange?: string;
+    readonly updatedData?: { readonly values?: CellValue[][] };
+  };
+}
+
+/**
  * Exactly how values go to Google (US-10). RAW: text is stored as text, so no
  * formula can ever be written (confirmed for now; revisit — DECISIONS). The
  * written values come back so success is shown only once confirmed.
@@ -124,7 +144,9 @@ const SKU_SHEETS: readonly SheetKey[] = ['master', 'dr-trust'];
 
 type Failure = { readonly ok: false; readonly result: WriteResult };
 type Checked = { readonly ok: true; readonly planned: Planned } | Failure;
-type Formatted = { readonly ok: true; readonly planned: Planned; readonly budget: Budget } | Failure;
+type Formatted =
+  | { readonly ok: true; readonly planned: Planned; readonly budget: Budget }
+  | Failure;
 type Sent = { readonly ok: true; readonly written: SheetWritten } | Failure;
 /** After a failed request: resend (re-checked first) or give up. */
 type Recovery = { readonly ok: true; readonly planned: Planned; readonly budget: Budget } | Failure;
@@ -157,6 +179,148 @@ export class SheetsWriter {
   private readonly config = inject(AppConfig);
   private readonly wait = inject(RETRY_WAIT);
 
+  /**
+   * Appends ONE Stock Log line (CR-05, US-94) — the only kind of row the log
+   * ever gets; it never edits or deletes a line. Called only right after a
+   * confirmed Master stock write (the AI_CONTRACT named exception) or by Retry
+   * log. Re-reads the header row (columns by label), appends at the bottom
+   * (`values:append`, RAW, insert rows), confirms against Google's echo, then
+   * gives the Logged At cell the date-time format (a format failure keeps the
+   * confirmed line). 429 → backoff and resend (Google saved nothing); 401 →
+   * renewal, once more; 5xx / network → `unconfirmed`, never resent.
+   */
+  async appendLogLine(line: LogRow): Promise<LogAppendResult> {
+    const log = this.config.stockLog();
+    if (log === null) {
+      return { kind: 'failed', message: 'The Stock Log sheet is not set up.' };
+    }
+    let header;
+    try {
+      header = resolveLogHeaders(await this.reader.readHeader(log));
+    } catch (error) {
+      return {
+        kind: 'failed',
+        message: error instanceof Error ? error.message : `Couldn't read ${log.label}.`,
+      };
+    }
+    if (!header.ok) {
+      return {
+        kind: 'failed',
+        message: `The ${log.label} sheet is missing the column ${header.missing.join(', ')}.`,
+      };
+    }
+    const cells = logRowCells(header.columns, header.width, line);
+    const url = `${SHEETS_API}/${encodeURIComponent(log.spreadsheetId)}/values/${tabRange(log.tab)}:append`;
+
+    let response: AppendResponse | null = null;
+    let renewed = false;
+    for (let attempt = 0; response === null; ) {
+      try {
+        const token = await this.auth.freshToken();
+        response = await firstValueFrom(
+          this.http.post<AppendResponse>(
+            url,
+            { values: [cells] },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              params: { ...WRITE_OPTIONS, insertDataOption: 'INSERT_ROWS' },
+            },
+          ),
+        );
+      } catch (error) {
+        if (error instanceof SessionEndedError) {
+          return { kind: 'failed', message: 'Your session ended before the change was logged.' };
+        }
+        const status = error instanceof HttpErrorResponse ? error.status : 0;
+        if (status === 401 && !renewed) {
+          renewed = true;
+          this.auth.markExpired();
+          continue;
+        }
+        if (isBusy(error) && attempt < RETRY_DELAYS_MS.length) {
+          await this.wait(retryDelay(attempt, error));
+          attempt++;
+          continue;
+        }
+        if (status === 403) {
+          return {
+            kind: 'failed',
+            message: `You don't have edit access to the ${log.label} sheet.`,
+          };
+        }
+        if (status === 404 || status === 400) {
+          return {
+            kind: 'failed',
+            message: `The ${log.label} sheet or its ${log.tab} tab was not found.`,
+          };
+        }
+        if (isBusy(error)) {
+          return {
+            kind: 'failed',
+            message: `Google is busy right now (too many requests). Nothing was logged.`,
+          };
+        }
+        // 5xx or network: Google may have added the line, so it is never resent automatically.
+        return {
+          kind: 'unconfirmed',
+          message: `Google didn't confirm the ${log.label} line, so it may or may not have been added.`,
+        };
+      }
+    }
+
+    const echoed = response.updates?.updatedData?.values?.[0] ?? [];
+    const confirmed = cells.every((cell, i) => sameLogCell(cell, echoed[i]));
+    if (!confirmed) {
+      return {
+        kind: 'unconfirmed',
+        message: `Google didn't confirm the ${log.label} line, so it may or may not have been added.`,
+      };
+    }
+    const loggedAt = header.columns.get('loggedAt');
+    const row = appendedRow(response.updates?.updatedRange);
+    if (loggedAt !== undefined && row !== null) {
+      await this.formatLogCell(log, row - 1, loggedAt);
+    }
+    return { kind: 'logged', changeId: String(line.changeId) };
+  }
+
+  /** The Logged At cell's date-time format; best effort (the confirmed line stays either way). */
+  private async formatLogCell(
+    log: { readonly spreadsheetId: string; readonly tab: string; readonly label: string },
+    rowIndex: number,
+    columnIndex: number,
+  ): Promise<void> {
+    try {
+      const tabId = await this.reader.tabId(log);
+      const token = await this.auth.freshToken();
+      await firstValueFrom(
+        this.http.post(
+          `${SHEETS_API}/${encodeURIComponent(log.spreadsheetId)}:batchUpdate`,
+          {
+            requests: [
+              {
+                repeatCell: {
+                  range: {
+                    sheetId: tabId,
+                    startRowIndex: rowIndex,
+                    endRowIndex: rowIndex + 1,
+                    startColumnIndex: columnIndex,
+                    endColumnIndex: columnIndex + 1,
+                  },
+                  cell: { userEnteredFormat: { numberFormat: LAST_UPDATED_FORMAT } },
+                  fields: FORMAT_FIELDS,
+                },
+              },
+            ],
+          },
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      );
+    } catch {
+      // The line is confirmed; Logged At shows as a number until formatted by hand.
+    }
+  }
+
   async write(approved: ApprovedChange): Promise<WriteResult> {
     if (!ApprovedChange.isGenuine(approved)) {
       return failed('', 'not-approved', 'This change was not approved, so nothing was written.');
@@ -166,7 +330,11 @@ export class SheetsWriter {
       const sheet = this.config.sheet(row.target.sheet);
       const id = rowRefId(row.target);
       if (id === undefined || id === '') {
-        return failed(sheet.label, 'row-missing', `This product has no id in ${sheet.label}, so nothing was written.`);
+        return failed(
+          sheet.label,
+          'row-missing',
+          `This product has no id in ${sheet.label}, so nothing was written.`,
+        );
       }
       targets.push({ row, sheet, id });
     }
@@ -214,7 +382,11 @@ export class SheetsWriter {
         const error =
           sent.result.kind === 'failed'
             ? sent.result.error
-            : new SheetWriteError(target.sheet.label, 'invalid', `${target.sheet.label} changed while saving.`);
+            : new SheetWriteError(
+                target.sheet.label,
+                'invalid',
+                `${target.sheet.label} changed while saving.`,
+              );
         const remaining = approved.remaining(written.map((s) => s.sheet.key));
         return { kind: 'partial', written, error, remaining };
       }
@@ -281,12 +453,22 @@ export class SheetsWriter {
       case 'conflict':
         return {
           ok: false,
-          result: { kind: 'conflict', sheet, ref: row.target, current: plan.current, fields: plan.fields },
+          result: {
+            kind: 'conflict',
+            sheet,
+            ref: row.target,
+            current: plan.current,
+            fields: plan.fields,
+          },
         };
       case 'row-missing':
         return {
           ok: false,
-          result: failed(sheet.label, 'row-missing', `This product is no longer in ${sheet.label}. Nothing was written.`),
+          result: failed(
+            sheet.label,
+            'row-missing',
+            `This product is no longer in ${sheet.label}. Nothing was written.`,
+          ),
         };
       case 'row-duplicated':
         return {
@@ -352,7 +534,11 @@ export class SheetsWriter {
           `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values:batchUpdate`,
           {
             ...WRITE_OPTIONS,
-            data: plan.writes.map((w) => ({ range: w.range, majorDimension: 'ROWS', values: [[w.value]] })),
+            data: plan.writes.map((w) => ({
+              range: w.range,
+              majorDimension: 'ROWS',
+              values: [[w.value]],
+            })),
           },
           { headers: { Authorization: `Bearer ${token}` } },
         ),
@@ -370,7 +556,9 @@ export class SheetsWriter {
     const returned = response.responses ?? [];
     const confirmed =
       returned.length === plan.writes.length &&
-      plan.writes.every((w, i) => sameCell(returned[i]?.updatedData?.values?.[0]?.[0] ?? '', w.value));
+      plan.writes.every((w, i) =>
+        sameCell(returned[i]?.updatedData?.values?.[0]?.[0] ?? '', w.value),
+      );
     if (!confirmed) {
       return {
         ok: false,
@@ -381,7 +569,10 @@ export class SheetsWriter {
         ),
       };
     }
-    return { ok: true, written: { sheet, ref: target.row.target, product: plan.expected, cells: plan.writes } };
+    return {
+      ok: true,
+      written: { sheet, ref: target.row.target, product: plan.expected, cells: plan.writes },
+    };
   }
 
   /**
@@ -391,10 +582,18 @@ export class SheetsWriter {
    * `valuesSent`: whether the failed request carried values (which a 5xx or
    * network failure may have saved).
    */
-  private async recover(target: Target, error: unknown, budget: Budget, valuesSent: boolean): Promise<Recovery> {
+  private async recover(
+    target: Target,
+    error: unknown,
+    budget: Budget,
+    valuesSent: boolean,
+  ): Promise<Recovery> {
     const { sheet } = target;
     if (error instanceof SessionEndedError) {
-      return { ok: false, result: failed(sheet.label, 'expired', `You signed out before ${sheet.label} was saved.`) };
+      return {
+        ok: false,
+        result: failed(sheet.label, 'expired', `You signed out before ${sheet.label} was saved.`),
+      };
     }
     let next: Budget;
     if (error instanceof HttpErrorResponse && error.status === 401) {
@@ -402,7 +601,11 @@ export class SheetsWriter {
       if (!budget.mayRenew) {
         return {
           ok: false,
-          result: failed(sheet.label, 'expired', `Your session expired before ${sheet.label} was saved.`),
+          result: failed(
+            sheet.label,
+            'expired',
+            `Your session expired before ${sheet.label} was saved.`,
+          ),
         };
       }
       next = { ...budget, mayRenew: false };
@@ -411,7 +614,10 @@ export class SheetsWriter {
       await this.wait(retryDelay(budget.busyRetries, error));
       next = { ...budget, busyRetries: budget.busyRetries + 1 };
     } else {
-      return { ok: false, result: { kind: 'failed', error: fromWriteError(sheet, error, valuesSent) } };
+      return {
+        ok: false,
+        result: { kind: 'failed', error: fromWriteError(sheet, error, valuesSent) },
+      };
     }
     const again = await this.check(target);
     return again.ok ? { ok: true, planned: again.planned, budget: next } : again;
@@ -436,10 +642,18 @@ function fromLoadError(sheet: SheetDefinition, error: unknown): SheetWriteError 
       error.kind === 'tab' ? 'not-found' : error.kind === 'columns' ? 'columns' : error.kind;
     return new SheetWriteError(sheet.label, kind, `${error.message} Nothing was written.`);
   }
-  return new SheetWriteError(sheet.label, 'unavailable', `Couldn't reach ${sheet.label}. Nothing was written.`);
+  return new SheetWriteError(
+    sheet.label,
+    'unavailable',
+    `Couldn't reach ${sheet.label}. Nothing was written.`,
+  );
 }
 
-function fromWriteError(sheet: SheetDefinition, error: unknown, valuesSent: boolean): SheetWriteError {
+function fromWriteError(
+  sheet: SheetDefinition,
+  error: unknown,
+  valuesSent: boolean,
+): SheetWriteError {
   const status = error instanceof HttpErrorResponse ? error.status : 0;
   if (status === 403) {
     return new SheetWriteError(
@@ -449,7 +663,11 @@ function fromWriteError(sheet: SheetDefinition, error: unknown, valuesSent: bool
     );
   }
   if (status === 404) {
-    return new SheetWriteError(sheet.label, 'not-found', `${sheet.label} spreadsheet not found, check configuration.`);
+    return new SheetWriteError(
+      sheet.label,
+      'not-found',
+      `${sheet.label} spreadsheet not found, check configuration.`,
+    );
   }
   if (status === 429) {
     return new SheetWriteError(
@@ -474,5 +692,23 @@ function fromWriteError(sheet: SheetDefinition, error: unknown, valuesSent: bool
       `Google didn't confirm the save to ${sheet.label}, so it may or may not have been saved. Try again re-checks the sheet first.`,
     );
   }
-  return new SheetWriteError(sheet.label, 'unavailable', `Couldn't save to ${sheet.label}. Check your connection and try again.`);
+  return new SheetWriteError(
+    sheet.label,
+    'unavailable',
+    `Couldn't save to ${sheet.label}. Check your connection and try again.`,
+  );
+}
+
+/** The 1-based row of an append's `updatedRange` (e.g. `'Stock Log'!A12:I12` → 12), or null. */
+function appendedRow(range: string | undefined): number | null {
+  const match = /![A-Z]+(\d+)/.exec(range ?? '');
+  return match === null ? null : Number(match[1]);
+}
+
+/** A log cell came back as sent (numbers within a tiny tolerance; Google leaves trailing blanks out). */
+function sameLogCell(sent: CellValue, echoed: CellValue | undefined): boolean {
+  if (typeof sent === 'number' && typeof echoed === 'number') {
+    return Math.abs(sent - echoed) < 1e-6;
+  }
+  return String(sent) === String(echoed ?? '');
 }

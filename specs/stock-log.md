@@ -1,5 +1,5 @@
 # Feature: Stock log — sheet access, config and append (US-94, C5-g)
-# Sprint 10 (spec) / Sprint 11 (build). Classification: CORE (config, data access, write path). Spec for approval; rules from `specs/cr05-docs-rules.md` (owner, 2026-11-01).
+# Sprint 10 (spec) / Sprint 11 (build). Classification: CORE (config, data access, write path). Approved 2026-11-01; built 2026-11-01 (tests not run).
 
 ## Problem
 Nobody can see who changed stock, when, or by how much. CR-05 adds an append-only Stock Log spreadsheet with one line per confirmed stock change.
@@ -35,6 +35,11 @@ Nobody can see who changed stock, when, or by how much. CR-05 adds an append-onl
 - Allowlist: the nine columns only; numbers as numbers; no formulas (RAW); never edits or deletes a line; never touches any other range.
 - Errors: 429 → backoff and resend (append is safe to resend only after 429: Google saved nothing); 401 → renewal, then once more; 5xx / network → `unconfirmed`, NEVER resent automatically (a resend could double the line); 403 / 404 → failed with the reason.
 - It is not an `ApprovedChange` write: it is called only by the stock and details stores right after their own confirmed Master write (the AI_CONTRACT named exception) and by "Retry log". An architecture rule will check `appendLogLine` callers when tests resume.
+
+## As built (2026-11-01)
+- `stockLog?: SheetLocation` in `AppEnvironment` is OPTIONAL in the type: without the block the app still compiles and the log reads as `unusable` ("not set up"). The environment files could not be edited by Claude (the deny rule is loaded at session start); the owner pastes the block.
+- Files: `core/config/app-environment.ts` (`SheetLocation`, `stockLog`, validation), `app-config.ts` (`stockLog()`), `core/sheets/a1-range.ts` (`tabRange(tab, rows)`), `sheets-reader.ts` (`readHeader`), `core/sheets/stock-log-map.ts` (labels, `resolveLogHeaders`, `logRowCells`), `core/stock-adjust/stock-log-line.ts` (`logLine`, `changeId`), `core/sheets/sheets-writer.ts` (`appendLogLine`, `LogAppendResult`), `core/stock-adjust/stock-log-store.ts` (`StockLogStore`: status + message; created with `StockReviewStore`).
+- Nothing calls `appendLogLine` yet: US-95 wires Apply, Undo and Form edit.
 
 ## Edge Cases
 - Log sheet headers reordered → still found by label. Extra columns → left blank.

@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { AUTH_MESSAGES, Auth } from '@core/auth/auth';
-import { SheetDefinition } from '@core/config/app-environment';
+import { SheetLocation } from '@core/config/app-environment';
 import { tabRange } from './a1-range';
 import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, isTransient, retryDelay } from './backoff';
 import { CellValue } from './data-mapping';
@@ -52,8 +52,14 @@ export class SheetsReader {
   private readonly auth = inject(Auth);
   private readonly wait = inject(RETRY_WAIT);
 
-  async read(sheet: SheetDefinition): Promise<CellValue[][] | undefined> {
+  async read(sheet: SheetLocation): Promise<CellValue[][] | undefined> {
     return this.request(sheet, (token) => this.getValues(sheet, token));
+  }
+
+  /** Row 1 of a tab (its headers), e.g. the Stock Log's (US-94). Empty when the tab has no header row. */
+  async readHeader(sheet: SheetLocation): Promise<CellValue[]> {
+    const rows = await this.request(sheet, (token) => this.getValues(sheet, token, '1:1'));
+    return rows?.[0] ?? [];
   }
 
   /**
@@ -61,7 +67,7 @@ export class SheetsReader {
    * title. Fetched fresh for every write, never cached: a tab deleted and
    * re-created gets a new number. A missing tab is a 'tab' `SheetLoadError`.
    */
-  async tabId(sheet: SheetDefinition): Promise<number> {
+  async tabId(sheet: SheetLocation): Promise<number> {
     const response = await this.request(sheet, (token) => this.getTabs(sheet, token));
     const tab = (response.sheets ?? []).find((s) => s.properties?.title === sheet.tab);
     if (tab === undefined) {
@@ -72,7 +78,7 @@ export class SheetsReader {
   }
 
   /** One GET with renewal and backoff; failures become a `SheetLoadError` naming the sheet. */
-  private async request<T>(sheet: SheetDefinition, get: (token: string) => Promise<T>): Promise<T> {
+  private async request<T>(sheet: SheetLocation, get: (token: string) => Promise<T>): Promise<T> {
     try {
       return await this.fetch(sheet, get);
     } catch (error) {
@@ -94,7 +100,7 @@ export class SheetsReader {
   }
 
   /** Waits for a valid token (renewal included); a session that ends instead is "expired". */
-  private async token(sheet: SheetDefinition): Promise<string> {
+  private async token(sheet: SheetLocation): Promise<string> {
     try {
       return await this.auth.freshToken();
     } catch {
@@ -103,7 +109,7 @@ export class SheetsReader {
   }
 
   /** One GET, retried with backoff on transient errors; a fresh token for every try. */
-  private async fetch<T>(sheet: SheetDefinition, get: (token: string) => Promise<T>): Promise<T> {
+  private async fetch<T>(sheet: SheetLocation, get: (token: string) => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
         return await get(await this.token(sheet));
@@ -116,8 +122,9 @@ export class SheetsReader {
     }
   }
 
-  private async getValues(sheet: SheetDefinition, token: string): Promise<CellValue[][] | undefined> {
-    const url = `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values/${tabRange(sheet.tab)}`;
+  private async getValues(sheet: SheetLocation, token: string, rows?: string): Promise<CellValue[][] | undefined> {
+    const range = rows === undefined ? tabRange(sheet.tab) : tabRange(sheet.tab, rows);
+    const url = `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values/${range}`;
     const response = await firstValueFrom(
       this.http.get<ValueRange>(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -127,7 +134,7 @@ export class SheetsReader {
     return response.values;
   }
 
-  private getTabs(sheet: SheetDefinition, token: string): Promise<SpreadsheetTabs> {
+  private getTabs(sheet: SheetLocation, token: string): Promise<SpreadsheetTabs> {
     return firstValueFrom(
       this.http.get<SpreadsheetTabs>(`${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -136,7 +143,7 @@ export class SheetsReader {
     );
   }
 
-  private toLoadError(sheet: SheetDefinition, error: unknown): SheetLoadError {
+  private toLoadError(sheet: SheetLocation, error: unknown): SheetLoadError {
     const status = error instanceof HttpErrorResponse ? error.status : 0;
     switch (status) {
       case 401:
@@ -177,6 +184,6 @@ function isUnauthorized(error: unknown): boolean {
   return error instanceof HttpErrorResponse && error.status === 401;
 }
 
-function expiredError(sheet: SheetDefinition): SheetLoadError {
+function expiredError(sheet: SheetLocation): SheetLoadError {
   return new SheetLoadError(sheet.label, 'expired', AUTH_MESSAGES.expired);
 }

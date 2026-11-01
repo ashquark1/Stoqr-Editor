@@ -1,7 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 import { environment } from '@env/environment';
-import { AppMode, SheetDefinition, SheetKey, validateEnvironment } from './app-environment';
+import { AppMode, SheetDefinition, SheetKey, SheetLocation, validateEnvironment } from './app-environment';
 
 /**
  * The only reader of `src/environments/*` (US-04). Validates the environment
@@ -16,6 +16,8 @@ export class AppConfig {
   readonly isLive = computed(() => this.mode() === 'live');
   readonly clientId = signal(this.env.google.clientId).asReadonly();
   readonly sheets = signal<readonly SheetDefinition[]>(this.env.sheets).asReadonly();
+  /** The Stock Log spreadsheet (US-94), or null when the environment has no `stockLog` block. */
+  readonly stockLog = signal<SheetLocation | null>(this.env.stockLog ?? null).asReadonly();
 
   /** Every sheet as "Label (Tab)", joined by " · " — the footer's full text (US-41). */
   readonly sheetsLabel = computed(() =>

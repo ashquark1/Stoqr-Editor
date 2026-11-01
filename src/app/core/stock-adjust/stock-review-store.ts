@@ -5,6 +5,7 @@ import { ProductSearchStore } from '@core/search/product-search-store';
 import { RowChange, approve } from '@core/sheets/approval';
 import { ResultStrip, ReviewFlow } from '@core/sheets/review-flow';
 import { StockAdjustStore } from './stock-adjust-store';
+import { StockLogStore } from './stock-log-store';
 
 export type { ReviewStep } from '@core/sheets/review-flow';
 
@@ -55,6 +56,8 @@ export class StockReviewStore {
   private readonly adjust = inject(StockAdjustStore);
   private readonly search = inject(ProductSearchStore);
   private readonly config = inject(AppConfig);
+  /** The Stock Log check runs with the stock store (US-94); its use in Apply / Undo is US-95. */
+  readonly log = inject(StockLogStore);
 
   private readonly savedSignal = signal<StockSaved | null>(null);
   private readonly undoAvailableSignal = signal(false);
