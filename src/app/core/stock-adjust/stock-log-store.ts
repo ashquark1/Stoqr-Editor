@@ -58,6 +58,16 @@ export class StockLogStore {
   );
   /** Why stock changes are off, or null. */
   readonly offReason = computed(() => (this.stockChangesOff() ? this.messageSignal() : null));
+  /** The no-access message (US-96): what is wrong and the way out; null while stock changes are on. */
+  readonly offMessage = computed(() => {
+    if (this.statusSignal() === 'no-access') {
+      return `You don't have access to the ${this.config.stockLog()?.label ?? 'Stock Log'} sheet, so stock changes are switched off. Ask the owner to share it with you as Editor.`;
+    }
+    if (this.statusSignal() === 'unusable') {
+      return `${this.messageSignal() ?? 'The Stock Log sheet can\'t be used.'} Stock changes are switched off until it's fixed.`;
+    }
+    return null;
+  });
   /** Lines of confirmed changes not yet in the log, oldest first (Retry log sends them). */
   readonly pending = this.pendingSignal.asReadonly();
   readonly hasPending = computed(() => this.pendingSignal().length > 0);

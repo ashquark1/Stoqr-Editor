@@ -28,7 +28,7 @@ export interface StockSaved {
 }
 
 /** One result strip under the adjuster (US-76): look, text and up to two actions. */
-export type StripAction = 'undo' | 'dismiss' | 'try-again' | 'retry' | 'close';
+export type StripAction = 'undo' | 'dismiss' | 'try-again' | 'retry' | 'close' | 'retry-log';
 export type StockStrip = ResultStrip<StripAction>;
 
 /** What a stock save's outcomes need. `undo`: this save writes back the previous quantity (US-65). */
@@ -184,6 +184,10 @@ export class StockReviewStore {
       default:
         return null;
     }
+    // A pending log line (US-96): the header's amber strip replaces the green result.
+    if (this.log.hasPending()) {
+      return null;
+    }
     const saved = this.savedSignal();
     if (saved !== null) {
       if (saved.retried) {
@@ -199,6 +203,32 @@ export class StockReviewStore {
     const restored = this.restoredSignal();
     return restored === null ? null : success('', `Stock restored to ${restored}.`, null);
   });
+  /**
+   * The "Retry log" strip under the card header (US-96) while any line is
+   * pending, with Undo while the last Apply's window is open; null otherwise.
+   */
+  readonly logStrip = computed<StockStrip | null>(() => {
+    const count = this.log.pending().length;
+    if (count === 0) {
+      return null;
+    }
+    return {
+      variant: 'warning',
+      lead:
+        count === 1
+          ? "Stock saved, but the change wasn't recorded in the log."
+          : `Stock saved, but ${count} changes weren't recorded in the log.`,
+      message: this.log.failure() ?? '',
+      primary: { label: 'Retry log', action: 'retry-log' },
+      secondary: this.undoAvailable() ? { label: 'Undo', action: 'undo' } : null,
+    };
+  });
+
+  /** The user's Retry log tap (US-96). */
+  retryLog(): Promise<void> {
+    return this.log.retryLog();
+  }
+
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = this.flow.retryLabel;
   /** Saving, or half saved: the adjuster and the pencil are off until Retry or Close. */
@@ -316,6 +346,9 @@ export class StockReviewStore {
         return;
       case 'retry':
         void this.retry();
+        return;
+      case 'retry-log':
+        void this.retryLog();
         return;
       case 'dismiss':
       case 'close':

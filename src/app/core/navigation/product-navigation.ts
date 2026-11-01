@@ -67,6 +67,11 @@ export class ProductNavigation {
         untracked(() => this.toggleNewProduct());
       }
     });
+    // Add product is off without Stock Log access (US-95/96); the shell shows why.
+    effect(() => {
+      const reason = this.stockReview.log.offMessage();
+      untracked(() => this.panels.setAddProductOff(reason));
+    });
   }
 
   /**

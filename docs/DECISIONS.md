@@ -514,6 +514,13 @@
 - Accepted gap (owner): an unconfirmed Master write that did land gets no line (Try again sees a conflict); the owner adds it by hand.
 - Note: the owner set the env files (deny rule): `1F8c…pWg` is the LIVE log, TEST has its own ID (they share none).
 
+## 2026-11-01: Retry log strip and the no-access message (US-96) [confirmed]
+
+- Decision: the amber "Retry log" strip has ONE place, under the card header, shown on any open product while a line is pending (`StockReviewStore.logStrip()`), with Undo while the last Apply's window is open. It replaces the green Stock saved / Details saved strips; problem strips stay in the adjuster. With no product open it waits for the next card.
+- Decision (reuse, Q-G3): `<stoqr-strip>` gains `primaryBusy` / `primaryBusyLabel` ("Logging…", both buttons off) instead of a second strip.
+- Decision: without log access the adjuster shows the message (`StockLogStore.offMessage`) as an amber strip and all its controls are off; the form's Stock qty becomes a read-only value with the message; Add product is `aria-disabled` (focusable, tooltip and name give the reason). The shell reads `PanelStore.addProductOff`, set by `ProductNavigation`, so no stock store enters the first load (502.2 kB).
+- Decision: `.stoqr-btn[aria-disabled='true']` looks like `:disabled` (theme, no hover).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

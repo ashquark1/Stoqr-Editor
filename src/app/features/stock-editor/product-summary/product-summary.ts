@@ -15,7 +15,7 @@ import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
-import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
+import { StockReviewStore, StripAction } from '@core/stock-adjust/stock-review-store';
 import { Badge } from '@shared/ui/badge/badge';
 import { StatusBadge } from '@shared/ui/status-badge/status-badge';
 import { Strip } from '@shared/ui/strip/strip';
@@ -55,6 +55,18 @@ export class ProductSummary {
   private readonly title = viewChild<ElementRef<HTMLElement>>('titleEl');
   private readonly detailsIcon = viewChild<ElementRef<HTMLElement>>('detailsIcon');
   private readonly injector = inject(Injector);
+
+  /** A Retry log strip button (US-96); after a Retry log that clears it, focus goes to the card title. */
+  protected async logAction(action: StripAction): Promise<void> {
+    if (action !== 'retry-log') {
+      this.review.stripAction(action);
+      return;
+    }
+    await this.review.retryLog();
+    if (!this.review.log.hasPending()) {
+      this.title()?.nativeElement.focus({ preventScroll: true });
+    }
+  }
 
   constructor() {
     // The form closed (Cancel, Close, Discard, a save): focus back on the pencil / eye (US-77, US-78).

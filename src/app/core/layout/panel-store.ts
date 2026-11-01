@@ -21,6 +21,7 @@ export class PanelStore {
   private readonly openSignal = signal<PanelKey | null>(null);
   private readonly newProductSignal = signal(false);
   private readonly newProductRequestSignal = signal(0);
+  private readonly addProductOffSignal = signal<string | null>(null);
 
   readonly healthOpen = computed(() => this.openSignal() === 'data-health');
   /** The filter panel (US-69 button, US-70 panel). */
@@ -34,6 +35,11 @@ export class PanelStore {
    * navigation, which keeps the search and editor stores out of the first load.
    */
   readonly newProductRequest = this.newProductRequestSignal.asReadonly();
+  /**
+   * Why Add product is off (no Stock Log access, US-96), or null. Set by
+   * `ProductNavigation` from the log status, so the shell needs no stock store.
+   */
+  readonly addProductOff = this.addProductOffSignal.asReadonly();
 
   /** The Data health button's count, and its accessible name ("Data health, 2 issues"). */
   readonly healthCount = computed(() => this.health.health().total);
@@ -59,6 +65,11 @@ export class PanelStore {
         this.newProductSignal.set(false);
       }
     });
+  }
+
+  /** Set by `ProductNavigation` (US-96): the no-access message, or null. */
+  setAddProductOff(reason: string | null): void {
+    this.addProductOffSignal.set(reason);
   }
 
   /** The Add product button: asks navigation to open or close the New product shell. */

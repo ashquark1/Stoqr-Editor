@@ -102,3 +102,10 @@
 }
 
 
+
+// Why Stock qty is read-only (US-96): small muted text under the value.
+.details__locked-note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}

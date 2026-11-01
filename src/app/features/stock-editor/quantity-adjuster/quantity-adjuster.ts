@@ -47,10 +47,15 @@ export class QuantityAdjuster {
   private readonly amountBox = viewChild<ElementRef<HTMLInputElement>>('amountBox');
   private readonly injector = inject(Injector);
 
-  /** The way not in use is greyed out: the total is in use, or an amount / sign is. */
-  protected readonly dimAmount = computed(() => this.adjust.way() === 'total');
+  /** No Stock Log access (US-96): the message shown above the ways, else null. */
+  protected readonly offMessage = this.review.log.offMessage;
+  /** Boxes and signs are off: saving, half saved (US-64), or stock changes switched off (US-96). */
+  protected readonly controlsOff = computed(() => this.review.locked() || this.offMessage() !== null);
+
+  /** The way not in use is greyed out: the total is in use, or an amount / sign is; both while switched off. */
+  protected readonly dimAmount = computed(() => this.offMessage() !== null || this.adjust.way() === 'total');
   protected readonly dimTotal = computed(
-    () => this.adjust.way() === 'amount' && this.adjust.hasEntry(),
+    () => this.offMessage() !== null || (this.adjust.way() === 'amount' && this.adjust.hasEntry()),
   );
 
   /** Which box a red message belongs to (for `aria-describedby`), or null. */
@@ -97,10 +102,10 @@ export class QuantityAdjuster {
       }
       wasSaving = saving;
     });
-    // Off while saving or half saved (US-64).
+    // Off while saving or half saved (US-64), or without Stock Log access (US-96).
     effect(() => {
       const options = { emitEvent: false };
-      if (this.review.locked()) {
+      if (this.controlsOff()) {
         this.amountControl.disable(options);
         this.totalControl.disable(options);
       } else {

@@ -33,7 +33,8 @@
           <legend class="details__group-title">{{ section.title }}</legend>
           <div class="details__grid">
             @for (def of section.fields; track def.key) {
-              @if (def.editable && details.editable()) {
+              <!-- Stock qty is read-only without Stock Log access (US-96), with the reason under it. -->
+              @if (def.editable && details.editable() && !(def.key === 'stockQty' && details.stockQtyLocked())) {
                 <div class="stoqr-field details__field" [class.details__field--wide]="def.multiline">
                   <label class="stoqr-field__label" [for]="'detail-' + def.key">
                     {{ def.label }}
@@ -79,6 +80,11 @@
                       {{ display(row.product[def.key]) }}
                     }
                   </div>
+                  @if (def.key === 'stockQty' && details.editable()) {
+                    @if (details.stockQtyLockedReason(); as message) {
+                      <p class="details__locked-note">{{ message }}</p>
+                    }
+                  }
                 </div>
               }
             }

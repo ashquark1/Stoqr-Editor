@@ -81,8 +81,9 @@
             class="stoqr-btn stoqr-btn--secondary icon-btn app-footer__add"
             [class.stoqr-btn--pressed]="panels.newProductOpen()"
             [attr.aria-pressed]="panels.newProductOpen()"
-            aria-label="Add product"
-            stoqrTooltip="Add product"
+            [attr.aria-disabled]="panels.addProductOff() ? true : null"
+            [attr.aria-label]="panels.addProductOff() ? 'Add product. ' + panels.addProductOff() : 'Add product'"
+            [stoqrTooltip]="panels.addProductOff() ?? 'Add product'"
             (click)="panels.requestNewProduct()"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -97,7 +98,8 @@
             class="stoqr-btn stoqr-btn--secondary icon-btn app-footer__add"
             [class.stoqr-btn--pressed]="panels.newProductOpen()"
             [attr.aria-pressed]="panels.newProductOpen()"
-            aria-label="Add product"
+            [attr.aria-disabled]="panels.addProductOff() ? true : null"
+            [attr.aria-label]="panels.addProductOff() ? 'Add product. ' + panels.addProductOff() : 'Add product'"
             (click)="panels.requestNewProduct()"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

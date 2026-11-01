@@ -465,7 +465,9 @@ a {
     transform: translateY(1px);
   }
 
-  &:disabled {
+  // aria-disabled (V2, US-96): looks off but stays focusable so its reason (tooltip) is reachable.
+  &:disabled,
+  &[aria-disabled='true'] {
     opacity: 0.45;
     cursor: not-allowed;
   }
@@ -486,21 +488,21 @@ a {
   &--primary {
     background: var(--color-pine);
     color: var(--color-white);
-    &:hover:not(:disabled) { opacity: 0.88; }
+    &:hover:not(:disabled):not([aria-disabled='true']) { opacity: 0.88; }
   }
 
   &--secondary {
     background: transparent;
     color: var(--color-pine);
     border: 1.5px solid var(--color-pine);
-    &:hover:not(:disabled) { background: var(--color-dew); }
+    &:hover:not(:disabled):not([aria-disabled='true']) { background: var(--color-dew); }
   }
 
   &--ghost {
     background: transparent;
     color: var(--color-ink-mid);
     border: 0.5px solid var(--color-fog);
-    &:hover:not(:disabled) { background: var(--color-paper); }
+    &:hover:not(:disabled):not([aria-disabled='true']) { background: var(--color-paper); }
   }
 
   &--danger {

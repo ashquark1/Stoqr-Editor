@@ -90,9 +90,8 @@ export class DetailsStore {
 
   /** Stock qty may not change: no Stock Log access (US-95). The reason is `stockQtyLockedReason`. */
   readonly stockQtyLocked = this.log.stockChangesOff;
-  readonly stockQtyLockedReason = computed(() =>
-    this.stockQtyLocked() ? `${this.log.offReason() ?? 'The Stock Log sheet can\'t be used.'} Stock qty can't be changed.` : null,
-  );
+  /** The no-access message shown under the read-only Stock qty (US-96). */
+  readonly stockQtyLockedReason = this.log.offMessage;
 
   /** The message per invalid field (the SKU check included); fields that may be saved are absent. */
   readonly errors = computed<Readonly<Partial<Record<DetailField, string>>>>(() => {

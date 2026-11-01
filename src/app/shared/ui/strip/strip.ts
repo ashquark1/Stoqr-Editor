@@ -31,6 +31,9 @@ export class Strip implements OnInit, OnDestroy {
   readonly primaryLabel = input('');
   /** Secondary button label; empty hides it. */
   readonly secondaryLabel = input('');
+  /** The primary action is running (US-96): busy look and `primaryBusyLabel`; both buttons off. */
+  readonly primaryBusy = input(false);
+  readonly primaryBusyLabel = input('');
   /** Milliseconds before `dismissed`; 0 keeps the strip until the feature removes it. */
   readonly autoDismissMs = input(0);
 

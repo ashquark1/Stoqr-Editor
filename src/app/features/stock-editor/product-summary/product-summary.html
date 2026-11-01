@@ -57,7 +57,21 @@
         }
       </header>
 
-      @if (detailsReview.savedSheets(); as sheets) {
+      @if (review.logStrip(); as strip) {
+        <!-- A stock change not yet in the log (US-96): one amber strip, Retry log (+ Undo in its window).
+             It replaces the green Stock saved / Details saved strips. -->
+        <stoqr-strip
+          [variant]="strip.variant"
+          [lead]="strip.lead"
+          [message]="strip.message"
+          [primaryLabel]="strip.primary?.label ?? ''"
+          [secondaryLabel]="strip.secondary?.label ?? ''"
+          [primaryBusy]="review.log.logging()"
+          primaryBusyLabel="Logging…"
+          (primary)="strip.primary && logAction(strip.primary.action)"
+          (secondary)="strip.secondary && logAction(strip.secondary.action)"
+        />
+      } @else if (detailsReview.savedSheets(); as sheets) {
         <!-- Details saved (US-80): under the header for about 5 s; no product name, no Undo. -->
         <stoqr-strip variant="success" lead="Details saved." [message]="sheets + '.'" />
       }

@@ -1,5 +1,5 @@
 # Feature: "Retry log" strip and the no-access message (US-96, C5-h UI)
-# Sprint 11. Classification: UI (state from US-95). Spec for approval.
+# Sprint 11. Classification: UI (state from US-95). Approved 2026-11-01; built 2026-11-01 (tests not run).
 
 ## Problem
 US-95 keeps a failed log line pending and switches stock changes off without log access, but nothing shows either: a failed line is invisible and refused taps do nothing.
@@ -22,6 +22,10 @@ US-95 keeps a failed log line pending and switches stock changes off without log
 - Adjuster: the message as an amber strip (no buttons) above the two ways; both boxes read-only, + and −, Apply and Undo disabled, the ways dimmed. Text, not colour alone.
 - Details form: Stock qty shows as a read-only value with the message under it (no input), so it cannot be typed at all; the other fields stay editable.
 - Add product: `aria-disabled` (still focusable, so the reason is reachable), dimmed, tooltip and accessible description = the message; a press does nothing. The shell reads it from `PanelStore.addProductOff` (set by `ProductNavigation` from the log status), so no stock store enters the first load.
+
+## As built (2026-11-01)
+- `StockReviewStore.logStrip()` / `retryLog()` / `'retry-log'` action; `StockLogStore.offMessage`; `Strip` `primaryBusy` / `primaryBusyLabel`; `PanelStore.addProductOff` (set by `ProductNavigation`); theme `[aria-disabled='true']`; `DetailsStore.stockQtyLockedReason` = `offMessage`. After a save with a pending line, focus goes to the Amount box (the header strip announces itself).
+- G1 screenshots not taken (needs a signed-in session); owner checks on TEST.
 
 ## Edge Cases
 - Lines pending with no product open: the strip shows when the next product opens (the list has no strip slot). Sign-out drops them (US-95).

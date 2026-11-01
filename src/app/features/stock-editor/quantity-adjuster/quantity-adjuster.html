@@ -1,6 +1,11 @@
 <section class="adjuster" aria-labelledby="adjust-title">
   <h3 id="adjust-title" class="adjuster__title">Adjust stock</h3>
 
+  @if (offMessage(); as message) {
+    <!-- No Stock Log access (US-96): why every control below is off, as text. -->
+    <stoqr-strip variant="warning" [message]="message" />
+  }
+
   <!-- Two ways (US-75): an amount with + / −, or a new total. Typing one way clears and dims the other. -->
   <div class="adjuster__ways">
     <div class="adjuster__way" [class.adjuster__way--dim]="dimAmount()">
@@ -27,7 +32,7 @@
           [attr.aria-pressed]="adjust.mode() === 'add'"
           aria-label="Add"
           stoqrTooltip="Add"
-          [disabled]="review.locked()"
+          [disabled]="controlsOff()"
           (click)="adjust.setMode('add')"
         >
           +
@@ -39,7 +44,7 @@
           [attr.aria-pressed]="adjust.mode() === 'subtract'"
           aria-label="Subtract"
           stoqrTooltip="Subtract"
-          [disabled]="review.locked()"
+          [disabled]="controlsOff()"
           (click)="adjust.setMode('subtract')"
         >
           −
@@ -101,7 +106,7 @@
       class="stoqr-btn stoqr-btn--primary adjuster__apply"
       [class.stoqr-btn--busy]="review.step() === 'saving'"
       [attr.aria-busy]="review.step() === 'saving'"
-      [disabled]="!adjust.applyReady() || review.locked()"
+      [disabled]="!adjust.applyReady() || controlsOff()"
       (click)="review.apply()"
     >
       @if (review.step() === 'saving') {
