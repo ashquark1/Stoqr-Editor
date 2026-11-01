@@ -6,7 +6,7 @@ import { SheetLoadError } from '@core/sheets/sheet-load-error';
 import { SheetsReader } from '@core/sheets/sheets-reader';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { SheetsWriter } from '@core/sheets/sheets-writer';
-import { LogRow, resolveLogHeaders } from '@core/sheets/stock-log-map';
+import { LogRow, ResolvedLogHeaders, resolveLogHeaders } from '@core/sheets/stock-log-map';
 import { LogChange, logLine } from './stock-log-line';
 
 /**
@@ -45,6 +45,8 @@ export class StockLogStore {
   private readonly failureSignal = signal<string | null>(null);
   private generation = 0;
   private session = 0;
+  /** The header row as checked at load / Refresh, reused for each line (saves a read; speed 2026-11-01). */
+  private header: ResolvedLogHeaders | null = null;
 
   readonly status = this.statusSignal.asReadonly();
   /** Why the log cannot be used, for the US-96 message; null when ready or checking. */
@@ -155,7 +157,7 @@ export class StockLogStore {
         }
       }
       for (let line = this.pendingSignal()[0]; line !== undefined; line = this.pendingSignal()[0]) {
-        const result = await this.writer.appendLogLine(line);
+        const result = await this.writer.appendLogLine(line, this.header ?? undefined);
         if (session !== this.session) {
           return;
         }
@@ -200,8 +202,12 @@ export class StockLogStore {
       return;
     }
     this.set(generation, 'checking', null);
+    this.header = null;
     try {
       const header = resolveLogHeaders(await this.reader.readHeader(log));
+      if (generation === this.generation) {
+        this.header = header.ok ? header : null;
+      }
       if (header.ok) {
         this.set(generation, 'ready', null);
       } else {

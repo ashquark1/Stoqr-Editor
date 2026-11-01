@@ -12,7 +12,7 @@ import { RETRY_DELAYS_MS, RETRY_WAIT, isBusy, retryDelay } from './backoff';
 import { CellValue } from './data-mapping';
 import { RowRef, createRowRef, rowRefId } from './row-ref';
 import { SheetLoadError } from './sheet-load-error';
-import { LogRow, logRowCells, resolveLogHeaders } from './stock-log-map';
+import { LogRow, ResolvedLogHeaders, logRowCells, resolveLogHeaders } from './stock-log-map';
 import { tabRange } from './a1-range';
 import { SHEETS_API, SheetsReader } from './sheets-reader';
 import { freshSkuHolder } from './sku-check';
@@ -214,14 +214,16 @@ export class SheetsWriter {
    * confirmed line). 429 → backoff and resend (Google saved nothing); 401 →
    * renewal, once more; 5xx / network → `unconfirmed`, never resent.
    */
-  async appendLogLine(line: LogRow): Promise<LogAppendResult> {
+  async appendLogLine(line: LogRow, known?: ResolvedLogHeaders): Promise<LogAppendResult> {
     const log = this.config.stockLog();
     if (log === null) {
       return { kind: 'failed', message: 'The Stock Log sheet is not set up.' };
     }
+    // Speed (2026-11-01): the header checked at load (and on every Refresh) is reused when given,
+    // saving one read per line; without it, row 1 is read again.
     let header;
     try {
-      header = resolveLogHeaders(await this.reader.readHeader(log));
+      header = known ?? resolveLogHeaders(await this.reader.readHeader(log));
     } catch (error) {
       return {
         kind: 'failed',
@@ -236,6 +238,8 @@ export class SheetsWriter {
     }
     const cells = logRowCells(header.columns, header.width, line);
     const url = `${SHEETS_API}/${encodeURIComponent(log.spreadsheetId)}/values/${tabRange(log.tab)}:append`;
+    // The tab number (for Logged At's format) is fetched while the line is sent, not after.
+    const tabId = this.tabIdOrNull(log);
 
     let response: AppendResponse | null = null;
     let renewed = false;
@@ -304,7 +308,7 @@ export class SheetsWriter {
     const loggedAt = header.columns.get('loggedAt');
     const row = appendedRow(response.updates?.updatedRange);
     if (loggedAt !== undefined && row !== null) {
-      await this.formatDateCells(log, row - 1, [loggedAt]);
+      await this.formatDateCells(log, row - 1, [loggedAt], tabId);
     }
     return { kind: 'logged', changeId: String(line.changeId) };
   }
@@ -319,9 +323,13 @@ export class SheetsWriter {
     location: SheetLocation,
     rowIndex: number,
     columns: readonly number[],
+    tabIdLookup: Promise<number | null>,
   ): Promise<void> {
     try {
-      const tabId = await this.reader.tabId(location);
+      const tabId = await tabIdLookup;
+      if (tabId === null) {
+        return;
+      }
       const token = await this.auth.freshToken();
       await firstValueFrom(
         this.http.post(
@@ -349,6 +357,11 @@ export class SheetsWriter {
     }
   }
 
+  /** The tab's number, started early so it runs alongside an append; null when it can't be read. */
+  private tabIdOrNull(location: SheetLocation): Promise<number | null> {
+    return this.reader.tabId(location).catch(() => null);
+  }
+
   /**
    * Adds a NEW product (CR-05, US-97) — the only code that appends a product
    * row; it never deletes one. Takes only a genuine `ApprovedCreate`, then:
@@ -373,14 +386,15 @@ export class SheetsWriter {
     const resumed = this.sentCreates.has(approved.origin);
 
     // 1. Both sheets fresh: the SKU must be on no row of either (else nothing is added).
+    // Both sheets are read at the same time (speed, 2026-11-01).
     const fresh = new Map<SheetKey, CellValue[][] | undefined>();
-    for (const key of SKU_SHEETS) {
-      const sheet = this.config.sheet(key);
-      try {
-        fresh.set(key, await this.reader.read(sheet));
-      } catch (error) {
-        return { kind: 'failed', error: fromLoadError(sheet, error) };
+    const reads = await Promise.allSettled(SKU_SHEETS.map((key) => this.reader.read(this.config.sheet(key))));
+    for (const [i, key] of SKU_SHEETS.entries()) {
+      const read = reads[i];
+      if (read.status === 'rejected') {
+        return { kind: 'failed', error: fromLoadError(this.config.sheet(key), read.reason) };
       }
+      fresh.set(key, read.value);
     }
     const done: CreatedRow[] = [];
     const toAdd: SheetDefinition[] = [];
@@ -458,6 +472,7 @@ export class SheetsWriter {
     values: CellValue[][] | undefined,
   ): Promise<{ readonly ok: true; readonly row: CreatedRow } | { readonly ok: false; readonly error: SheetWriteError }> {
     const url = `${SHEETS_API}/${encodeURIComponent(sheet.spreadsheetId)}/values/${tabRange(sheet.tab)}:append`;
+    const tabId = this.tabIdOrNull(sheet);
     let renewed = false;
     let busy = 0;
     let fresh = values;
@@ -529,7 +544,7 @@ export class SheetsWriter {
       }
       const row = appendedRow(response.updates?.updatedRange);
       if (row !== null) {
-        await this.formatDateCells(sheet, row - 1, plan.dateColumns);
+        await this.formatDateCells(sheet, row - 1, plan.dateColumns, tabId);
       }
       return { ok: true, row: { sheet, ref: createRowRef(sheet.key, plan.id), product: plan.expected } };
     }
@@ -573,10 +588,11 @@ export class SheetsWriter {
       }
     }
 
-    // 2. Format every sheet's Last Updated cell before writing any value.
+    // 2. Format every sheet's Last Updated cell before writing any value — all sheets at the
+    //    same time (speed, 2026-11-01): no value is sent yet, so any failure still writes nothing.
     const budgets: Budget[] = [];
-    for (const [i, target] of targets.entries()) {
-      const formatted = await this.format(target, planned[i], FULL_BUDGET);
+    const formats = await Promise.all(targets.map((target, i) => this.format(target, planned[i], FULL_BUDGET)));
+    for (const [i, formatted] of formats.entries()) {
       if (!formatted.ok) {
         return formatted.result;
       }

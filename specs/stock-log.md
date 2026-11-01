@@ -41,6 +41,9 @@ Nobody can see who changed stock, when, or by how much. CR-05 adds an append-onl
 - Files: `core/config/app-environment.ts` (`SheetLocation`, `stockLog`, validation), `app-config.ts` (`stockLog()`), `core/sheets/a1-range.ts` (`tabRange(tab, rows)`), `sheets-reader.ts` (`readHeader`), `core/sheets/stock-log-map.ts` (labels, `resolveLogHeaders`, `logRowCells`), `core/stock-adjust/stock-log-line.ts` (`logLine`, `changeId`), `core/sheets/sheets-writer.ts` (`appendLogLine`, `LogAppendResult`), `core/stock-adjust/stock-log-store.ts` (`StockLogStore`: status + message; created with `StockReviewStore`).
 - Nothing calls `appendLogLine` yet: US-95 wires Apply, Undo and Form edit.
 
+## Speed change (2026-11-01, owner option A)
+- `appendLogLine(line, known?)`: `StockLogStore` passes the header row resolved by its load / Refresh check, so no re-read per line; the tab number for Logged At's format is fetched alongside the append. A column moved by hand mid-session is picked up on Refresh.
+
 ## Edge Cases
 - Log sheet headers reordered → still found by label. Extra columns → left blank.
 - The format step fails after the values append → the line stays (it is confirmed); Logged At shows as a number until fixed by hand. Reported as logged.

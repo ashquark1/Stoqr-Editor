@@ -566,6 +566,15 @@
 - Decision (owner): the static site is hosted on Vercel, connected to this repo. `vercel.json` sets the build (`npm run build`, output `dist/stoqr-editor/browser`) and rewrites every path to `index.html` so a reload on `/sign-in` serves the app.
 - Owner setup: add the Vercel address to the OAuth client as an Authorized JavaScript origin and, with a trailing `/`, as an Authorized redirect URI (Remember me). The production build uses the LIVE sheets; the cutover rules stay in US-27.
 
+## 2026-11-01: Faster saves — fewer steps in a row (owner, option A) [confirmed]
+
+- Finding: a linked stock save made 5 Google calls one after another (re-read both → format Master → format Dr Trust → write Master → write Dr Trust), about 0.5–0.8 s each from India; the log line then made 4 more.
+- Decision: the Last Updated format is set on all sheets AT THE SAME TIME (still after every check and before any value), so a save is 4 steps in a row. A new product reads both sheets at the same time.
+- Decision: a log line reuses the header row checked at load / Refresh (`StockLogStore`), and the tab number for a date cell's format is fetched while the row is sent (log lines and new rows). A log line is 2 steps in a row (was 4).
+- Kept: a View-only sheet is still caught before any value is written; Master is still written before Dr Trust; values are still confirmed by Google's echo.
+- Trade-off: a log column moved by hand during a session is only seen after Refresh (the line would land in the old columns until then).
+- Rejected: one request per sheet doing format + value (option B: weaker View-only guard, no echo); writing both sheets at once (a Dr-Trust-only save would be possible).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

@@ -26,6 +26,9 @@ export type LogHeaders =
   | { readonly ok: true; readonly columns: ReadonlyMap<LogField, number>; readonly width: number }
   | { readonly ok: false; readonly missing: readonly string[] };
 
+/** A log header row whose nine columns were all found. */
+export type ResolvedLogHeaders = Extract<LogHeaders, { ok: true }>;
+
 const normalise = (value: CellValue | undefined): string =>
   String(value ?? '')
     .trim()
