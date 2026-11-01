@@ -1,0 +1,30 @@
+<div class="stoqr-form-footer">
+  <p class="stoqr-form-footer__status" aria-live="polite">{{ status() }}</p>
+  <div class="stoqr-form-footer__actions">
+    @if (secondaryLabel()) {
+      <button
+        type="button"
+        class="stoqr-btn stoqr-btn--ghost stoqr-form-footer__secondary"
+        [disabled]="secondaryDisabled() || busy()"
+        (click)="secondary.emit()"
+      >
+        {{ secondaryLabel() }}
+      </button>
+    }
+    @if (primaryLabel()) {
+      <button
+        type="button"
+        class="stoqr-btn stoqr-btn--primary stoqr-form-footer__primary"
+        [class.stoqr-btn--busy]="busy()"
+        [attr.aria-busy]="busy()"
+        [disabled]="primaryDisabled() || busy()"
+        (click)="primary.emit()"
+      >
+        @if (busy()) {
+          <span class="stoqr-spinner" aria-hidden="true"></span>
+        }
+        {{ primaryLabel() }}
+      </button>
+    }
+  </div>
+</div>

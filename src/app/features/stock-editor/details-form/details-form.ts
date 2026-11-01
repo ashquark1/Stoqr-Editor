@@ -4,6 +4,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  computed,
   effect,
   inject,
   viewChild,
@@ -17,6 +18,7 @@ import { DetailsStore } from '@core/details/details-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { Badge } from '@shared/ui/badge/badge';
+import { FormFooter } from '@shared/ui/form-footer/form-footer';
 import { displayValue } from '@shared/util/display-value';
 import { DetailsReview } from '../details-review/details-review';
 
@@ -32,7 +34,7 @@ import { DetailsReview } from '../details-review/details-review';
  */
 @Component({
   selector: 'app-details-form',
-  imports: [Badge, DetailsReview, ReactiveFormsModule],
+  imports: [Badge, DetailsReview, FormFooter, ReactiveFormsModule],
   templateUrl: './details-form.html',
   styleUrl: './details-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,6 +51,18 @@ export class DetailsForm {
     byDetailField((field) => new FormControl(this.details.texts()[field], { nonNullable: true })),
   );
   private readonly typed = toSignal(this.form.valueChanges, { initialValue: this.form.value });
+
+  /** Footer status line (US-92): what is wrong, or how many fields changed. */
+  protected readonly footerStatus = computed(() => {
+    if (!this.details.hasChanges()) {
+      return '';
+    }
+    if (!this.details.valid()) {
+      return 'Fix the highlighted fields to continue.';
+    }
+    const count = this.details.changedFields().length;
+    return `${count} field${count === 1 ? '' : 's'} changed`;
+  });
 
   private readonly section = viewChild<ElementRef<HTMLElement>>('formSection');
   private readonly heading = viewChild<ElementRef<HTMLElement>>('formTitle');

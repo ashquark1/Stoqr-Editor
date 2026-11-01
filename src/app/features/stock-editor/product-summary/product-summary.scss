@@ -3,6 +3,8 @@
 // The card under the toolbar, full content width (US-72); short fade when a
 // product opens, none with reduced motion.
 .summary {
+  // The shared form footer spans the card's full width (US-92).
+  --form-footer-bleed: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -184,4 +186,9 @@
   padding-left: var(--space-4);
   font-size: var(--text-small);
   color: var(--color-text-error);
+}
+
+// The close X (US-92): round hover background.
+.summary__icon--close {
+  border-radius: var(--radius-pill);
 }

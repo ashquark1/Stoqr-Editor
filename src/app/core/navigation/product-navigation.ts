@@ -198,10 +198,18 @@ export class ProductNavigation {
 
   /** Cancel / leaving the form (US-66): always closes it, asking first when details are edited. */
   closeDetails(): void {
-    if (this.details.hasChanges()) {
-      this.pendingSignal.set({ leave: () => this.details.closeForm() });
-    } else {
+    if (this.saving()) {
+      return;
+    }
+    // Leaving also ends an open details review (a half save's Close included, US-92).
+    const leave = (): void => {
+      this.detailsReview.back();
       this.details.closeForm();
+    };
+    if (this.details.hasChanges()) {
+      this.pendingSignal.set({ leave });
+    } else {
+      leave();
     }
   }
 

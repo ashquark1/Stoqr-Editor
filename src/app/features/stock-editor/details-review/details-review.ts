@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject
 
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { Badge } from '@shared/ui/badge/badge';
+import { FormFooter } from '@shared/ui/form-footer/form-footer';
 import { Strip } from '@shared/ui/strip/strip';
 import { displayValue } from '@shared/util/display-value';
-import { ReviewActions } from '../review-actions/review-actions';
 
 /**
  * Review & approve a details edit (US-23): only the changed fields, old → new,
@@ -15,7 +15,7 @@ import { ReviewActions } from '../review-actions/review-actions';
  */
 @Component({
   selector: 'app-details-review',
-  imports: [Badge, ReviewActions, Strip],
+  imports: [Badge, FormFooter, Strip],
   templateUrl: './details-review.html',
   styleUrl: './details-review.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

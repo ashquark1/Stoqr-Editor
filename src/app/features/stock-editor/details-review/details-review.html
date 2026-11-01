@@ -39,10 +39,6 @@
     </ul>
   }
 
-  @if (review.step() === 'saving') {
-    <p class="dreview__sheets" role="status">Saving to {{ review.review()?.sheetsText }}…</p>
-  }
-
   <!-- Outcomes as one shared strip (US-80); Save changes / Back while reviewing or saving. -->
   @if (review.strip(); as strip) {
     <stoqr-strip
@@ -55,6 +51,14 @@
       (secondary)="strip.secondary && review.stripAction(strip.secondary.action)"
     />
   } @else {
-    <app-review-actions [step]="review.step()" (approve)="review.approve()" (back)="review.back()" />
+    <!-- Shared footer (US-92): Back and Save changes; while saving, "Saving…" and Back off. -->
+    <stoqr-form-footer
+      [status]="review.step() === 'saving' ? 'Saving to ' + (review.review()?.sheetsText ?? '') + '…' : ''"
+      [primaryLabel]="review.step() === 'saving' ? 'Saving…' : 'Save changes'"
+      secondaryLabel="Back"
+      [busy]="review.step() === 'saving'"
+      (primary)="review.approve()"
+      (secondary)="review.back()"
+    />
   }
 </section>

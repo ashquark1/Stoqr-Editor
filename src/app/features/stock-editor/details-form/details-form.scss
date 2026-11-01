@@ -101,14 +101,4 @@
   color: var(--color-text-error);
 }
 
-.details__hint {
-  margin: 0;
-  font-size: var(--text-small);
-  color: var(--color-text-error);
-}
 
-.details__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}

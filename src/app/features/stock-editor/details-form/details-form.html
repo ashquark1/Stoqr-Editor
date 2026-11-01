@@ -86,30 +86,18 @@
         </fieldset>
       }
 
+      <!-- Shared footer (US-92): status, then Cancel and Review changes; read-only gets Close only. -->
       @if (details.editable()) {
-        @if (details.hasChanges() && !details.valid()) {
-          <p class="details__hint" role="status">Fix the highlighted fields to continue.</p>
-        }
-        <div class="details__actions">
-          <button
-            type="button"
-            class="stoqr-btn stoqr-btn--primary"
-            [disabled]="!details.canReview()"
-            (click)="review.open()"
-          >
-            Review changes
-          </button>
-          <!-- Always closes the form; asks first when there are edits (US-66). -->
-          <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="navigation.closeDetails()">
-            Cancel
-          </button>
-        </div>
+        <stoqr-form-footer
+          [status]="footerStatus()"
+          primaryLabel="Review changes"
+          secondaryLabel="Cancel"
+          [primaryDisabled]="!details.canReview()"
+          (primary)="review.open()"
+          (secondary)="navigation.closeDetails()"
+        />
       } @else {
-        <div class="details__actions">
-          <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="navigation.closeDetails()">
-            Close
-          </button>
-        </div>
+        <stoqr-form-footer secondaryLabel="Close" (secondary)="navigation.closeDetails()" />
       }
     }
   </section>

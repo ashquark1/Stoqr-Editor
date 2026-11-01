@@ -1,0 +1,66 @@
+@use 'breakpoints' as bp;
+
+// Full card width when the card sets --form-footer-bleed to its padding; thin
+// line above, quiet fill, the card's padding inside.
+:host {
+  display: block;
+  margin: 0 calc(-1 * var(--form-footer-bleed, 0px)) calc(-1 * var(--form-footer-bleed, 0px));
+}
+
+.stoqr-form-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--form-footer-bleed, var(--space-3));
+  background: var(--color-paper);
+  border-top: var(--border-thin);
+  border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
+
+  @include bp.from(tablet) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.stoqr-form-footer__status {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+
+  &:empty {
+    display: none;
+
+    @include bp.from(tablet) {
+      display: block;
+    }
+  }
+}
+
+// Phones: primary first, both full width. From 768px: Cancel then the primary (spacing token, not 10px).
+.stoqr-form-footer__actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+
+  @include bp.from(tablet) {
+    flex-direction: row;
+    flex-shrink: 0;
+    gap: var(--space-2);
+  }
+
+  .stoqr-btn {
+    width: 100%;
+
+    @include bp.from(tablet) {
+      width: auto;
+    }
+  }
+}
+
+.stoqr-form-footer__primary {
+  @include bp.from(tablet) {
+    min-width: 150px;
+  }
+}
