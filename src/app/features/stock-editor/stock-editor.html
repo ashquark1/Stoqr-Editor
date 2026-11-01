@@ -85,8 +85,12 @@
       <!-- One list (US-73): the home list, or floated over the open product, which stays dimmed and untouched. -->
       <div class="stock-editor__layout">
         @if (panels.newProductOpen()) {
-          <!-- Add product (US-93): the shell sits where the product card would. -->
-          <app-new-product class="stock-editor__summary" />
+          <!-- Add product (US-93): the shell sits where the product card would; a search floats over it (US-98). -->
+          <app-new-product
+            class="stock-editor__summary"
+            [class.stock-editor__summary--dimmed]="search.overlayOpen()"
+            [inert]="search.overlayOpen()"
+          />
         }
         @if (search.selected()) {
           <app-product-summary
@@ -97,7 +101,7 @@
         }
         <app-product-picker
           class="stock-editor__picker"
-          [class.stock-editor__picker--overlay]="search.overlayOpen() && search.selected() !== null"
+          [class.stock-editor__picker--overlay]="search.overlayOpen()"
         />
       </div>
     }

@@ -93,12 +93,29 @@ export class ProductNavigation {
       this.dropWork();
       this.search.clearSelection();
       this.panels.openNewProduct();
+      this.details.startNew();
     });
   }
 
-  /** The shell's X (US-93). Nothing can be typed yet; US-98 adds the "Discard changes?" rules. */
+  /**
+   * The New product form's X, Cancel, or Add product again (US-98): asks
+   * "Discard changes?" when anything was typed, then closes it (the entries
+   * go with it). Not while a save runs.
+   */
   closeNewProduct(): void {
+    if (this.saving()) {
+      return;
+    }
+    this.ask(() => this.panels.closeNewProduct());
+  }
+
+  /**
+   * A new product was saved (US-98/100): the form closes without asking (its
+   * entries are saved) and the NEW product opens in the card.
+   */
+  openCreated(ref: RowRef): void {
     this.panels.closeNewProduct();
+    this.search.select(ref);
   }
 
   /** Refresh may run: not while one runs or a save runs (US-60). */
@@ -181,12 +198,13 @@ export class ProductNavigation {
    * show the start state — asking first, and putting the text back on "no".
    */
   clearBox(): void {
-    if (this.search.selected() === null) {
-      this.search.clear();
-      return;
-    }
+    // Results over the open product or the New product form: cancel them, the work stays.
     if (this.search.overlayOpen()) {
       this.search.cancelOverlay();
+      return;
+    }
+    if (this.search.selected() === null) {
+      this.search.clear();
       return;
     }
     if (this.saving()) {
@@ -224,7 +242,13 @@ export class ProductNavigation {
     if (!this.refreshAvailable()) {
       return;
     }
-    this.ask(() => void this.reload());
+    this.ask(() => {
+      // The New product form stays open, back to blank (US-98).
+      if (this.details.isNew()) {
+        this.details.reset();
+      }
+      void this.reload();
+    });
   }
 
   /**

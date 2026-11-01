@@ -55,7 +55,13 @@ export class ProductSearchStore {
   /** The search that ran (filters the list). */
   readonly query = this.querySignal.asReadonly();
   /** A search ran while a product is open: the results show over it (US-59). */
-  readonly overlayOpen = this.overlaySignal.asReadonly();
+  /**
+   * The results float over something open: a product, or the New product form
+   * (US-98, treated like an open product with unsaved work).
+   */
+  readonly overlayOpen = computed(
+    () => this.overlaySignal() && (this.selectedRefSignal() !== null || this.panels.newProductOpen()),
+  );
   /** Changes only when a different product opens or the product closes. */
   readonly selectionKey = this.selectionKeySignal.asReadonly();
 
@@ -93,7 +99,9 @@ export class ProductSearchStore {
   readonly toolbarShown = computed(() => this.hasQuery() || this.selectedRefSignal() !== null);
   /** The result list shows: on the home screen, or as the overlay over an open product (US-59). */
   readonly listShown = computed(
-    () => this.hasQuery() && (this.selectedRefSignal() === null || this.overlaySignal()),
+    () =>
+      this.hasQuery() &&
+      ((this.selectedRefSignal() === null && !this.panels.newProductOpen()) || this.overlayOpen()),
   );
   /** Filters changed from the defaults, for "Filters (n)". */
   readonly filterCount = computed(() => this.filters.changedCount());
@@ -217,7 +225,7 @@ export class ProductSearchStore {
   /** A search runs; with a product open its results show as the overlay. */
   private run(text: string): void {
     this.querySignal.set(text);
-    if (this.selectedRefSignal() !== null && text.trim() !== '') {
+    if ((this.selectedRefSignal() !== null || this.panels.newProductOpen()) && text.trim() !== '') {
       this.overlaySignal.set(true);
     }
   }

@@ -1,5 +1,5 @@
 # Feature: New product form state (US-98, C5-d state)
-# Sprint 12. Classification: CORE-small (stores, navigation). Spec for approval.
+# Sprint 12. Classification: CORE-small (stores, navigation). Approved 2026-11-01; built 2026-11-01 (tests not run).
 
 ## Problem
 The New product shell (US-93) opens and closes but holds nothing. The form (US-99) and its review (US-100) need state that search, Refresh, the "Discard changes?" question and the product card treat like an open product with unsaved edits.
@@ -30,6 +30,9 @@ The New product shell (US-93) opens and closes but holds nothing. The form (US-9
 
 ### After a save (state for US-100)
 - `ProductNavigation.openCreated(ref)`: closes the form (no question: the entries are saved) and opens the new product in the card. The "Product added. <sheets>." 5 s state lives in US-100's review store (the details pattern).
+
+## As built (2026-11-01)
+- `DetailsStore`: `mode` / `isNew`, `startNew()`, `newDirty`, `hasChanges` (covers new), `newValues`, `newTargets`; leaves `new` in an effect when `PanelStore.newProductOpen` turns false. `checkSkuForNew` in `core/sheets/sku-check.ts`. `ProductNavigation`: `toggleNewProduct` enters `new`; `closeNewProduct` asks; `refresh` clears entries; `clearBox` cancels an overlay first; `openCreated(ref)`. `ProductSearchStore.overlayOpen` derived (product or New product form open); `listShown` hides the home list under the form. The page dims and inerts the form under the overlay.
 
 ## Edge Cases
 - Sheets reload for another account while the form is open: `sessionId` reset closes it.

@@ -529,6 +529,14 @@
 - Decision: the date cells' format is set after the confirmed append (best effort, shared `formatDateCells`, also used by the log).
 - Left to US-100 (the review store): calling `approveCreate`, `SheetsStore.addRow` for each confirmed row, and the `New product` log line after the Master append is confirmed (once per approval).
 
+## 2026-11-01: New product form state (US-98) [confirmed]
+
+- Decision (reuse, Q-G3): the New product form is a `new` mode of `DetailsStore`, not a second store: the same texts, `validateDetail` rules and live SKU check, starting from a template (every field blank, Status = Active). `newDirty` ignores the Status default.
+- Decision: a new SKU must be new to both sheets (`checkSkuForNew`); no orphan link for a new product.
+- Decision: `PanelStore.newProductOpen` stays the one "open" flag (the bottom bar reads it); `ProductNavigation` enters `new` mode with it, and `DetailsStore` leaves `new` (dropping the entries) whenever the shell closes, by any path.
+- Decision: the New product form counts as an open product for the search overlay (`overlayOpen` is now derived, so it never outlives what it covers); the clear (×) cancels the overlay first.
+- Decision: Refresh asks when anything was typed, then clears the entries (the form stays open). `openCreated(ref)` closes the form without asking and opens the new product (for US-100).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
