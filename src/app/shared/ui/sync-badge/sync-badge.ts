@@ -13,7 +13,7 @@ import { SYNC_BADGE_LABELS, SyncBadgeKind } from '@core/sheets/sync-badge';
   selector: 'stoqr-sync-badge',
   template: `
     @if (kind(); as k) {
-      <span [class]="'stoqr-status-badge sync-badge sync-badge--' + k">{{ label() }}</span>
+      <span [class]="'stoqr-status-badge sync-badge sync-badge--' + k + (tone() === 'tint' ? ' sync-badge--tint' : '')">{{ label() }}</span>
     }
   `,
   styleUrl: './sync-badge.scss',
@@ -21,6 +21,8 @@ import { SYNC_BADGE_LABELS, SyncBadgeKind } from '@core/sheets/sync-badge';
 })
 export class SyncBadge {
   readonly kind = input<SyncBadgeKind | undefined>(undefined);
+  /** `tint`: a filled, borderless flag (result rows on phones, US-91). */
+  readonly tone = input<'outline' | 'tint'>('outline');
 
   protected readonly label = computed(() => {
     const k = this.kind();

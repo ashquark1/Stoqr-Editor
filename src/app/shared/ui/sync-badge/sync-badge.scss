@@ -29,3 +29,13 @@
   border-color: var(--color-error-border);
   color: var(--color-text-error);
 }
+
+// Tint tone (US-91): filled, no outline; text colours from the tint tokens (AA in both modes).
+.sync-badge--tint {
+  border-color: transparent;
+
+  &.sync-badge--linked { background: var(--tint-success-bg); color: var(--tint-success-fg); }
+  &.sync-badge--master-only { background: var(--tint-neutral-bg); color: var(--tint-neutral-fg); }
+  &.sync-badge--out-of-sync { background: var(--tint-warning-bg); color: var(--tint-warning-fg); }
+  &.sync-badge--blocked { background: var(--tint-error-bg); color: var(--tint-error-fg); }
+}

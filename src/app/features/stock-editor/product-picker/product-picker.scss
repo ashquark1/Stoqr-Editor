@@ -44,7 +44,7 @@
   background: var(--color-white);
   border: var(--border-thin);
   border-left: 4px solid var(--row-edge);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-2xl);
   cursor: pointer;
   transition:
     background var(--transition-fast),
@@ -164,20 +164,20 @@
   grid-area: qtym;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--color-unknown-bg);
-  color: var(--color-ink-mid);
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-lg);
+  min-width: 72px;
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-fg);
 
-  &--in-stock { background: var(--color-success-bg); color: var(--color-on-success); }
-  &--low-stock { background: var(--color-warning-bg); color: var(--color-on-warning); }
-  &--out-of-stock { background: var(--color-error-bg); color: var(--color-on-error); }
+  &--in-stock { background: var(--tint-success-bg); color: var(--tint-success-fg); }
+  &--low-stock { background: var(--tint-warning-bg); color: var(--tint-warning-fg); }
+  &--out-of-stock { background: var(--tint-error-bg); color: var(--tint-error-fg); }
 }
 
 .row__qty-word {
-  font-size: var(--text-label);
-  font-weight: 600;
+  font-size: var(--text-small);
   white-space: nowrap;
 }
 

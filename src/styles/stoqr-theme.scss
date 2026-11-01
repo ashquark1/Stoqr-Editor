@@ -64,6 +64,18 @@
   --color-on-warning:    #7A4210;
   --color-on-error:      #7A2020;
 
+  // V2 (US-91): tinted tiles and flags (result rows). Light: the semantic
+  // backgrounds with the on-colours. Dark: deep tinted fills with bright text
+  // (all ≥ 4.5:1).
+  --tint-success-bg:     #E0F5F2;
+  --tint-success-fg:     #0A5A50;
+  --tint-warning-bg:     #FDF2E6;
+  --tint-warning-fg:     #7A4210;
+  --tint-error-bg:       #FDECEA;
+  --tint-error-fg:       #7A2020;
+  --tint-neutral-bg:     #F0F4F2;
+  --tint-neutral-fg:     #3A4F45;
+
   // --- Typography ---
   --font-serif:    'Lora', Georgia, 'Times New Roman', serif;
   --font-sans:     'DM Sans', system-ui, sans-serif;
@@ -134,6 +146,15 @@
     // V2 text colours (US-26): AA on the dark surfaces.
     --color-text-muted: #7B9E8D;
     --color-text-error: #F0857A;
+    // V2 tints (US-91).
+    --tint-success-bg: #12301F;
+    --tint-success-fg: #5FD38D;
+    --tint-warning-bg: #3A2508;
+    --tint-warning-fg: #F0A65A;
+    --tint-error-bg:   #3D1414;
+    --tint-error-fg:   #F0857A;
+    --tint-neutral-bg: #1E2B25;
+    --tint-neutral-fg: #C5D8CE;
   }
 }
 

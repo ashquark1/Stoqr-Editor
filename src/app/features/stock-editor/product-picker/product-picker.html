@@ -34,7 +34,7 @@
               <span class="row__qty-num">{{ display(product.stockQty) }}</span>
             </span>
             @if (item.flag) {
-              <span class="row__flag" aria-hidden="true"><stoqr-sync-badge [kind]="item.sync" /></span>
+              <span class="row__flag" aria-hidden="true"><stoqr-sync-badge [kind]="item.sync" tone="tint" /></span>
             }
             <!-- From 768px: three tiles in the card's label-over-value style, then a chevron. -->
             <span class="row__tiles" aria-hidden="true">

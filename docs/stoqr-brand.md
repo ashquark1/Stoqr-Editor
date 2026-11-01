@@ -200,6 +200,7 @@ The Editor's copy of the design system now differs from V1 on purpose (US-81). V
 | Logo | "stoqr" + "Editor" in the top bar; `EDITOR` sub-label on the sign-in card | US-40, US-44 |
 | Buttons | 44px at every width (`--sm` retired); `.icon-btn`; `--busy` (spinner, aria-busy); `--pressed` (Dew fill, Pine outline) | US-42, US-43, US-75 |
 | Text colours | `--color-text-muted`, `--color-text-error`, `--color-on-success/warning/error` for AA small text | US-26, US-54 |
+| Tints | `--tint-{success,warning,error,neutral}-{bg,fg}`: light = semantic bg + on-colour; dark = deep tinted fill + bright text (≥ 4.5:1). Result-row Qty tiles and the sync badge's `tone="tint"` flag | US-91 |
 | Inputs | `.stoqr-input` (`--mono`, `--invalid`, `--multiline`), 16px on phones | US-21, US-26 |
 | Messages | `<stoqr-strip>` in cards for results; the top toast only for Refresh, sign-in and "product gone" | US-54, US-76, US-80 |
 | Panels | `<stoqr-floating-panel>` above the bottom bar or under the toolbar, one at a time | US-52, US-70, US-71 |

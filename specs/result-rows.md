@@ -8,6 +8,7 @@
 - Hover: Pine border, Dew background, chevron moves 2px (not with reduced motion); visible focus ring. Blocked: grey fill instead of 75% opacity (opacity would drop the muted text below AA; deviation noted) and still opens read-only (eye).
 - Accessible name: "name, SKU …, quantity N, stock status, sync". Visual pieces are `aria-hidden`.
 - Count, empty messages and the overlay rules unchanged.
+- Owner review (2026-11-01, phone screenshot vs mockup): in dark mode the phone Qty tile and the sync flag use deep tinted fills with bright text (new `--tint-*` tokens; light mode unchanged), the flag is the shared sync badge with `tone="tint"` (filled, no outline), rows use the card radius, and the tile shows the stock word (regular) over a bold number, centred, min 72px. Fixed the same day: the phone tile no longer shows from 768px.
 
 ## Owner checks (signed in, TEST)
 - [ ] 320, 360, 768, 1024, 1440, 1920 with a long name, a long SKU, a 7-digit quantity and all four sync states; home list and overlay.
