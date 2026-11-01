@@ -80,7 +80,7 @@
 - Decision: the details form shows Stock Qty read-only; all quantity changes go through adjuster → review → approve. Created At is read-only; Last Updated is app-stamped; Stock Status is app-derived; `id` is excluded.
 - Reason: one reviewed path for quantity prevents unreviewed changes.
 
-## 2026-10-27: Stock Log tab deferred [confirmed]
+## 2026-10-27: Stock Log tab deferred [confirmed; reversed 2026-11-01 by CR-05]
 
 - Decision: no audit log in this version. It may be wanted later (idea: append timestamp, user, `id`, old qty, new qty, delta, optional reason to a separate "Stock Log" tab).
 - Consequence: only the `spreadsheets` scope is requested now; no `email` scope. Add the scope and a spec when the log is picked up.
@@ -477,6 +477,18 @@
 - Decision: the Editor's copy of the Stoqr design system intentionally diverges from V1: shared page bounds (`.stoqr-bounds`), a sticky bottom bar matching the top bar, 44px buttons with `.icon-btn` / `--busy` / `--pressed`, V2 text and on-colour tokens, `.stoqr-input`, `.stoqr-sr-only`, the "Editor" logo, strips and floating panels. One list of the differences lives in `docs/stoqr-brand.md` §7. V1 is untouched.
 - Revisited: a shared design-system package for V1 and the Editor. Still deferred — V1 would have to change (it must stay untouched) and the Editor is not live yet. Revisit after go-live (US-27).
 - Deferred (tests suspended): updating `app.spec.ts` / `logo.spec.ts` for the frame, and a rule test against per-component copies of the bar and button rules (the `stoqr-btn--sm` rule already exists). Listed in `specs/frame-tests-docs.md`.
+
+## 2026-11-01: CR-05 — appends, the log exception and new-row rules [confirmed]
+
+- Decision (owner): `SheetsWriter` may append rows (`values:append`, RAW, insert rows) only for a new product row (Master, + Dr Trust for the Dr Trust brand) and one Stock Log line; by header name, allowlisted, no formulas. Deleting rows stays forbidden; the log is append-only.
+- Decision (owner): the tap list becomes Apply, Undo, Retry, Save changes, Save product, Retry log, with ONE named exception: the log line follows the confirmed Master write of the same tap.
+- Decision (owner): a new row's Created At / Last Updated (and the log's Logged At) are date serials with the `dd/mm/yyyy hh:mm:ss` format, not text (the US-19 reason: gviz/V1 drops minority-type values). Overrides the backlog's "static text".
+- Decision (owner): rule tests stay suspended for CR-05 (overrides the backlog's "required"); each spec lists the tests to add when tests resume.
+- Decision (owner): Claude edits both environment files once for the log sheet when US-94 is built, after asking; the deny rule stays; the LIVE log ID is a placeholder until US-27.
+- Decision (owner): a new row's id = highest numeric id in that sheet + 1 after a fresh re-read. Trade-off: two people adding at the same moment get the same id; both rows then show as "repeated id" (not editable) until fixed in the sheet.
+- Decision (owner): only a CONFIRMED Master write is logged; an unconfirmed one (it may have saved) is not, and a later confirming Try again logs it.
+- Decision (owner): the log's Change column is a number (5, −3); the owner formats column G as `+0;-0;0`.
+- Reversed: "Stock Log tab deferred" (2026-10-27) and the "no adding rows" part of V2's scope.
 
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).

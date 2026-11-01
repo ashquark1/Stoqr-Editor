@@ -2,7 +2,7 @@
 # If a forbidden pattern isn't written here, Claude is allowed to use it.
 
 ## Non-Negotiable Rules
-- The Google Sheet is edited ONLY through the single write service (`SheetsWriter`, `src/app/core/sheets/`), ONLY after an explicit user tap (Apply after the preview, Undo, Retry, or Save changes in the details review; CR-04), and ONLY to allowlisted columns. If a task seems to require a write outside this path, stop and ask.
+- The Google Sheet is edited ONLY through the single write service (`SheetsWriter`, `src/app/core/sheets/`), ONLY after an explicit user tap (Apply after the preview, Undo, Retry, Save changes in the details review, Save product in the new product review, or Retry log; CR-04, CR-05), and ONLY to allowlisted columns. One named exception: the Stock Log line follows the confirmed Master write of the same tap (never on its own, never before it). If a task seems to require a write outside this path, stop and ask.
 - All Google access (Sheets API reads/writes, Google sign-in) goes through `src/app/core/sheets/` and `src/app/core/auth/`. Components and templates never call `HttpClient`, `gapi`, or Google Identity Services directly.
 - No business/derivation logic in components or templates. Row→model mapping, quantity maths, validation, search and diffing live in services or pure functions. Components render and call setters.
 - State is exposed as Angular signals from services. No NgRx, Akita, or ad-hoc global mutable singletons.
@@ -25,7 +25,8 @@
 - Rule: the internal `id` column NEVER appears on the `Product` model, in a form control, template, or any feature-visible signal. It exists only inside `core/sheets/` and travels to features as an opaque `RowRef` that features pass back unchanged. It is never displayed and never editable.
 - Rule: `createRowRef`, `rowRefId` and `new RowRef` are used only in `core/sheets/` (enforced by `architecture.spec.ts`).
 - Rule: rows are located by `id` on every write — never by a remembered row number.
-- Forbidden: hardcoding products in components; transforming fields inline in templates; adding or deleting rows (V2 edits existing rows only).
+- Forbidden: hardcoding products in components; transforming fields inline in templates; deleting rows; adding rows except a new product appended by `SheetsWriter` after Save product (US-97).
+- Rule (CR-05): a new product row gets id = highest numeric id in that sheet + 1, read fresh just before appending; its SKU is re-checked against BOTH sheets just before appending; it goes to Dr Trust only when its brand is the configured Dr Trust brand; Retry appends only the missing sheet, once.
 
 ### Stock & Inventory Levels
 - Owner: `core/stock-adjust/` (pure functions) + the Sheets write service.
@@ -56,13 +57,18 @@
 - Rule: a write is retried automatically ONLY after 429 (Google saved nothing), and only after re-reading and re-checking the row. A 5xx or network failure on a write is never resent automatically and never reported as "not saved". At most 3 automatic retries per request.
 - Rule: values are sent `RAW`; the typed-input option may not appear in source (enforced). Stock Status and Last Updated are filled in only by the writer — callers never pass them.
 - Rule: a text field whose fresh cell holds a number is written back as a number when the new text is a plain number (no leading zeros or trailing decimal zeros); otherwise it stays text. gviz (V1) drops a column's minority-type values.
-- Rule: the ONLY non-value change the app makes is the number format of the exact Last Updated cell it stamps (`LAST_UPDATED_FORMAT`, mask `userEnteredFormat.numberFormat`), one `repeatCell` per sheet, sent by `SheetsWriter` after every sheet is checked and before any value is written. No other formatting, and no other `spreadsheets:batchUpdate` request types.
+- Rule: the ONLY non-value change the app makes is the number format of the exact Last Updated cell it stamps (`LAST_UPDATED_FORMAT`, mask `userEnteredFormat.numberFormat`), one `repeatCell` per sheet, sent by `SheetsWriter` after every sheet is checked and before any value is written. No other formatting, and no other `spreadsheets:batchUpdate` request types. A new row's stamped date cells (Created At, Last Updated; the log's Logged At) are date serials with that same format (CR-05).
 - Rule: the writer re-reads the tab, finds the row by `id`, re-checks every reviewed value, and reports `written` only when Google echoes every cell it was sent.
 - Allowlisted columns only: every product field EXCEPT `id` and `Created At`. Stock Status and Last Updated are written only by the app (derived / stamped), never typed by the user.
-- Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet or whole-row ranges — target exact cells only. Legacy rows whose Last Updated cell holds a formula get a static value only when that row is edited; no bulk conversion.
+- Never write formulas (e.g. `=NOW()`), never clear ranges, never write whole-sheet ranges — target exact cells only. Appends are the only whole-row writes (CR-05): a new product row (Master, + Dr Trust for the Dr Trust brand) and one Stock Log line, sent by `SheetsWriter` with `values:append` (insert rows, `RAW`), by header name, allowlisted, no formulas. Legacy rows whose Last Updated cell holds a formula get a static value only when that row is edited; no bulk conversion.
 - Request only `spreadsheets` and `userinfo.profile` (first name only, D1). Do not add scopes (e.g. `email`, `openid`) without a logged decision. Sign-in must never depend on the profile scope, and the name lives in memory only.
 - A write is shown as successful only after the API confirms it. No optimistic success. Errors (401, 403, 429, network) surface to the user with a retry path; they are never swallowed.
 - After a write, display the value the API returned/re-read — never re-fetch through gviz (it can lag behind recent edits).
+
+### Stock Log (CR-05)
+- Rule: a third spreadsheet (config `stock-log`, tab from config) holds one line per CONFIRMED Master stock change — Apply (Add, Subtract, New total), Undo, a details save that changed Stock qty (Form edit), and a new product (New product). Master quantities only; User is the first name only; never a token or email.
+- Rule: append-only: lines are only added by `SheetsWriter`, never edited or deleted. Nothing is logged for a conflict, a failure, an unconfirmed write (5xx/network) or a SKU change. Change is sent as a number.
+- Rule: a log failure never undoes or hides the saved stock change; the line is kept pending and "Retry log" appends it once. No log access at load switches stock changes off (Apply, Undo, Stock qty in the form, Add product).
 
 ### Linked Sheets (master + Dr Trust)
 - Rule: the app edits two spreadsheets — the master (all brands) and a separate Dr Trust spreadsheet. Both are described in environment config (`master`, `dr-trust`), each with a test and a production ID. Spreadsheet IDs appear nowhere else.
