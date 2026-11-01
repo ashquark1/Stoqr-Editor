@@ -97,14 +97,6 @@
   }
 }
 
-// Phone-only pieces.
-.row__line2,
-.row__qty-m,
-.row__flag {
-  @include bp.from(tablet) {
-    display: none;
-  }
-}
 
 .row__top {
   grid-area: top;
@@ -240,5 +232,15 @@
 @media (prefers-reduced-motion: reduce) {
   .row:hover .row__chevron {
     transform: none;
+  }
+}
+
+// Phone-only pieces. Last in the file so it wins over their own `display` (found on 1440: the
+// phone Qty tile showed beside the desktop tiles).
+.row__line2,
+.row__qty-m,
+.row__flag {
+  @include bp.from(tablet) {
+    display: none;
   }
 }
