@@ -1,5 +1,5 @@
 # Feature: New product review and result strips (US-100, C5-d review)
-# Sprint 12. Classification: UI + a small CORE store (the only caller of `approveCreate`). Spec for approval.
+# Sprint 12. Classification: UI + a small CORE store (the only caller of `approveCreate`). Approved 2026-11-01; built 2026-11-01 (tests not run).
 
 ## Problem
 The New product form (US-99) can't be saved: "Review product" is off, and nothing calls `SheetsWriter.create` (US-97), adds the row to the loaded data, logs the opening stock or shows a result.
@@ -26,6 +26,9 @@ The New product form (US-99) can't be saved: "Review product" is off, and nothin
 - Couldn't save (red): the reason, plus "Nothing was changed." only when certain (shared rule), with Try again and Back.
 - Half saved (amber): "Master was added. Dr Trust was not: <reason> The sheets differ until you retry." with "Retry Dr Trust" and "Close". Retry appends only Dr Trust (the writer's `remaining`); success → saved (both sheets). Close → the form closes and the new product opens without the green strip; it stays Master only (Data health lists it as missing from Dr Trust).
 - Save product is reached through `ProductNavigation.saveNewProduct()` (it opens the product after a save; the store can't inject navigation).
+
+## As built (2026-11-01)
+- `NewProductReviewStore` (`open`, `back`, `save`, `retry`, `closePartial`, `lines`, `strip`, `addedSheets`; resets when the shell closes). `failureText` / `partialText` exported from `review-flow.ts`. `ProductNavigation.saveNewProduct()`, `newProductStripAction()`, `saving` includes the new review. `DetailsForm.reviewOpen`; Review product enabled once `newValues` is ready. `DetailsReview` new mode. Product summary shows "Product added." First load 502.4 kB.
 
 ## Edge Cases
 - Someone adds the same SKU while the review is open: conflict, nothing written; Back to the form, whose live SKU check shows the clash after the next load.

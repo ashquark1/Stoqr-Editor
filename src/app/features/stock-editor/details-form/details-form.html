@@ -3,9 +3,9 @@
   <section
     #formSection
     class="details"
-    [attr.aria-labelledby]="details.isNew() ? 'new-product-title' : review.step() === 'editing' ? 'details-title' : 'details-review-title'"
+    [attr.aria-labelledby]="reviewOpen() ? 'details-review-title' : details.isNew() ? 'new-product-title' : 'details-title'"
   >
-    @if (review.step() === 'editing' && !details.isNew()) {
+    @if (!reviewOpen() && !details.isNew()) {
       <h3 #formTitle id="details-title" class="details__title" tabindex="-1">
         {{ details.editable() ? 'Edit details' : 'Details' }}
       </h3>
@@ -29,7 +29,7 @@
       </div>
     }
 
-    @if (review.step() !== 'editing') {
+    @if (reviewOpen()) {
       <!-- The review replaces the form; the edits stay in DetailsStore. -->
       <app-details-review />
     } @else {
@@ -110,12 +110,13 @@
 
       <!-- Shared footer (US-92): status, then Cancel and Review changes; read-only gets Close only. -->
       @if (details.isNew()) {
-        <!-- New product (US-99): Review product is wired by US-100. -->
+        <!-- New product (US-99, US-100): Review product opens the review once every field is valid. -->
         <stoqr-form-footer
           [status]="footerStatus()"
           primaryLabel="Review product"
           secondaryLabel="Cancel"
-          [primaryDisabled]="true"
+          [primaryDisabled]="details.newValues() === null"
+          (primary)="newReview.open()"
           (secondary)="navigation.closeNewProduct()"
         />
       } @else if (details.editable()) {

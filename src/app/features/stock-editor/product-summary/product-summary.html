@@ -74,6 +74,9 @@
       } @else if (detailsReview.savedSheets(); as sheets) {
         <!-- Details saved (US-80): under the header for about 5 s; no product name, no Undo. -->
         <stoqr-strip variant="success" lead="Details saved." [message]="sheets + '.'" />
+      } @else if (newReview.addedSheets(); as sheets) {
+        <!-- Product added (US-100): the new product just opened; about 5 s, no Undo. -->
+        <stoqr-strip variant="success" lead="Product added." [message]="sheets + '.'" />
       }
 
       @if (details.formOpen()) {

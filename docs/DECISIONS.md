@@ -544,6 +544,14 @@
 - Decision: Stock Status previews `deriveStockStatus` (`DetailsStore.newStockStatus`) once opening stock and threshold are valid, else "Set when saved".
 - Interim: "Review product" stays disabled until US-100 wires the review. First load unchanged (502.4 kB).
 
+## 2026-11-01: New product review and results (US-100) [confirmed]
+
+- Decision: `NewProductReviewStore` (`core/details/`) is the only caller of `approveCreate()` and has its own steps (named like `ReviewFlow`'s), because a create has its own approval and result. Shared, not copied: the `ResultStrip` shape and the "Nothing was changed." / half-saved texts, now pure `failureText` / `partialText` in `review-flow.ts` used by both.
+- Decision: one approval per Save product, kept for Try again, so the writer's "already added" rule (US-97) applies and nothing is added twice. A Retry that still fails stays half saved (never a plain failure), and a sheet already confirmed is never added to the loaded data twice.
+- Decision: the opening stock is logged once per approval, when the Master row is confirmed (written or half saved); Retry Dr Trust never logs.
+- Decision (reuse, Q-G3): the review is the details review component's `new` mode (same layout); results are shared strips; "Product added. <sheets>." shows under the new product's card header for 5 s (the Retry log strip takes that slot when a line is pending). Close after a half save opens the product as Master only.
+- Decision: `ProductNavigation.saveNewProduct()` / `newProductStripAction()` open the product after a save (the store can't inject navigation, which injects it). Saving a new product counts as `saving` for every navigation step.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

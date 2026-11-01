@@ -52,6 +52,22 @@ export interface ReviewOutcomes<C> {
   readonly masterConfirmed?: (context: C, master: SheetWritten) => void;
 }
 
+/**
+ * THE one "Nothing was changed." rule (US-76, US-80), shared by every save's
+ * strips (the New product review included, US-100): added only when certain —
+ * never for `unconfirmed` (Google may have saved), and not when the reason
+ * already says nothing was saved.
+ */
+export function failureText(message: string, kind: WriteFailureKind | null): string {
+  const certain = kind !== 'unconfirmed' && !/nothing was (saved|changed)/i.test(message);
+  return certain ? `${message} Nothing was changed.` : message;
+}
+
+/** A half-saved message plus the shared suffix (US-80, US-100). */
+export function partialText(message: string): string {
+  return `${message} The sheets differ until you retry.`;
+}
+
 /** A half-done linked save that Retry can finish (US-34). */
 interface PendingRetry<C> {
   /** The unwritten rows of the user's original approval. */
@@ -90,16 +106,11 @@ export class ReviewFlow<C> {
    * is certain: never for `unconfirmed` (Google may have saved), and not when
    * the reason already says nothing was saved (US-76, US-80).
    */
-  readonly failureText = computed(() => {
-    const message = this.messageSignal() ?? '';
-    const certain =
-      this.failureKindSignal() !== 'unconfirmed' && !/nothing was (saved|changed)/i.test(message);
-    return certain ? `${message} Nothing was changed.` : message;
-  });
-  /** The half-saved message plus " The sheets differ until you retry." */
-  readonly partialText = computed(
-    () => `${this.messageSignal() ?? ''} The sheets differ until you retry.`,
+  readonly failureText = computed(() =>
+    failureText(this.messageSignal() ?? '', this.failureKindSignal()),
   );
+  /** The half-saved message plus " The sheets differ until you retry." */
+  readonly partialText = computed(() => partialText(this.messageSignal() ?? ''));
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = computed(() => {
     const pending = this.pendingSignal();

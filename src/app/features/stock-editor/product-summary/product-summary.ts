@@ -13,6 +13,7 @@ import {
 
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
+import { NewProductReviewStore } from '@core/details/new-product-review-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { StockReviewStore, StripAction } from '@core/stock-adjust/stock-review-store';
@@ -46,6 +47,7 @@ export class ProductSummary {
   protected readonly review = inject(StockReviewStore);
   protected readonly details = inject(DetailsStore);
   protected readonly detailsReview = inject(DetailsReviewStore);
+  protected readonly newReview = inject(NewProductReviewStore);
   protected readonly navigation = inject(ProductNavigation);
   protected readonly display = displayValue;
 

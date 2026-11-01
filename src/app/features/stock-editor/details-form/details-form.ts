@@ -15,6 +15,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DETAIL_SECTIONS, DetailField, EDITABLE_DETAILS, byDetailField } from '@core/details/details-fields';
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
+import { NewProductReviewStore } from '@core/details/new-product-review-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { Badge } from '@shared/ui/badge/badge';
@@ -42,6 +43,11 @@ import { DetailsReview } from '../details-review/details-review';
 export class DetailsForm {
   protected readonly details = inject(DetailsStore);
   protected readonly review = inject(DetailsReviewStore);
+  protected readonly newReview = inject(NewProductReviewStore);
+  /** A review replaces the form: the details review, or the New product review (US-100). */
+  protected readonly reviewOpen = computed(() =>
+    this.details.isNew() ? this.newReview.step() !== 'editing' : this.review.step() !== 'editing',
+  );
   protected readonly search = inject(ProductSearchStore);
   protected readonly navigation = inject(ProductNavigation);
   protected readonly sections = DETAIL_SECTIONS;

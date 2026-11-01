@@ -48,7 +48,7 @@
 - Rule: `DetailsStore` keeps only the user's edits; untouched fields always show current data, so a details save can never undo someone else's change.
 - Rule: a new SKU is checked by `checkNewSku` (`core/sheets/sku-check.ts`) live in the form, and again by `SheetsWriter` on BOTH freshly read sheets whenever an approval changes SKU; any row outside the user's original approval (`ApprovedChange.owners`) holding it stops the write with nothing written.
 - Rule (owner choice 2026-10-29): a master-only product may take the SKU of exactly one unmatched Dr Trust row, which links them; that save writes both rows in one approval. A linked product may not take any other row's SKU.
-- Rule: every approved save (stock Apply, Undo, Retry, details Save changes) uses `ReviewFlow` (`core/sheets/review-flow.ts`) for saving, outcomes and Retry; a stock change starts at saving (no review step). Never fork its steps.
+- Rule: every approved save (stock Apply, Undo, Retry, details Save changes) uses `ReviewFlow` (`core/sheets/review-flow.ts`) for saving, outcomes and Retry; a stock change starts at saving (no review step). Never fork its steps. A new product (Save product, US-100) uses its own steps in `NewProductReviewStore` — the only caller of `approveCreate()` — with the same strip shape and the shared `failureText` / `partialText` rules.
 
 ### Writes (cross-cutting)
 - Rule: only `src/app/core/sheets/sheets-writer.ts` may issue a mutating HTTP request (PUT/POST/PATCH/DELETE). Enforced by `architecture.spec.ts` across every file that does HTTP.

@@ -2,6 +2,7 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
+import { NewProductReviewStore, NewProductStripAction } from '@core/details/new-product-review-store';
 import { PanelStore } from '@core/layout/panel-store';
 import { FilterStore } from '@core/search/filter-store';
 import { ProductSearchStore } from '@core/search/product-search-store';
@@ -35,6 +36,7 @@ export class ProductNavigation {
   private readonly adjust = inject(StockAdjustStore);
   private readonly stockReview = inject(StockReviewStore);
   private readonly detailsReview = inject(DetailsReviewStore);
+  private readonly newReview = inject(NewProductReviewStore);
   private readonly filters = inject(FilterStore);
   private readonly panels = inject(PanelStore);
   private readonly sheets = inject(SheetsStore);
@@ -44,7 +46,10 @@ export class ProductNavigation {
 
   /** A stock or details save is running. */
   readonly saving = computed(
-    () => this.stockReview.step() === 'saving' || this.detailsReview.step() === 'saving',
+    () =>
+      this.stockReview.step() === 'saving' ||
+      this.detailsReview.step() === 'saving' ||
+      this.newReview.step() === 'saving',
   );
 
   /** Details edits, or anything typed in the adjuster (amount, new total) or a chosen sign. */
@@ -107,6 +112,41 @@ export class ProductNavigation {
       return;
     }
     this.ask(() => this.panels.closeNewProduct());
+  }
+
+  /** Save product (US-100): writes the new product; once every sheet is confirmed, it opens. */
+  async saveNewProduct(): Promise<void> {
+    const ref = await this.newReview.save();
+    if (ref !== null) {
+      this.openCreated(ref);
+    }
+  }
+
+  /** A New product result strip's button (US-100): Back, Try again, Retry Dr Trust, Close. */
+  async newProductStripAction(action: NewProductStripAction): Promise<void> {
+    switch (action) {
+      case 'back':
+        this.newReview.back();
+        return;
+      case 'try-again':
+        await this.saveNewProduct();
+        return;
+      case 'retry': {
+        const ref = await this.newReview.retry();
+        if (ref !== null) {
+          this.openCreated(ref);
+        }
+        return;
+      }
+      case 'close': {
+        // Half saved: the product opens as it is (Master only; Data health lists it).
+        const ref = this.newReview.closePartial();
+        if (ref !== null) {
+          this.openCreated(ref);
+        }
+        return;
+      }
+    }
   }
 
   /**
