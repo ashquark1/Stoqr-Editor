@@ -34,10 +34,11 @@
   gap: var(--space-3);
 }
 
+// The product card's title style (DM Sans, h2), not the Lora wordmark font (owner, 2026-11-01).
 .new-product__title {
   margin: 0;
-  font-family: var(--font-serif);
   font-size: var(--text-h2);
+  overflow-wrap: anywhere;
   outline: none;
 }
 
