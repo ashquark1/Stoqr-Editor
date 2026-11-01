@@ -26,3 +26,13 @@
 - Data Source: owns appends (new product rows, log lines) and the log sheet's load/header check; `sheets-writer.ts` description gains "appends".
 - Stock: owns the log-line builder and pending "Retry log" state (US-94/95).
 - Config: three sheet definitions (master, dr-trust, stock-log).
+
+## US-101 audit (2026-11-01, after US-94–100 were built) — remaining proposals, applied on "Apply all"
+Most of the wording above is already in AI_CONTRACT, DECISIONS and projectmap. What the built code still needs in the docs:
+1. **AI_CONTRACT, Stock Log:** "config `stock-log`" → "config `stockLog` (its own `SheetLocation`, not a third `sheets` entry)".
+2. **AI_CONTRACT, Writes (new rule):** "`appendLogLine` is called only by `StockLogStore` (`record` / `retryLog`); `SheetsWriter.create` only by `NewProductReviewStore`; `SheetsStore.addRow` only with a confirmed `CreatedRow`."
+3. **CLAUDE.md, Code Rules:** the tap list "(Apply, Undo, Retry, Save changes)" → "(Apply, Undo, Retry, Save changes, Save product, Retry log; the Stock Log line follows the confirmed Master write of the same tap)", and "Never write `id`" → "Never write `id` (a new row's id is filled by `SheetsWriter`, US-97)".
+4. **projectmap, Config:** "(master, dr-trust; stock-log from US-94)" → "(master, dr-trust) and the separate `stockLog` location (US-94)"; Data Source's last line gains "+ the `stockLog` location".
+5. **specs/sheets-writer.md:** a CR-05 section — `appendLogLine`, `create`, `formatDateCells`, the append error rules (429 resend after re-check; 5xx / network `unconfirmed`, never resent), "never added twice".
+6. **specs/environment-config.md:** the optional `stockLog` block, its startup check, TEST / LIVE IDs differ (owner set them; deny rule unchanged).
+7. **Rule tests to add when tests resume** (suspended, item 4 above): `:append` only in `sheets-writer.ts`; `appendLogLine(` only in `stock-log-store.ts`; `approveCreate(` only in `core/details/new-product-review-store.ts`; `.create(` on the writer only there; `log.record(` only in the stock / details / new-product stores' Master-confirmed paths; the tap list.
