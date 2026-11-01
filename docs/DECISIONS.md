@@ -552,6 +552,11 @@
 - Decision (reuse, Q-G3): the review is the details review component's `new` mode (same layout); results are shared strips; "Product added. <sheets>." shows under the new product's card header for 5 s (the Retry log strip takes that slot when a line is pending). Close after a half save opens the product as Master only.
 - Decision: `ProductNavigation.saveNewProduct()` / `newProductStripAction()` open the product after a save (the store can't inject navigation, which injects it). Saving a new product counts as `saving` for every navigation step.
 
+## 2026-11-01: CR-05 docs closed against the built code (US-101) [confirmed]
+
+- Decision: the docs now match what was built: the log config is `stockLog` (its own location); AI_CONTRACT names the only callers of `appendLogLine`, `create` and `addRow`; CLAUDE.md's tap list has Save product, Retry log and the one log exception; the writer and environment specs gained CR-05 sections.
+- Still suspended (owner): the rule tests listed in `specs/cr05-docs-rules.md` (US-101 audit, item 7), to add when tests resume.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

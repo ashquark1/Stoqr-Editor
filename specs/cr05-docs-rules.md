@@ -27,7 +27,7 @@
 - Stock: owns the log-line builder and pending "Retry log" state (US-94/95).
 - Config: three sheet definitions (master, dr-trust, stock-log).
 
-## US-101 audit (2026-11-01, after US-94–100 were built) — remaining proposals, applied on "Apply all"
+## US-101 audit (2026-11-01, after US-94–100 were built) — applied 2026-11-01 (owner: Apply all)
 Most of the wording above is already in AI_CONTRACT, DECISIONS and projectmap. What the built code still needs in the docs:
 1. **AI_CONTRACT, Stock Log:** "config `stock-log`" → "config `stockLog` (its own `SheetLocation`, not a third `sheets` entry)".
 2. **AI_CONTRACT, Writes (new rule):** "`appendLogLine` is called only by `StockLogStore` (`record` / `retryLog`); `SheetsWriter.create` only by `NewProductReviewStore`; `SheetsStore.addRow` only with a confirmed `CreatedRow`."

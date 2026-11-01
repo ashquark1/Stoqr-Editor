@@ -57,3 +57,8 @@ The app needs the Google Client ID and two sheet definitions (master, Dr Trust).
 - The footer mode badge reuses `.stoqr-badge` (`--unknown` for TEST, `--low-stock` for LIVE); TEST/LIVE are shown in capitals by CSS.
 - The LIVE badge style is checked in `app.spec.ts` with a stand-in `AppConfig`, not by serving a LIVE build.
 - Edge case "development file edited to a LIVE ID" was proved by planting it; the rule test failed and the file was restored byte-for-byte.
+
+## CR-05 addition (US-94; documented in US-101, 2026-11-01)
+- `AppEnvironment.stockLog?: SheetLocation` (`label`, `spreadsheetId`, `tab`): a separate field, not a third `sheets` entry, so product-sheet code keeps handling exactly Master and Dr Trust. Read only through `AppConfig.stockLog()` (null when absent → the log is "not set up" and stock changes are off).
+- `validateEnvironment`: when present, a blank label, ID or tab is a startup error.
+- Values: set by the owner in both files (the deny rule stayed); TEST and LIVE use different log IDs (no shared ID, as for the product sheets).

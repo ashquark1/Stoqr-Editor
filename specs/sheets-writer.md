@@ -61,3 +61,10 @@ Case tests: the edge cases above.
 - Numbers are confirmed within a tiny tolerance (1e-9), so a date serial rounded in transit is not reported as a failed write; text must match exactly.
 - If the user signs out instead of renewing while a write waits for a token, the write fails as `expired` ("You signed out before the change was saved"), not `unavailable`.
 - The "only sheets-writer.ts may send a mutating request" rule now skips spec files, which assert on request methods; the new `approve()` rule exempts spec files too.
+
+## CR-05 additions (US-94, US-97; documented in US-101, 2026-11-01)
+- `appendLogLine(line)`: re-reads the Stock Log header (columns by label), `values:append` on `'<tab>'!A1` (RAW, `INSERT_ROWS`, values echoed), confirmed only when every value comes back; then the Logged At cell's date-time format. Called only by `StockLogStore`.
+- `create(approved: ApprovedCreate)`: re-reads BOTH product sheets, refuses a SKU on any row (`conflict`, nothing added), appends Master then Dr Trust (configured brand only), row built by header (`create-plan.ts`: id = highest numeric id + 1, derived Stock Status, Created At / Last Updated as date serials), confirmed by the echo, then the two date cells' format. Results `written` / `conflict` / `failed` / `partial` (with `remaining`). Called only by `NewProductReviewStore`.
+- `formatDateCells` (shared): the existing `LAST_UPDATED_FORMAT` on appended date cells; best effort after a confirmed append.
+- Append errors: 429 → re-read, re-check, resend; 401 → renewal, once more; 5xx / network → `unconfirmed`, never resent automatically; 403 / 404 → failed with the reason.
+- Never added twice: once an append of an approval (`origin`) was sent, a row with the same SKU and product name counts as already added; a first attempt finding one is a conflict.
