@@ -496,6 +496,14 @@
 - Decision: the button's tooltip is `@defer (on idle)` with a plain-button placeholder: the tooltip directive in the first load cost ~49 kB (550.1 kB, over the warning). First load now 501.0 kB.
 - Decision: opening a product (result or Data health pick) closes the New product shell (`ProductSearchStore.select`). Full shell rules: US-98.
 
+## 2026-11-01: Create product and stock log designs (US-94, US-97 specs) [confirmed]
+
+- Decision: the log sheet is a separate `stockLog` config field, not a third entry in `sheets`, so the product-sheet code keeps handling exactly Master and Dr Trust. The LIVE log ID stays blank until US-27 (a LIVE start fails the startup check until then).
+- Decision: a load-time read of the log's header row decides ready / no access / unusable / unknown; it proves read access only, so a View-only person's first append fails and becomes a "Retry log" case.
+- Decision: a new product reaches the writer only as `ApprovedCreate` from `approveCreate()`; the writer fills `id` (max + 1), Created At, Last Updated and Stock Status on the new row only. Appends set the date cells' format AFTER the values (the row is unknown before); a format failure keeps the confirmed row.
+- Decision: Retry / Try again after an append re-read first; a row with the same SKU and product name counts as already written, so nothing is added twice.
+- Details: `specs/stock-log.md`, `specs/create-product.md`.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
