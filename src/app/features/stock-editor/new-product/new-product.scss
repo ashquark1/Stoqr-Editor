@@ -1,5 +1,7 @@
 // The New product card (US-93): the product card's look (US-72), short fade in.
 .new-product {
+  // The shared form footer spans the card's full width (US-92).
+  --form-footer-bleed: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -72,4 +74,10 @@
     outline: 2px solid var(--color-pine);
     outline-offset: 2px;
   }
+}
+
+.new-product__note {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
 }

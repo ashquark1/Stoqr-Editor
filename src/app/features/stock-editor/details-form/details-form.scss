@@ -109,3 +109,9 @@
   font-size: var(--text-small);
   color: var(--color-text-muted);
 }
+
+// New product: Stock Status before it can be derived (US-99).
+.details__pending {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}

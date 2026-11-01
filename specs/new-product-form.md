@@ -1,5 +1,5 @@
 # Feature: New product form (US-99, C5-d form)
-# Sprint 12. Classification: UI (state from US-98). Spec for approval.
+# Sprint 12. Classification: UI (state from US-98). Approved 2026-11-01; built 2026-11-01 (tests not run).
 
 ## Problem
 The New product shell (US-93) is empty. Staff need the fields to type a new product, with the same rules and look as the details form.
@@ -26,6 +26,9 @@ The New product shell (US-93) is empty. Staff need the fields to type a new prod
 
 ### Focus
 - On open: the first field (Product Name). On close: back to the Add product button (US-93). Tab order follows the visual order.
+
+## As built (2026-11-01)
+- `details-fields.ts`: `newLabel`, `hiddenWhenNew`. `DetailsStore.newStockStatus`. `DetailsForm`: renders when `isNew()` or a product is open; `shownError()`; New product footer. `NewProduct`: `@defer` the form; the form focuses Product Name. Details chunk 18.8 kB; first load 502.4 kB.
 
 ## Edge Cases
 - Long values: inputs scroll their text; Notes wraps (existing styles).

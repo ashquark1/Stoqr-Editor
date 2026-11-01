@@ -13,5 +13,10 @@
       </svg>
     </button>
   </header>
-  <!-- The fields arrive in US-99. -->
+  <!-- The details form in its New product mode (US-99), lazy like the card's. -->
+  @defer {
+    <app-details-form />
+  } @loading {
+    <p class="new-product__note">Loading the form…</p>
+  }
 </section>

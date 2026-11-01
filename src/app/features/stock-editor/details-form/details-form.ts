@@ -12,7 +12,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
-import { DETAIL_SECTIONS, EDITABLE_DETAILS, byDetailField } from '@core/details/details-fields';
+import { DETAIL_SECTIONS, DetailField, EDITABLE_DETAILS, byDetailField } from '@core/details/details-fields';
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
@@ -52,8 +52,13 @@ export class DetailsForm {
   );
   private readonly typed = toSignal(this.form.valueChanges, { initialValue: this.form.value });
 
-  /** Footer status line (US-92): what is wrong, or how many fields changed. */
+  /** Footer status line (US-92): what is wrong, or how many fields changed; the New product form's own (US-99). */
   protected readonly footerStatus = computed(() => {
+    if (this.details.isNew()) {
+      return this.details.newValues() === null
+        ? 'Fill the required fields (*) to continue.'
+        : `Saves a new row to ${this.details.newTargets()}.`;
+    }
     if (!this.details.hasChanges()) {
       return '';
     }
@@ -63,6 +68,20 @@ export class DetailsForm {
     const count = this.details.changedFields().length;
     return `${count} field${count === 1 ? '' : 's'} changed`;
   });
+
+  /**
+   * A field's error as shown: always for a product's details; in the New
+   * product form only once the field was typed in or left (US-99), so a blank
+   * new form is not all red. The rule itself is `DetailsStore.errors`.
+   */
+  protected shownError(field: DetailField): string | undefined {
+    const message = this.details.errors()[field];
+    if (message === undefined || !this.details.isNew()) {
+      return message;
+    }
+    const control = this.form.controls[field];
+    return control.touched || control.dirty ? message : undefined;
+  }
 
   private readonly section = viewChild<ElementRef<HTMLElement>>('formSection');
   private readonly heading = viewChild<ElementRef<HTMLElement>>('formTitle');

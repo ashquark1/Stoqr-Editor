@@ -537,6 +537,13 @@
 - Decision: the New product form counts as an open product for the search overlay (`overlayOpen` is now derived, so it never outlives what it covers); the clear (×) cancels the overlay first.
 - Decision: Refresh asks when anything was typed, then clears the entries (the form stays open). `openCreated(ref)` closes the form without asking and opens the new product (for US-100).
 
+## 2026-11-01: New product form (US-99) [confirmed]
+
+- Decision (reuse, Q-G3): the New product card renders the existing details form in `DetailsStore`'s `new` mode (same lazy chunk, now 18.8 kB); the differences are data on the field list (`newLabel` "Opening stock qty", `hiddenWhenNew` for Created At / Last Updated), not template copies.
+- Decision: in the new form a field's error shows once it was typed in or left (`touched || dirty`), so a blank form is not all red; product details keep showing errors at once. The footer says "Fill the required fields (*) to continue." until `newValues` is ready, then "Saves a new row to <targets>.".
+- Decision: Stock Status previews `deriveStockStatus` (`DetailsStore.newStockStatus`) once opening stock and threshold are valid, else "Set when saved".
+- Interim: "Review product" stays disabled until US-100 wires the review. First load unchanged (502.4 kB).
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

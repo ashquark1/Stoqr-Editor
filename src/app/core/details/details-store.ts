@@ -9,6 +9,7 @@ import { isConfiguredBrand } from '@core/sheets/data-health';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { SkuCheck, checkNewSku, checkSkuForNew } from '@core/sheets/sku-check';
 import { StockLogStore } from '@core/stock-adjust/stock-log-store';
+import { deriveStockStatus } from '@core/stock-adjust/stock-status';
 import { DetailValue, changedValues, parseDetail } from './details-diff';
 import { DetailField, EDITABLE_DETAILS, byDetailField } from './details-fields';
 import { validateDetail } from './details-validation';
@@ -195,6 +196,24 @@ export class DetailsStore {
     }
     // The single cast: every value came from `parseDetail` for its own field's kind.
     return { ...(parsed as unknown as NewProductValues), stockQty: qty };
+  });
+
+  /**
+   * The Stock Status a new product will get (US-99): derived from the typed
+   * opening stock and threshold once both are valid, else null ("Set when saved").
+   */
+  readonly newStockStatus = computed<string | null>(() => {
+    if (!this.isNew()) {
+      return null;
+    }
+    const errors = this.errors();
+    if (errors.stockQty !== undefined || errors.lowStockThreshold !== undefined) {
+      return null;
+    }
+    const texts = this.texts();
+    const qty = parseDetail(defOf('stockQty'), texts.stockQty);
+    const threshold = parseDetail(defOf('lowStockThreshold'), texts.lowStockThreshold);
+    return typeof qty === 'number' && typeof threshold === 'number' ? deriveStockStatus(qty, threshold) : null;
   });
 
   /** Where a new product is saved: "Master and Dr Trust" for the Dr Trust brand, else "Master". */

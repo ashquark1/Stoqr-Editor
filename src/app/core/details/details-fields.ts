@@ -23,6 +23,8 @@ export interface EditableDetail {
   readonly required: boolean;
   readonly mono?: boolean;
   readonly multiline?: boolean;
+  /** The label in the New product form, when it differs (US-99). */
+  readonly newLabel?: string;
 }
 
 /** Shown, never typed: Stock Status (derived), Last Updated (stamped), Created At. */
@@ -32,6 +34,8 @@ export interface LockedDetail {
   readonly group: DetailGroup;
   readonly editable: false;
   readonly badge?: boolean;
+  /** Not shown in the New product form: written on save (US-99). */
+  readonly hiddenWhenNew?: boolean;
 }
 
 export type DetailDef = EditableDetail | LockedDetail;
@@ -57,7 +61,7 @@ export const DETAIL_FIELDS: readonly DetailDef[] = [
   text('color', 'Color', 'product', false),
   text('status', 'Status', 'product', true),
   // Stock Info
-  { key: 'stockQty', label: 'Stock Qty', group: 'stock', editable: true, kind: 'whole', required: true },
+  { key: 'stockQty', label: 'Stock Qty', group: 'stock', editable: true, kind: 'whole', required: true, newLabel: 'Opening stock qty' },
   { key: 'lowStockThreshold', label: 'Low Stock Threshold', group: 'stock', editable: true, kind: 'whole', required: true },
   { key: 'stockStatus', label: 'Stock Status', group: 'stock', editable: false, badge: true },
   text('unitOfMeasure', 'Unit of Measure', 'stock', true),
@@ -69,8 +73,8 @@ export const DETAIL_FIELDS: readonly DetailDef[] = [
   { key: 'taxRate', label: 'Tax Rate', group: 'pricing', editable: true, kind: 'number', required: true },
   // Additional Info
   { ...text('notes', 'Notes', 'additional', false), multiline: true },
-  { key: 'lastUpdated', label: 'Last Updated', group: 'additional', editable: false },
-  { key: 'createdAt', label: 'Created At', group: 'additional', editable: false },
+  { key: 'lastUpdated', label: 'Last Updated', group: 'additional', editable: false, hiddenWhenNew: true },
+  { key: 'createdAt', label: 'Created At', group: 'additional', editable: false, hiddenWhenNew: true },
 ];
 
 export const EDITABLE_DETAILS: readonly EditableDetail[] = DETAIL_FIELDS.filter(
