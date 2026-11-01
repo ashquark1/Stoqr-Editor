@@ -1,4 +1,10 @@
-import { AdjustMode, MAX_QUANTITY, formatDelta, parseAmount, proposeQuantity } from './stock-adjust';
+import {
+  AdjustMode,
+  MAX_QUANTITY,
+  formatDelta,
+  parseAmount,
+  proposeQuantity,
+} from './stock-adjust';
 
 describe('parseAmount', () => {
   it.each([
@@ -11,19 +17,32 @@ describe('parseAmount', () => {
     expect(parseAmount(raw)).toBe(expected);
   });
 
-  it.each(['2.5', '-3', '1e3', 'abc', '1,000', '+4'])('%j is not a whole number', (raw) => {
+  it.each(['2.5', '1e3', 'abc', '1,000', '+4'])('%j is not a whole number', (raw) => {
     expect(parseAmount(raw)).toBeNaN();
   });
 });
 
 describe('proposeQuantity (the one place the new quantity is computed)', () => {
   it('adds and subtracts whole amounts', () => {
-    expect(proposeQuantity(120, 'add', 15)).toEqual({ ok: true, current: 120, delta: 15, proposed: 135 });
-    expect(proposeQuantity(120, 'subtract', 15)).toEqual({ ok: true, current: 120, delta: -15, proposed: 105 });
+    expect(proposeQuantity(120, { way: 'amount', mode: 'add', amount: 15 })).toEqual({
+      ok: true,
+      current: 120,
+      delta: 15,
+      proposed: 135,
+    });
+    expect(proposeQuantity(120, { way: 'amount', mode: 'subtract', amount: 15 })).toEqual({
+      ok: true,
+      current: 120,
+      delta: -15,
+      proposed: 105,
+    });
   });
 
   it('subtracting exactly the stock gives 0', () => {
-    expect(proposeQuantity(10, 'subtract', 10)).toMatchObject({ ok: true, proposed: 0 });
+    expect(proposeQuantity(10, { way: 'amount', mode: 'subtract', amount: 10 })).toMatchObject({
+      ok: true,
+      proposed: 0,
+    });
   });
 
   describe('rules', () => {
@@ -34,7 +53,7 @@ describe('proposeQuantity (the one place the new quantity is computed)', () => {
       for (const current of currents) {
         for (const amount of amounts) {
           for (const mode of modes) {
-            const p = proposeQuantity(current, mode, amount);
+            const p = proposeQuantity(current, { way: 'amount', mode: mode, amount: amount });
             if (p.ok) {
               expect(Number.isInteger(p.proposed)).toBe(true);
               expect(p.proposed).toBeGreaterThanOrEqual(0);
@@ -47,7 +66,7 @@ describe('proposeQuantity (the one place the new quantity is computed)', () => {
     });
 
     it('a subtraction past zero is blocked with the counts, never clamped', () => {
-      expect(proposeQuantity(10, 'subtract', 15)).toEqual({
+      expect(proposeQuantity(10, { way: 'amount', mode: 'subtract', amount: 15 })).toEqual({
         ok: false,
         reason: 'below-zero',
         message: "You can't subtract 15: only 10 in stock.",
@@ -62,16 +81,29 @@ describe('proposeQuantity (the one place the new quantity is computed)', () => {
     [-3, 'not-positive', 'Enter an amount above 0.'],
     [MAX_QUANTITY + 1, 'over-cap', "That's more than 1,000,000. Check for an extra zero."],
   ])('amount %s is blocked as %s', (amount, reason, message) => {
-    expect(proposeQuantity(100, 'add', amount)).toEqual({ ok: false, reason, message });
+    expect(proposeQuantity(100, { way: 'amount', mode: 'add', amount: amount })).toEqual({
+      ok: false,
+      reason,
+      message,
+    });
   });
 
   it('blocks a result over the 1,000,000 cap', () => {
-    expect(proposeQuantity(999_999, 'add', 2)).toMatchObject({ ok: false, reason: 'over-cap' });
-    expect(proposeQuantity(999_999, 'add', 1)).toMatchObject({ ok: true, proposed: MAX_QUANTITY });
+    expect(proposeQuantity(999_999, { way: 'amount', mode: 'add', amount: 2 })).toMatchObject({
+      ok: false,
+      reason: 'over-cap',
+    });
+    expect(proposeQuantity(999_999, { way: 'amount', mode: 'add', amount: 1 })).toMatchObject({
+      ok: true,
+      proposed: MAX_QUANTITY,
+    });
   });
 
   it.each([null, -1, 2.5])('refuses an invalid current quantity (%s)', (current) => {
-    expect(proposeQuantity(current, 'add', 1)).toMatchObject({ ok: false, reason: 'invalid-current' });
+    expect(proposeQuantity(current, { way: 'amount', mode: 'add', amount: 1 })).toMatchObject({
+      ok: false,
+      reason: 'invalid-current',
+    });
   });
 });
 

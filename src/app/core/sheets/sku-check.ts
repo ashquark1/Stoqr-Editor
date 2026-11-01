@@ -58,6 +58,36 @@ export function checkNewSku(
 }
 
 /**
+ * A NEW product's SKU (US-98): it must be on no row of either sheet
+ * (normalised, as above); no own rows, no linking to an orphan. Blank is left
+ * to the required-field rule. Spaces at either end are refused.
+ */
+export function checkSkuForNew(
+  typed: string,
+  master: readonly LoadedProduct[],
+  drTrust: readonly LoadedProduct[],
+  labels: { readonly master: string; readonly drTrust: string },
+): SkuCheck {
+  if (typed !== typed.trim()) {
+    return { ok: false, message: SKU_SPACES_MESSAGE };
+  }
+  const key = normalizeSku(typed);
+  if (key === '') {
+    return { ok: true, linkTo: null };
+  }
+  for (const [rows, label] of [
+    [master, labels.master],
+    [drTrust, labels.drTrust],
+  ] as const) {
+    const holder = rows.find((row) => normalizeSku(row.product.sku) === key);
+    if (holder !== undefined) {
+      return { ok: false, message: `SKU ${typed} is already used in ${label} (${nameOf(holder)}).` };
+    }
+  }
+  return { ok: true, linkTo: null };
+}
+
+/**
  * Save-time re-check on a FRESHLY read tab (US-38): the name of a product that
  * now holds `sku` (normalised) and is not one of the approval's own rows, or
  * null when none does.

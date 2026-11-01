@@ -1,7 +1,8 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
+import { NewProductReviewStore, NewProductStripAction } from '@core/details/new-product-review-store';
 import { PanelStore } from '@core/layout/panel-store';
 import { FilterStore } from '@core/search/filter-store';
 import { ProductSearchStore } from '@core/search/product-search-store';
@@ -35,6 +36,7 @@ export class ProductNavigation {
   private readonly adjust = inject(StockAdjustStore);
   private readonly stockReview = inject(StockReviewStore);
   private readonly detailsReview = inject(DetailsReviewStore);
+  private readonly newReview = inject(NewProductReviewStore);
   private readonly filters = inject(FilterStore);
   private readonly panels = inject(PanelStore);
   private readonly sheets = inject(SheetsStore);
@@ -44,19 +46,117 @@ export class ProductNavigation {
 
   /** A stock or details save is running. */
   readonly saving = computed(
-    () => this.stockReview.step() === 'saving' || this.detailsReview.step() === 'saving',
+    () =>
+      this.stockReview.step() === 'saving' ||
+      this.detailsReview.step() === 'saving' ||
+      this.newReview.step() === 'saving',
   );
 
-  /** Details edits, a typed adjuster amount or a chosen sign. */
-  readonly unsaved = computed(
-    () => this.details.hasChanges() || this.adjust.mode() !== null || this.adjust.amountText().trim() !== '',
-  );
+  /** Details edits, or anything typed in the adjuster (amount, new total) or a chosen sign. */
+  readonly unsaved = computed(() => this.details.hasChanges() || this.adjust.hasEntry());
 
   /** True while "Discard changes?" waits for an answer. */
   readonly leavePending = computed(() => this.pendingSignal() !== null);
 
   /** "This product is no longer in the sheet." after a refresh, or null. */
   readonly notice = this.noticeSignal.asReadonly();
+
+  constructor() {
+    // The bottom bar's Add product button (US-93) lives in the shell, which does not
+    // import this store; it bumps a request in PanelStore and this answers it.
+    let lastRequest = untracked(() => this.panels.newProductRequest());
+    effect(() => {
+      const request = this.panels.newProductRequest();
+      if (request !== lastRequest) {
+        lastRequest = request;
+        untracked(() => this.toggleNewProduct());
+      }
+    });
+    // Add product is off without Stock Log access (US-95/96); the shell shows why.
+    effect(() => {
+      const reason = this.stockReview.log.offMessage();
+      untracked(() => this.panels.setAddProductOff(reason));
+    });
+  }
+
+  /**
+   * Opens the New product shell (US-93): asks "Discard changes?" when the open
+   * product has unsaved work, then closes it and the floating panels. A second
+   * press closes the shell. Not while a save runs, nor without Stock Log
+   * access (US-95). (Its own rules: US-98.)
+   */
+  toggleNewProduct(): void {
+    if (this.panels.newProductOpen()) {
+      this.closeNewProduct();
+      return;
+    }
+    // No Stock Log access: Add product is off (its opening stock must be logged; US-95).
+    if (this.saving() || this.stockReview.log.stockChangesOff()) {
+      return;
+    }
+    this.ask(() => {
+      this.dropWork();
+      this.search.clearSelection();
+      this.panels.openNewProduct();
+      this.details.startNew();
+    });
+  }
+
+  /**
+   * The New product form's X, Cancel, or Add product again (US-98): asks
+   * "Discard changes?" when anything was typed, then closes it (the entries
+   * go with it). Not while a save runs.
+   */
+  closeNewProduct(): void {
+    if (this.saving()) {
+      return;
+    }
+    this.ask(() => this.panels.closeNewProduct());
+  }
+
+  /** Save product (US-100): writes the new product; once every sheet is confirmed, it opens. */
+  async saveNewProduct(): Promise<void> {
+    const ref = await this.newReview.save();
+    if (ref !== null) {
+      this.openCreated(ref);
+    }
+  }
+
+  /** A New product result strip's button (US-100): Back, Try again, Retry Dr Trust, Close. */
+  async newProductStripAction(action: NewProductStripAction): Promise<void> {
+    switch (action) {
+      case 'back':
+        this.newReview.back();
+        return;
+      case 'try-again':
+        await this.saveNewProduct();
+        return;
+      case 'retry': {
+        const ref = await this.newReview.retry();
+        if (ref !== null) {
+          this.openCreated(ref);
+        }
+        return;
+      }
+      case 'close': {
+        // Half saved: the product opens as it is (Master only; Data health lists it).
+        const ref = this.newReview.closePartial();
+        if (ref !== null) {
+          this.openCreated(ref);
+        }
+        return;
+      }
+    }
+  }
+
+  /**
+   * A new product was saved (US-98/100): the form closes without asking (its
+   * entries are saved) and the NEW product opens in the card.
+   */
+  openCreated(ref: RowRef): void {
+    this.panels.closeNewProduct();
+    this.search.select(ref);
+  }
 
   /** Refresh may run: not while one runs or a save runs (US-60). */
   readonly refreshAvailable = computed(() => !this.sheets.refreshing() && !this.saving());
@@ -138,12 +238,13 @@ export class ProductNavigation {
    * show the start state — asking first, and putting the text back on "no".
    */
   clearBox(): void {
-    if (this.search.selected() === null) {
-      this.search.clear();
-      return;
-    }
+    // Results over the open product or the New product form: cancel them, the work stays.
     if (this.search.overlayOpen()) {
       this.search.cancelOverlay();
+      return;
+    }
+    if (this.search.selected() === null) {
+      this.search.clear();
       return;
     }
     if (this.saving()) {
@@ -181,24 +282,43 @@ export class ProductNavigation {
     if (!this.refreshAvailable()) {
       return;
     }
-    this.ask(() => void this.reload());
+    this.ask(() => {
+      // The New product form stays open, back to blank (US-98).
+      if (this.details.isNew()) {
+        this.details.reset();
+      }
+      void this.reload();
+    });
   }
 
-  /** Opens the details form; a typed adjuster amount and sign are dropped silently (A-UI-30). */
+  /**
+   * Opens the details form; a typed adjuster entry and sign are dropped
+   * silently (A-UI-30), and a stock result is cleared. Not while saving or
+   * while a half-done stock save waits for Retry or Close (US-64).
+   */
   openDetails(): void {
-    if (this.saving()) {
+    if (this.saving() || this.stockReview.step() === 'partial') {
       return;
     }
     this.adjust.reset();
+    this.stockReview.close();
     this.details.openForm();
   }
 
   /** Cancel / leaving the form (US-66): always closes it, asking first when details are edited. */
   closeDetails(): void {
-    if (this.details.hasChanges()) {
-      this.pendingSignal.set({ leave: () => this.details.closeForm() });
-    } else {
+    if (this.saving()) {
+      return;
+    }
+    // Leaving also ends an open details review (a half save's Close included, US-92).
+    const leave = (): void => {
+      this.detailsReview.back();
       this.details.closeForm();
+    };
+    if (this.details.hasChanges()) {
+      this.pendingSignal.set({ leave });
+    } else {
+      leave();
     }
   }
 

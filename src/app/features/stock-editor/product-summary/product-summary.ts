@@ -4,24 +4,27 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  computed,
   effect,
   inject,
   untracked,
   viewChild,
 } from '@angular/core';
 
+import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
+import { NewProductReviewStore } from '@core/details/new-product-review-store';
 import { ProductNavigation } from '@core/navigation/product-navigation';
 import { ProductSearchStore } from '@core/search/product-search-store';
-import { StockReviewStore } from '@core/stock-adjust/stock-review-store';
+import { StockReviewStore, StripAction } from '@core/stock-adjust/stock-review-store';
 import { Badge } from '@shared/ui/badge/badge';
 import { StatusBadge } from '@shared/ui/status-badge/status-badge';
+import { Strip } from '@shared/ui/strip/strip';
 import { SyncBadge } from '@shared/ui/sync-badge/sync-badge';
 import { StoqrTooltip } from '@shared/ui/tooltip/tooltip';
 import { displayValue } from '@shared/util/display-value';
 import { DetailsForm } from '../details-form/details-form';
 import { QuantityAdjuster } from '../quantity-adjuster/quantity-adjuster';
-import { ReviewPanel } from '../review-panel/review-panel';
 
 /**
  * The open product as a card under the toolbar (US-72): brand and name, five
@@ -34,7 +37,7 @@ import { ReviewPanel } from '../review-panel/review-panel';
  */
 @Component({
   selector: 'app-product-summary',
-  imports: [Badge, DetailsForm, QuantityAdjuster, ReviewPanel, StatusBadge, StoqrTooltip, SyncBadge],
+  imports: [Badge, DetailsForm, QuantityAdjuster, StatusBadge, StoqrTooltip, Strip, SyncBadge],
   templateUrl: './product-summary.html',
   styleUrl: './product-summary.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,16 +46,42 @@ export class ProductSummary {
   protected readonly search = inject(ProductSearchStore);
   protected readonly review = inject(StockReviewStore);
   protected readonly details = inject(DetailsStore);
+  protected readonly detailsReview = inject(DetailsReviewStore);
+  protected readonly newReview = inject(NewProductReviewStore);
   protected readonly navigation = inject(ProductNavigation);
   protected readonly display = displayValue;
 
-  /** A stock or details save is running: the icon is disabled (its result must not be lost). */
-  protected readonly saving = this.navigation.saving;
+  /** The pencil / eye is off while a save runs or a half-done stock save waits for Retry or Close (US-64). */
+  protected readonly iconLocked = computed(() => this.navigation.saving() || this.review.step() === 'partial');
 
   private readonly title = viewChild<ElementRef<HTMLElement>>('titleEl');
+  private readonly detailsIcon = viewChild<ElementRef<HTMLElement>>('detailsIcon');
   private readonly injector = inject(Injector);
 
+  /** A Retry log strip button (US-96); after a Retry log that clears it, focus goes to the card title. */
+  protected async logAction(action: StripAction): Promise<void> {
+    if (action !== 'retry-log') {
+      this.review.stripAction(action);
+      return;
+    }
+    await this.review.retryLog();
+    if (!this.review.log.hasPending()) {
+      this.title()?.nativeElement.focus({ preventScroll: true });
+    }
+  }
+
   constructor() {
+    // The form closed (Cancel, Close, Discard, a save): focus back on the pencil / eye (US-77, US-78).
+    let wasOpen = untracked(() => this.details.formOpen());
+    effect(() => {
+      const open = this.details.formOpen();
+      if (wasOpen && !open) {
+        untracked(() =>
+          afterNextRender(() => this.detailsIcon()?.nativeElement.focus(), { injector: this.injector }),
+        );
+      }
+      wasOpen = open;
+    });
     // Focus moves to the card heading when a product opens (US-72); a refresh keeps the key.
     effect(() => {
       this.search.selectionKey();

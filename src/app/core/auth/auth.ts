@@ -5,6 +5,14 @@ import { REQUESTED_SCOPES, SHEETS_SCOPE } from './auth-scope';
 import { clearDevSession, devSessionEnabled, loadDevSession, saveDevSession } from './dev-session';
 import { GIS_LOADER } from './gis-loader';
 import { GisClientError, GisOAuth2, GisTokenClient, GisTokenResponse } from './gis-types';
+import {
+  clearRecord,
+  hasValidRecord,
+  saveRecord,
+  silentAttempted,
+  silentSignInUrl,
+  takeSilentResult,
+} from './remember-me';
 import { UserProfile, UserProfileReader } from './user-profile';
 
 /**
@@ -51,9 +59,12 @@ interface TokenWaiter {
 
 /**
  * Google sign-in with the GIS token flow (US-05), sign-out and the first name
- * (US-07, D1), and in-place renewal (US-06). The access token lives in a
- * private field (memory only, never browser storage — except the
- * development-only session keeper in `dev-session.ts`, removed before go-live); `core/sheets` gets it
+ * (US-07, D1), in-place renewal (US-06), and Remember me (US-67, US-68): a
+ * ticked sign-in keeps a record (`remember-me.ts`, flag + time only), and on a
+ * later visit a silent redirect (`prompt=none`) brings a token back with no
+ * click. The access token lives in a private field (memory only, never
+ * browser storage — except the development-only session keeper in
+ * `dev-session.ts`, removed before go-live); `core/sheets` gets it
  * only through `freshToken()`. Expiry never clears work: only sign-out, or a
  * different account on renewal, starts a new `sessionId`.
  */
@@ -73,8 +84,11 @@ export class Auth {
   private readonly sessionIdSignal = signal(0);
   /** Where a renewal started: the dialog (`expired`) or the early warning (`signed-in`). */
   private readonly renewOriginSignal = signal<'signed-in' | 'expired'>('expired');
+  private readonly redirectingSignal = signal(false);
 
   readonly status = this.statusSignal.asReadonly();
+  /** A silent sign-in is leaving for Google (US-68): the sign-in screen shows "Signing you in…". */
+  readonly redirecting = this.redirectingSignal.asReadonly();
   /** Sign-in screen message, or null. */
   readonly error = this.errorSignal.asReadonly();
   /** Message inside the "Session expired" dialog after a failed renewal, or null. */
@@ -105,7 +119,9 @@ export class Auth {
   /** Show the blocking "Session expired" dialog. */
   readonly expiredDialogOpen = computed(() => {
     const status = this.statusSignal();
-    return status === 'expired' || (status === 'renewing' && this.renewOriginSignal() === 'expired');
+    return (
+      status === 'expired' || (status === 'renewing' && this.renewOriginSignal() === 'expired')
+    );
   });
 
   private token: string | null = null;
@@ -120,6 +136,8 @@ export class Auth {
   private expiryTimer: ReturnType<typeof setTimeout> | undefined;
   /** Bumped whenever a token is replaced or dropped, so a late profile lookup is discarded. */
   private tokenGeneration = 0;
+  /** The last Remember me choice (US-67); Retry reuses it. */
+  private remember = true;
   /** DEVELOPMENT ONLY (dev-session.ts): keep the session across reloads. Remove before go-live. */
   private readonly keepDevSession = devSessionEnabled(this.config.mode());
 
@@ -133,7 +151,39 @@ export class Auth {
       this.firstNameSignal.set(saved.firstName);
       this.statusSignal.set('signed-in');
       this.sessionIdSignal.update((id) => id + 1);
+      return;
     }
+    // Back from a silent sign-in (US-68): take the token from the URL (removed
+    // at once). Any failure is quiet: the normal sign-in screen, no error.
+    const result = takeSilentResult();
+    if (result?.kind === 'token' && result.scope.split(' ').includes(SHEETS_SCOPE)) {
+      this.setToken(result.token, result.expiresIn);
+      this.statusSignal.set('signed-in');
+      this.sessionIdSignal.update((id) => id + 1);
+      saveRecord(); // another 30 days from this sign-in
+      void this.loadProfile(result.token, false);
+    }
+  }
+
+  /**
+   * The Google address for a silent sign-in (US-68), or null when there is
+   * nothing to try: already signed in, no valid Remember-me record, or an
+   * attempt already ran in this tab. The caller (`provideAuthRedirects`)
+   * navigates there.
+   */
+  silentSignInUrl(): string | null {
+    if (this.statusSignal() !== 'signed-out' || !hasValidRecord() || silentAttempted()) {
+      return null;
+    }
+    const url = silentSignInUrl(
+      this.config.clientId(),
+      REQUESTED_SCOPES,
+      `${window.location.origin}/`,
+    );
+    if (url !== null) {
+      this.redirectingSignal.set(true);
+    }
+    return url;
   }
 
   /** Loads GIS and creates the token client. Safe to call repeatedly; Retry calls it again. */
@@ -169,10 +219,11 @@ export class Auth {
    * `requestAccessToken`), or the browser blocks the popup. Ignored while a
    * sign-in is in progress or before GIS is ready.
    */
-  signIn(): void {
+  signIn(remember = this.remember): void {
     if (this.client === null || this.statusSignal() !== 'signed-out') {
       return;
     }
+    this.remember = remember;
     this.errorSignal.set(null);
     this.statusSignal.set('signing-in');
     this.client.requestAccessToken();
@@ -216,6 +267,7 @@ export class Auth {
    * requests are rejected; the redirects return to `/sign-in`.
    */
   signOut(): void {
+    clearRecord(); // Remember me ends with Sign out (US-67)
     const token = this.token;
     if (token !== null && this.oauth2 !== null) {
       try {
@@ -298,6 +350,12 @@ export class Auth {
       waiters.forEach((w) => w.resolve(response.access_token ?? ''));
     } else {
       this.sessionIdSignal.update((id) => id + 1);
+      // Ticked: keep (or renew) the record for 30 days; unticked: delete any record (US-67).
+      if (this.remember) {
+        saveRecord();
+      } else {
+        clearRecord();
+      }
     }
     void this.loadProfile(response.access_token, renewing);
   }
@@ -345,7 +403,9 @@ export class Auth {
       this.renewInFlight = false;
       // The work is still there: go back to where the renewal started.
       const origin = this.renewOriginSignal();
-      this.statusSignal.set(origin === 'signed-in' && this.token !== null ? 'signed-in' : 'expired');
+      this.statusSignal.set(
+        origin === 'signed-in' && this.token !== null ? 'signed-in' : 'expired',
+      );
       this.renewalErrorSignal.set(
         error.type === 'popup_closed' ? AUTH_MESSAGES.renewCancelled : message,
       );

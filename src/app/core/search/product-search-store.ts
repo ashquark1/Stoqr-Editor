@@ -9,6 +9,7 @@ import { syncStatuses } from '@core/sheets/sheet-pairing';
 import { SheetsStore } from '@core/sheets/sheets-store';
 import { SyncBadgeKind, linkedQtyDiffers, syncBadges } from '@core/sheets/sync-badge';
 import { FilterStore } from './filter-store';
+import { ResultRow, resultRow } from './result-row';
 import { applyFilters, applyStatusVisibility } from './product-filter';
 import { filterProducts, tokenize } from './product-matcher';
 import { SearchValidation } from './search-validation';
@@ -54,7 +55,13 @@ export class ProductSearchStore {
   /** The search that ran (filters the list). */
   readonly query = this.querySignal.asReadonly();
   /** A search ran while a product is open: the results show over it (US-59). */
-  readonly overlayOpen = this.overlaySignal.asReadonly();
+  /**
+   * The results float over something open: a product, or the New product form
+   * (US-98, treated like an open product with unsaved work).
+   */
+  readonly overlayOpen = computed(
+    () => this.overlaySignal() && (this.selectedRefSignal() !== null || this.panels.newProductOpen()),
+  );
   /** Changes only when a different product opens or the product closes. */
   readonly selectionKey = this.selectionKeySignal.asReadonly();
 
@@ -92,7 +99,9 @@ export class ProductSearchStore {
   readonly toolbarShown = computed(() => this.hasQuery() || this.selectedRefSignal() !== null);
   /** The result list shows: on the home screen, or as the overlay over an open product (US-59). */
   readonly listShown = computed(
-    () => this.hasQuery() && (this.selectedRefSignal() === null || this.overlaySignal()),
+    () =>
+      this.hasQuery() &&
+      ((this.selectedRefSignal() === null && !this.panels.newProductOpen()) || this.overlayOpen()),
   );
   /** Filters changed from the defaults, for "Filters (n)". */
   readonly filterCount = computed(() => this.filters.changedCount());
@@ -128,6 +137,12 @@ export class ProductSearchStore {
   syncBadgeOf(ref: RowRef): SyncBadgeKind | undefined {
     return this.badges().get(ref);
   }
+
+  /** The listed matches as result rows with their tiles' values (US-91). */
+  readonly rows = computed<readonly ResultRow[]>(() => {
+    const badges = this.badges();
+    return this.matches().map((row) => resultRow(row, badges.get(row.ref)));
+  });
 
   readonly selectedSyncBadge = computed<SyncBadgeKind | undefined>(() => {
     const row = this.selected();
@@ -210,7 +225,7 @@ export class ProductSearchStore {
   /** A search runs; with a product open its results show as the overlay. */
   private run(text: string): void {
     this.querySignal.set(text);
-    if (this.selectedRefSignal() !== null && text.trim() !== '') {
+    if ((this.selectedRefSignal() !== null || this.panels.newProductOpen()) && text.trim() !== '') {
       this.overlaySignal.set(true);
     }
   }
@@ -223,7 +238,7 @@ export class ProductSearchStore {
   /**
    * Opens a product (call through `ProductNavigation`, which asks first when
    * needed). The overlay closes and the box text is remembered; this closes
-   * the filter panel (US-70).
+   * the filter panel (US-70) and the Data health panel (US-72).
    */
   select(ref: RowRef): void {
     if (ref !== this.selectedRefSignal()) {
@@ -234,6 +249,8 @@ export class ProductSearchStore {
     this.overlaySignal.set(false);
     this.rememberedSignal.set(this.typedSignal());
     this.panels.closeFilters();
+    this.panels.closeHealth();
+    this.panels.closeNewProduct(); // a product opens in place of the New product shell (US-93)
   }
 
   /** The same product under the ref a refresh gave it (US-60): nothing else changes. */

@@ -1,22 +1,4 @@
 <section class="stock-editor">
-  @if (review.notice(); as notice) {
-    <stoqr-toast
-      variant="success"
-      title="Stock saved"
-      [message]="notice"
-      actionLabel=""
-      (dismiss)="review.clearNotice()"
-    />
-  }
-  @if (detailsReview.notice(); as notice) {
-    <stoqr-toast
-      variant="success"
-      title="Details saved"
-      [message]="notice"
-      actionLabel=""
-      (dismiss)="detailsReview.clearNotice()"
-    />
-  }
   @if (sheets.refreshError(); as message) {
     <!-- The old list stays on screen (US-58); Retry runs the same refresh. -->
     <stoqr-toast
@@ -100,11 +82,27 @@
           }
         </div>
       }
+      <!-- One list (US-73): the home list, or floated over the open product, which stays dimmed and untouched. -->
       <div class="stock-editor__layout">
-        <app-product-picker class="stock-editor__picker" />
-        @if (search.selected()) {
-          <app-product-summary class="stock-editor__summary" />
+        @if (panels.newProductOpen()) {
+          <!-- Add product (US-93): the shell sits where the product card would; a search floats over it (US-98). -->
+          <app-new-product
+            class="stock-editor__summary"
+            [class.stock-editor__summary--dimmed]="search.overlayOpen()"
+            [inert]="search.overlayOpen()"
+          />
         }
+        @if (search.selected()) {
+          <app-product-summary
+            class="stock-editor__summary"
+            [class.stock-editor__summary--dimmed]="search.overlayOpen()"
+            [inert]="search.overlayOpen()"
+          />
+        }
+        <app-product-picker
+          class="stock-editor__picker"
+          [class.stock-editor__picker--overlay]="search.overlayOpen()"
+        />
       </div>
     }
   }

@@ -178,6 +178,23 @@ export class SheetsStore {
     }
   }
 
+  /**
+   * Puts a confirmed NEW product row into the loaded data (US-97), at the end
+   * of its sheet like the append, so search, filters, pairing and Data health
+   * see it at once (no reload). A row already there (same ref) is replaced.
+   */
+  addRow(ref: RowRef, product: Product): void {
+    const add = (rows: readonly LoadedProduct[]) =>
+      rows.some((row) => row.ref === ref)
+        ? rows.map((row) => (row.ref === ref ? { ref, product, issues: row.issues } : row))
+        : [...rows, { ref, product, issues: [] }];
+    if (ref.sheet === 'master') {
+      this.masterSignal.update(add);
+    } else {
+      this.drTrustSignal.update(add);
+    }
+  }
+
   private async load(): Promise<void> {
     const generation = this.generation;
     const master = this.config.sheet('master');

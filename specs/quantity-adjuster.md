@@ -1,5 +1,7 @@
 # Feature: Quantity adjuster — add/subtract with a live preview (US-15, US-16, US-17)
 # Sprint 3, story A. Classification: Core (quantity rules; shared signal state).
+> **Superseded in part by CR-04 (2026-10-31):** a new total is a second way in the same `proposeQuantity` (`specs/stock-rules-set-total.md`, US-62); there is no review step — Apply writes at once (`specs/stock-apply.md`, US-64), with Undo (`specs/stock-undo.md`, US-65). The quantity rules below still hold.
+
 
 ## Problem
 Staff need to change a product's stock by a whole amount and see, before anything is saved, exactly what the new quantity and Stock Status will be — with impossible results (below zero, a typo like an extra zero) stopped and explained rather than silently adjusted.

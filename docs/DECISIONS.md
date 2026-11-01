@@ -75,12 +75,12 @@
 - Decision [confirmed 2026-10-29]: in the details form Stock Status is read-only (derived); users do not type it. The review step previews the new status and the low-stock warning from the same function.
 - Note: this deliberately supersedes V1's rule that stock status is "read verbatim, never derived". That rule belongs to V1's read-only contract; V2 owns the write, so it must own the derivation.
 
-## 2026-10-21: Quantity is edited only via the adjuster [confirmed 2026-10-29]
+## 2026-10-21: Quantity is edited only via the adjuster [confirmed 2026-10-29; superseded 2026-10-31 by CR-04]
 
 - Decision: the details form shows Stock Qty read-only; all quantity changes go through adjuster → review → approve. Created At is read-only; Last Updated is app-stamped; Stock Status is app-derived; `id` is excluded.
 - Reason: one reviewed path for quantity prevents unreviewed changes.
 
-## 2026-10-27: Stock Log tab deferred [confirmed]
+## 2026-10-27: Stock Log tab deferred [confirmed; reversed 2026-11-01 by CR-05]
 
 - Decision: no audit log in this version. It may be wanted later (idea: append timestamp, user, `id`, old qty, new qty, delta, optional reason to a separate "Stock Log" tab).
 - Consequence: only the `spreadsheets` scope is requested now; no `email` scope. Add the scope and a spec when the log is picked up.
@@ -311,7 +311,7 @@
 
 - Decision: only CHANGED fields are written, compared by value (`18.0` for 18 is no change), the same new values to both sheets of a linked product. Each sheet's row is guarded by THAT sheet's own current values of the changed fields: someone else's edit to the same field is a conflict; an edit to another field is not, and is never overwritten. Untouched fields that differ between the sheets are left alone.
 - Decision: `DetailsStore` keeps only the user's edits; untouched fields show current data, so after a conflict or save they follow the fresh values and a save can never undo someone else's change.
-- Decision (owner): after a successful details save the product stays open showing the saved values ("Details saved" toast). Stock saves still clear the selection.
+- Decision (owner): after a successful details save the product stays open showing the saved values ("Details saved" toast). Stock saves still clear the selection. [Superseded 2026-10-31 by US-64 / US-80: stock saves keep the product open too; the form closes after a details save and a 5 s strip replaces the toast.]
 - Decision: Stock Status is written on EVERY save (stock or details), derived per sheet from that sheet's own qty and threshold; this also repairs rows whose status was blank or stale.
 - Decision: a text field whose fresh cell holds a number is written back as a number when the new text is a plain number (`12`, `0.5`); `007`, `1.50` and `12 pcs` stay text. Reason: RAW would store `"12"` as text, and gviz (V1) drops a column's minority-type values.
 - Decision: a changed SKU blocked Review until US-38 (superseded the same day by "SKU change").
@@ -403,6 +403,159 @@
 - Decision: the details form's open state is `DetailsStore.formOpen`; Cancel always closes it (asking first with edits); a read-only form gets Close; Close after a half-done details save closes it.
 - Decision: the search box reaches the store through its `input` event. Reason (found while testing): a `toSignal` of the box's value never sees text the store put in the box (`emitEvent: false`), so emptying the box after a Data health pick was ignored.
 - Finding: an effect that calls a method reading store signals subscribes to them; the box effect then wiped every submitted search. Now in AI_CONTRACT Forbidden Shortcuts.
+
+## 2026-10-31: Product card — tiles and one icon (US-72, US-74) [confirmed]
+
+- Decision: the open product is a card under the toolbar; no "Change product" or mode buttons. A product closes only through the search box (clear × or emptied box, US-59 rules). Opening a product closes both floating panels (`ProductSearchStore.select()`).
+- Decision: the pencil / eye is disabled while a save runs or a half-done stock save waits for Retry or Close, so the form never hides that result (narrowed by US-64: no stock review any more).
+
+## 2026-10-31: CR-04 — quantity rules and the contract (US-62) [confirmed]
+
+- Decision (owner): writes happen only after an explicit user tap — Apply (after the preview), Undo, Retry, or Save changes (details review) — still only via `approve()` → `SheetsWriter`. Quantity may change through exactly those four paths.
+- Decision: "set a new total" is a second way in the SAME function, `proposeQuantity(current, entry)`; entry is an amount with a sign or a total (0–1,000,000, not the current quantity). `parseAmount` reads a leading minus so negatives get the sign message.
+- Decision: written quantities are ABSOLUTE, sent only after the re-read shows the master qty the user saw (Undo: the qty just saved). Rejected: converting totals or Undo to a delta at write time (would apply on top of someone else's change).
+- Decision: the Dr Trust overwrite stays visible without a review: "Dr Trust sheet has N." in the Stock qty tile before Apply, "Dr Trust had N." in the saved strip; the details review keeps "will be set to".
+- Decision: a Stock qty change in the details form guards the MASTER qty only (Dr Trust overwritten), like the adjuster; other changed fields keep the per-sheet guard.
+- Decision: `ReviewFlow` stays the one save/outcome/Retry engine for every approved save; a stock change starts at saving. Rejected: a separate stock flow (duplication).
+- Risk (owner-accepted): no review page for stock, so a slip such as 500 for 5 is written at once. Guards: the live preview, red limit messages, Undo for about 10 s. A confirmation for large changes is a later option.
+- Supersedes: "Quantity is edited only via the adjuster", and the review step of "Approval flow with a re-read guard" for stock (the re-read guard stays).
+
+## 2026-10-31: Apply without review; outcomes as state (US-64) [confirmed]
+
+- Decision: `StockReviewStore.apply()` writes on one tap (button or Enter) through the shared `ReviewFlow`; stock saves may start from editing, conflict or failed (`ReviewFlow` takes the start steps per store; details keep reviewing / failed). One tap writes once.
+- Decision: after a save the product stays open; `saved()` holds the previous and saved qty, the sheets and what Dr Trust had (the base for Undo, US-65). A conflict clears the entry; a failure keeps it (Try again); a half save locks the adjuster and the pencil until Retry or Close.
+- Decision: `StockAdjustStore` holds amount + sign OR a new total; typing one way clears the other. `ProductNavigation` counts any entry (`hasEntry`) as unsaved; opening the form also clears a stock result.
+- Interim (until US-75/76): the old adjuster gets an Apply button (no New total box yet), `review-panel/` shows the outcomes with its own buttons, and the "Stock saved" toast stays.
+- Tests: `stock-review-store.spec.ts` and `review-panel.spec.ts` tested only the removed review step and were deleted; rewrite in US-88/89 when tests resume (owner suspension, 2026-10-29).
+
+## 2026-10-31: Undo of the last stock change (US-65) [confirmed]
+
+- Decision: Undo is offered for 10 s after a confirmed Apply and writes the previous quantity back as a NEW absolute save (same sheets, same `approve()` → `ReviewFlow` → `SheetsWriter` path), guarded by "Master still holds the quantity just saved"; otherwise refused with nothing written.
+- Decision: Undo is final (no Undo of an undo), and not offered after a half-done save or the Retry that finished it, nor for details saves. The offer ends on the next Apply, another product, Refresh, opening the form, or the timer. "Restored" shows for 5 s.
+- Decision: for a linked product Undo sets Dr Trust to Master's previous quantity (not what Dr Trust held before the Apply), keeping the sheets in step.
+- Decision: Try again after a failed Undo repeats the Undo (the store remembers the last action).
+- Cost: the stock store's timers added 0.4 kB to the first load (497.0 kB; 3 kB under the warning).
+
+## 2026-10-31: New adjuster layout (US-75) [confirmed]
+
+- Decision: Amount (+ / −) and New total side by side from 768px with an "or" divider, stacked on phones; a footer with the preview and Apply. The way not in use gets a grey fill (not reduced opacity, so its label keeps AA contrast).
+- Decision (owner): an amount with no sign shows "Choose + or −."; nothing typed shows "Enter an amount or a new total.".
+- Decision (reuse, Q-G3): the chosen sign uses a new shared `.stoqr-btn--pressed` (Dew fill, Pine outline) in the theme. Done 2026-10-31: the Data health and Filters buttons now use it too (their local copies removed; the modifier sets the 1.5px Pine border so it also works on ghost buttons).
+- Decision: both boxes reach the store through their `input` events (AI_CONTRACT: no effect forwarding input); the old `toSignal` + effect for the amount is gone.
+
+## 2026-10-31: Stock results as strips in the card (US-76) [confirmed]
+
+- Decision: every stock result is ONE shared `<stoqr-strip>` under the adjuster's footer; its look, text and buttons come from `StockReviewStore.strip()` (display text in the store, not the component), buttons through `stripAction()`. The "Stock saved" toast and the interim `review-panel/` are gone.
+- Decision: "Nothing was changed." is added to a failure only when it is certain: not for `unconfirmed` (Google may have saved; `ReviewFlow.failureKind`), and not when the reason already says nothing was saved.
+- Decision: after a save or undo, focus moves to the strip's first button (Undo, Dismiss, Try again, Retry), else the Amount box, because Apply is disabled once the entry clears.
+
+## 2026-10-31: Details results as strips (US-80) [confirmed]
+
+- Decision: after a details save the review and the form close and "Details saved. <sheets>." shows under the card header for 5 s; conflict / failure / half-saved are strips inside the review with their own buttons; the "Details saved" toast is gone.
+- Decision (reuse, Q-G3): the strip shape (`ResultStrip<A>`), the "Nothing was changed." certainty rule (`failureText`) and the half-saved suffix (`partialText`) live once in `ReviewFlow` and serve both the stock and details strips.
+- Decision: `review-actions/` now covers only reviewing (Save changes / Back) and saving (busy Saving…, Back off); outcome buttons live on the strips.
+
+## 2026-10-31: Remember me — record and silent redirect (US-67, US-68, US-82) [confirmed]
+
+- Decision (owner): `core/auth/remember-me.ts` is the only file that may use browser storage: `localStorage` holds `{ remember: true, savedAt }` (no token, no name, no account id), valid 30 days from the last sign-in; `sessionStorage` holds the one-time random `state` and a once-per-tab attempt flag. A ticked sign-in saves (renews) the record, an unticked one deletes it, Sign out deletes it. Storage errors are caught (no Remember me, nothing breaks).
+- Decision (owner): the return is a SILENT REDIRECT: with a valid record and no session, `provideAuthRedirects()` sends the page once to Google's OAuth endpoint (`response_type=token`, `prompt=none`, same scopes); Google sends it straight back with a token (memory only; the fragment is removed from the address bar at once and `state` checked) or an error, which shows the normal sign-in screen with no message. The sign-in screen shows "Signing you in…" while leaving.
+- Rejected: the GIS popup on start (browsers block it without a click; DECISIONS US-06); storing the token (anyone at a shared shop computer could write to the sheets for up to an hour); a one-tap Continue (still a click).
+- Kept: hourly renewal is the click-based popup (a redirect would reload the page and lose unsaved work).
+- Limits: several Google accounts signed in, an ended Google session, or lapsed consent (Testing mode, ~7 days) → normal sign-in.
+- Owner setup: add `http://localhost:4200/` and the hosted site's address as Authorized redirect URIs on the OAuth client (Google Cloud).
+- Cost: the first load is 499.1 kB (+2.2 kB), 0.9 kB under the 500 kB warning. The bundle budget needs the separate review the owner deferred before any further first-load growth.
+
+## 2026-10-31: First-load budget warning raised to 550 kB (owner) [confirmed]
+
+- Finding (bundle review): first load 499.1 kB raw, 119.8 kB transferred. Angular core/router/common/browser 251 kB; PrimeNG theme tokens (`@primeuix/themes`, the full Aura preset: tokens for ~80 components, 5 used) 106 kB; PrimeNG config/utils 46 kB; rxjs 16 kB; app code 33 kB.
+- Decision (owner): raise the `initial` budget warning in `angular.json` from 500 kB to 550 kB; the 1 MB error stays. No code change.
+- Rejected for now: a slim preset (Aura base + only the used component tokens; about −90 kB, risk of an unstyled component when a new PrimeNG piece is added); lazy theme loading (flash of unstyled content). The slim preset is the first lever if the first load nears 550 kB.
+- Supersedes the "4 kB / 3 kB under the warning" notes in earlier entries.
+
+## 2026-10-31: The Editor's design system now differs from V1 on purpose (US-81) [confirmed]
+
+- Decision: the Editor's copy of the Stoqr design system intentionally diverges from V1: shared page bounds (`.stoqr-bounds`), a sticky bottom bar matching the top bar, 44px buttons with `.icon-btn` / `--busy` / `--pressed`, V2 text and on-colour tokens, `.stoqr-input`, `.stoqr-sr-only`, the "Editor" logo, strips and floating panels. One list of the differences lives in `docs/stoqr-brand.md` §7. V1 is untouched.
+- Revisited: a shared design-system package for V1 and the Editor. Still deferred — V1 would have to change (it must stay untouched) and the Editor is not live yet. Revisit after go-live (US-27).
+- Deferred (tests suspended): updating `app.spec.ts` / `logo.spec.ts` for the frame, and a rule test against per-component copies of the bar and button rules (the `stoqr-btn--sm` rule already exists). Listed in `specs/frame-tests-docs.md`.
+
+## 2026-11-01: CR-05 — appends, the log exception and new-row rules [confirmed]
+
+- Decision (owner): `SheetsWriter` may append rows (`values:append`, RAW, insert rows) only for a new product row (Master, + Dr Trust for the Dr Trust brand) and one Stock Log line; by header name, allowlisted, no formulas. Deleting rows stays forbidden; the log is append-only.
+- Decision (owner): the tap list becomes Apply, Undo, Retry, Save changes, Save product, Retry log, with ONE named exception: the log line follows the confirmed Master write of the same tap.
+- Decision (owner): a new row's Created At / Last Updated (and the log's Logged At) are date serials with the `dd/mm/yyyy hh:mm:ss` format, not text (the US-19 reason: gviz/V1 drops minority-type values). Overrides the backlog's "static text".
+- Decision (owner): rule tests stay suspended for CR-05 (overrides the backlog's "required"); each spec lists the tests to add when tests resume.
+- Decision (owner): Claude edits both environment files once for the log sheet when US-94 is built, after asking; the deny rule stays; the LIVE log ID is a placeholder until US-27.
+- Decision (owner): a new row's id = highest numeric id in that sheet + 1 after a fresh re-read. Trade-off: two people adding at the same moment get the same id; both rows then show as "repeated id" (not editable) until fixed in the sheet.
+- Decision (owner): only a CONFIRMED Master write is logged; an unconfirmed one (it may have saved) is not, and a later confirming Try again logs it.
+- Decision (owner): the log's Change column is a number (5, −3); the owner formats column G as `+0;-0;0`.
+- Reversed: "Stock Log tab deferred" (2026-10-27) and the "no adding rows" part of V2's scope.
+
+## 2026-11-01: Add product button and shell (US-93) [confirmed]
+
+- Decision: the bottom bar's Add product button only bumps a request in `PanelStore`; `ProductNavigation` answers it (asks "Discard changes?", closes the product and panels, opens the shell). Reason: the shell importing `ProductNavigation` would pull the search and editor stores into the first load (the US-70 lesson).
+- Decision: the button's tooltip is `@defer (on idle)` with a plain-button placeholder: the tooltip directive in the first load cost ~49 kB (550.1 kB, over the warning). First load now 501.0 kB.
+- Decision: opening a product (result or Data health pick) closes the New product shell (`ProductSearchStore.select`). Full shell rules: US-98.
+
+## 2026-11-01: Create product and stock log designs (US-94, US-97 specs) [confirmed]
+
+- Decision: the log sheet is a separate `stockLog` config field, not a third entry in `sheets`, so the product-sheet code keeps handling exactly Master and Dr Trust. The LIVE log ID stays blank until US-27 (a LIVE start fails the startup check until then).
+- Decision: a load-time read of the log's header row decides ready / no access / unusable / unknown; it proves read access only, so a View-only person's first append fails and becomes a "Retry log" case.
+- Decision: a new product reaches the writer only as `ApprovedCreate` from `approveCreate()`; the writer fills `id` (max + 1), Created At, Last Updated and Stock Status on the new row only. Appends set the date cells' format AFTER the values (the row is unknown before); a format failure keeps the confirmed row.
+- Decision: Retry / Try again after an append re-read first; a row with the same SKU and product name counts as already written, so nothing is added twice.
+- Details: `specs/stock-log.md`, `specs/create-product.md`.
+
+## 2026-11-01: Stock log lines for every confirmed stock change (US-95) [confirmed]
+
+- Decision: one optional `ReviewFlow` hook, `masterConfirmed`, fires when a FIRST save confirms the Master row (`written`, or `partial` with Master written), never from `retry()`, so Retry Dr Trust never logs again. Stock: Apply (Add / Subtract / New total) and Undo (Note `Reverses <Change ID>`); details: Form edit only when Stock qty changed and the confirmed Master qty differs.
+- Decision: `StockLogStore.record()` is the one caller of `appendLogLine` for stock. The line is built once (fixed Change ID, kept on `StockSaved` for Undo) and is not awaited by the save, so the stock outcome never depends on the log.
+- Decision (owner): lines go out in order; while one is pending, new lines queue behind it. Retry log (one tap, not while sending) first reads the log's Change ID column and drops lines already there, so an unconfirmed append that landed is never added twice; if that read fails, nothing is sent.
+- Decision (owner): pending lines live in memory: kept across products, Refresh and expiry; dropped on sign-out, another account or a page reload.
+- Decision: stock changes are off while the log is `no-access` or `unusable` (incl. not set up): Apply, Undo, a changed Stock qty in the form (a field error blocks Review; other fields still save) and Add product. `checking` and `unknown` stay on. Refresh re-checks.
+- Accepted gap (owner): an unconfirmed Master write that did land gets no line (Try again sees a conflict); the owner adds it by hand.
+- Note: the owner set the env files (deny rule): `1F8c…pWg` is the LIVE log, TEST has its own ID (they share none).
+
+## 2026-11-01: Retry log strip and the no-access message (US-96) [confirmed]
+
+- Decision: the amber "Retry log" strip has ONE place, under the card header, shown on any open product while a line is pending (`StockReviewStore.logStrip()`), with Undo while the last Apply's window is open. It replaces the green Stock saved / Details saved strips; problem strips stay in the adjuster. With no product open it waits for the next card.
+- Decision (reuse, Q-G3): `<stoqr-strip>` gains `primaryBusy` / `primaryBusyLabel` ("Logging…", both buttons off) instead of a second strip.
+- Decision: without log access the adjuster shows the message (`StockLogStore.offMessage`) as an amber strip and all its controls are off; the form's Stock qty becomes a read-only value with the message; Add product is `aria-disabled` (focusable, tooltip and name give the reason). The shell reads `PanelStore.addProductOff`, set by `ProductNavigation`, so no stock store enters the first load (502.2 kB).
+- Decision: `.stoqr-btn[aria-disabled='true']` looks like `:disabled` (theme, no hover).
+
+## 2026-11-01: Create-product write path (US-97) [confirmed]
+
+- Decision: `SheetsWriter.create(ApprovedCreate)` reads BOTH sheets fresh, refuses a SKU on any row of either (`conflict`, nothing added), then appends Master, then Dr Trust (configured brand only, via the shared `isConfiguredBrand` rule from Data health). Row built by header in `create-plan.ts` (pure); id = highest numeric id + 1 in that sheet; a text value follows the column's last row's cell type (the US-24 rule).
+- Decision: "never added twice" is tracked by the writer: once an append of an approval (`origin`, kept through `remaining()`) has been sent, a row with the same SKU and product name counts as already added. A first attempt finding such a row is a conflict (someone else added it).
+- Decision: `approveCreate()` re-checks the required text fields, the SKU's spaces, opening stock 0–1,000,000, a whole threshold ≥ 0 and tax rate ≥ 0, so a forged value can't reach the writer; no `id` / Stock Status / dates accepted.
+- Decision: the date cells' format is set after the confirmed append (best effort, shared `formatDateCells`, also used by the log).
+- Left to US-100 (the review store): calling `approveCreate`, `SheetsStore.addRow` for each confirmed row, and the `New product` log line after the Master append is confirmed (once per approval).
+
+## 2026-11-01: New product form state (US-98) [confirmed]
+
+- Decision (reuse, Q-G3): the New product form is a `new` mode of `DetailsStore`, not a second store: the same texts, `validateDetail` rules and live SKU check, starting from a template (every field blank, Status = Active). `newDirty` ignores the Status default.
+- Decision: a new SKU must be new to both sheets (`checkSkuForNew`); no orphan link for a new product.
+- Decision: `PanelStore.newProductOpen` stays the one "open" flag (the bottom bar reads it); `ProductNavigation` enters `new` mode with it, and `DetailsStore` leaves `new` (dropping the entries) whenever the shell closes, by any path.
+- Decision: the New product form counts as an open product for the search overlay (`overlayOpen` is now derived, so it never outlives what it covers); the clear (×) cancels the overlay first.
+- Decision: Refresh asks when anything was typed, then clears the entries (the form stays open). `openCreated(ref)` closes the form without asking and opens the new product (for US-100).
+
+## 2026-11-01: New product form (US-99) [confirmed]
+
+- Decision (reuse, Q-G3): the New product card renders the existing details form in `DetailsStore`'s `new` mode (same lazy chunk, now 18.8 kB); the differences are data on the field list (`newLabel` "Opening stock qty", `hiddenWhenNew` for Created At / Last Updated), not template copies.
+- Decision: in the new form a field's error shows once it was typed in or left (`touched || dirty`), so a blank form is not all red; product details keep showing errors at once. The footer says "Fill the required fields (*) to continue." until `newValues` is ready, then "Saves a new row to <targets>.".
+- Decision: Stock Status previews `deriveStockStatus` (`DetailsStore.newStockStatus`) once opening stock and threshold are valid, else "Set when saved".
+- Interim: "Review product" stays disabled until US-100 wires the review. First load unchanged (502.4 kB).
+
+## 2026-11-01: New product review and results (US-100) [confirmed]
+
+- Decision: `NewProductReviewStore` (`core/details/`) is the only caller of `approveCreate()` and has its own steps (named like `ReviewFlow`'s), because a create has its own approval and result. Shared, not copied: the `ResultStrip` shape and the "Nothing was changed." / half-saved texts, now pure `failureText` / `partialText` in `review-flow.ts` used by both.
+- Decision: one approval per Save product, kept for Try again, so the writer's "already added" rule (US-97) applies and nothing is added twice. A Retry that still fails stays half saved (never a plain failure), and a sheet already confirmed is never added to the loaded data twice.
+- Decision: the opening stock is logged once per approval, when the Master row is confirmed (written or half saved); Retry Dr Trust never logs.
+- Decision (reuse, Q-G3): the review is the details review component's `new` mode (same layout); results are shared strips; "Product added. <sheets>." shows under the new product's card header for 5 s (the Retry log strip takes that slot when a line is pending). Close after a half save opens the product as Master only.
+- Decision: `ProductNavigation.saveNewProduct()` / `newProductStripAction()` open the product after a save (the store can't inject navigation, which injects it). Saving a new product counts as `saving` for every navigation step.
+
+## 2026-11-01: CR-05 docs closed against the built code (US-101) [confirmed]
+
+- Decision: the docs now match what was built: the log config is `stockLog` (its own location); AI_CONTRACT names the only callers of `appendLogLine`, `create` and `addRow`; CLAUDE.md's tap list has Save product, Retry log and the one log exception; the writer and environment specs gained CR-05 sections.
+- Still suspended (owner): the rule tests listed in `specs/cr05-docs-rules.md` (US-101 audit, item 7), to add when tests resume.
 
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).

@@ -1,16 +1,27 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { AppConfig } from '@core/config/app-config';
+import { PanelStore } from '@core/layout/panel-store';
 import { LoadedProduct, Product } from '@core/models/product';
 import { ProductSearchStore } from '@core/search/product-search-store';
+import { NewProductValues } from '@core/sheets/approval';
+import { isConfiguredBrand } from '@core/sheets/data-health';
 import { SheetsStore } from '@core/sheets/sheets-store';
-import { SkuCheck, checkNewSku } from '@core/sheets/sku-check';
+import { SkuCheck, checkNewSku, checkSkuForNew } from '@core/sheets/sku-check';
+import { StockLogStore } from '@core/stock-adjust/stock-log-store';
+import { deriveStockStatus } from '@core/stock-adjust/stock-status';
 import { DetailValue, changedValues, parseDetail } from './details-diff';
 import { DetailField, EDITABLE_DETAILS, byDetailField } from './details-fields';
 import { validateDetail } from './details-validation';
 
 /** The typed text of every editable field. */
 export type DetailTexts = Readonly<Record<DetailField, string>>;
+
+/** Which form the store holds: edits over the open product, or a NEW product (US-98). */
+export type DetailsMode = 'product' | 'new';
+
+/** The New product form's starting texts: every field blank except Status = Active (A-UI-65). */
+const NEW_TEMPLATE: DetailTexts = byDetailField((field) => (field === 'status' ? 'Active' : ''));
 
 /** A field's value as the form shows it: blank for null, numbers as plain digits. */
 function textsOf(product: Product | null): DetailTexts {
@@ -37,9 +48,21 @@ export class DetailsStore {
   private readonly search = inject(ProductSearchStore);
   private readonly sheets = inject(SheetsStore);
   private readonly config = inject(AppConfig);
+  private readonly log = inject(StockLogStore);
+  private readonly panels = inject(PanelStore);
 
-  /** The values the form starts from: the selected product as loaded (or as last confirmed). */
-  readonly original = computed<DetailTexts>(() => textsOf(this.search.selected()?.product ?? null));
+  private readonly modeSignal = signal<DetailsMode>('product');
+  /** `new` while the New product form is open (US-98); entered through `ProductNavigation`. */
+  readonly mode = this.modeSignal.asReadonly();
+  readonly isNew = computed(() => this.modeSignal() === 'new');
+
+  /**
+   * The values the form starts from: the selected product as loaded (or as
+   * last confirmed); in `new` mode, the New product template.
+   */
+  readonly original = computed<DetailTexts>(() =>
+    this.isNew() ? NEW_TEMPLATE : textsOf(this.search.selected()?.product ?? null),
+  );
 
   /** Typed text per field the user changed; a field typed back to its original is dropped. */
   private readonly editsSignal = signal<Readonly<Partial<Record<DetailField, string>>>>({});
@@ -56,8 +79,8 @@ export class DetailsStore {
   });
 
   /** The one editability rule (`editability()`), via the search store. */
-  readonly editable = computed(() => this.search.selectedEditability()?.editable === true);
-  readonly reasons = computed(() => this.search.selectedEditability()?.reasons ?? []);
+  readonly editable = computed(() => this.isNew() || this.search.selectedEditability()?.editable === true);
+  readonly reasons = computed(() => (this.isNew() ? [] : (this.search.selectedEditability()?.reasons ?? [])));
   /** The form shows read-only: the product can't be edited (US-66, the eye icon in US-74). */
   readonly readOnly = computed(() => !this.editable());
 
@@ -66,6 +89,11 @@ export class DetailsStore {
    * null while the SKU is unchanged.
    */
   readonly skuCheck = computed<SkuCheck | null>(() => {
+    const labels = { master: this.config.sheet('master').label, drTrust: this.config.sheet('dr-trust').label };
+    if (this.isNew()) {
+      // A new product's SKU must be new to BOTH sheets (no orphan link; US-98).
+      return checkSkuForNew(this.texts().sku, this.sheets.master(), this.sheets.drTrust(), labels);
+    }
     const selected = this.search.selected();
     const typed = this.texts().sku;
     if (selected === null || typed === this.original().sku) {
@@ -76,7 +104,7 @@ export class DetailsStore {
       { master: selected, drTrust: this.search.selectedLink() },
       this.sheets.master(),
       this.sheets.drTrust(),
-      { master: this.config.sheet('master').label, drTrust: this.config.sheet('dr-trust').label },
+      labels,
     );
   });
 
@@ -85,6 +113,11 @@ export class DetailsStore {
     const check = this.skuCheck();
     return check?.ok === true ? check.linkTo : null;
   });
+
+  /** Stock qty may not change: no Stock Log access (US-95). The reason is `stockQtyLockedReason`. */
+  readonly stockQtyLocked = this.log.stockChangesOff;
+  /** The no-access message shown under the read-only Stock qty (US-96). */
+  readonly stockQtyLockedReason = this.log.offMessage;
 
   /** The message per invalid field (the SKU check included); fields that may be saved are absent. */
   readonly errors = computed<Readonly<Partial<Record<DetailField, string>>>>(() => {
@@ -100,6 +133,11 @@ export class DetailsStore {
     if (errors.sku === undefined && sku !== null && !sku.ok) {
       errors.sku = sku.message;
     }
+    // No Stock Log access: a changed Stock qty blocks Review (other fields still save; US-95).
+    const locked = this.stockQtyLockedReason();
+    if (locked !== null && texts.stockQty !== this.original().stockQty) {
+      errors.stockQty = locked;
+    }
     return errors;
   });
 
@@ -111,7 +149,7 @@ export class DetailsStore {
    */
   readonly changes = computed<ReadonlyMap<DetailField, DetailValue>>(() => {
     const product = this.search.selected()?.product ?? null;
-    if (product === null || !this.valid()) {
+    if (this.isNew() || product === null || !this.valid()) {
       return new Map();
     }
     const texts = this.texts();
@@ -128,10 +166,62 @@ export class DetailsStore {
     ).map((def) => def.key);
   });
 
-  readonly hasChanges = computed(() => this.editable() && this.changedFields().length > 0);
+  /** Anything typed in the New product form (Status left at Active is not; US-98). */
+  readonly newDirty = computed(() => {
+    if (!this.isNew()) {
+      return false;
+    }
+    const texts = this.texts();
+    return EDITABLE_DETAILS.some((def) => texts[def.key] !== NEW_TEMPLATE[def.key]);
+  });
 
-  /** Editable, changed and valid (a new SKU included): Review changes may open. */
-  readonly canReview = computed(() => this.hasChanges() && this.valid());
+  /** Unsaved work in this form: product edits, or anything typed in the New product form. */
+  readonly hasChanges = computed(() =>
+    this.isNew() ? this.newDirty() : this.editable() && this.changedFields().length > 0,
+  );
+
+  /** Editable, changed and valid (a new SKU included): Review changes may open. Product mode only. */
+  readonly canReview = computed(() => !this.isNew() && this.hasChanges() && this.valid());
+
+  /** The New product values for `approveCreate()` (US-97), or null while anything is invalid. */
+  readonly newValues = computed<NewProductValues | null>(() => {
+    if (!this.isNew() || !this.valid()) {
+      return null;
+    }
+    const texts = this.texts();
+    const parsed = byDetailField((field) => parseDetail(defOf(field), texts[field]));
+    const qty = parsed.stockQty;
+    if (typeof qty !== 'number') {
+      return null;
+    }
+    // The single cast: every value came from `parseDetail` for its own field's kind.
+    return { ...(parsed as unknown as NewProductValues), stockQty: qty };
+  });
+
+  /**
+   * The Stock Status a new product will get (US-99): derived from the typed
+   * opening stock and threshold once both are valid, else null ("Set when saved").
+   */
+  readonly newStockStatus = computed<string | null>(() => {
+    if (!this.isNew()) {
+      return null;
+    }
+    const errors = this.errors();
+    if (errors.stockQty !== undefined || errors.lowStockThreshold !== undefined) {
+      return null;
+    }
+    const texts = this.texts();
+    const qty = parseDetail(defOf('stockQty'), texts.stockQty);
+    const threshold = parseDetail(defOf('lowStockThreshold'), texts.lowStockThreshold);
+    return typeof qty === 'number' && typeof threshold === 'number' ? deriveStockStatus(qty, threshold) : null;
+  });
+
+  /** Where a new product is saved: "Master and Dr Trust" for the Dr Trust brand, else "Master". */
+  readonly newTargets = computed(() => {
+    const master = this.config.sheet('master').label;
+    const drTrust = this.config.sheet('dr-trust');
+    return isConfiguredBrand(this.texts().brand, drTrust.brand) ? `${master} and ${drTrust.label}` : master;
+  });
 
   constructor() {
     let lastRef = untracked(() => this.search.selected()?.ref ?? null);
@@ -140,6 +230,12 @@ export class DetailsStore {
       if (ref !== lastRef) {
         lastRef = ref;
         untracked(() => this.reset());
+      }
+    });
+    // The New product shell closed (X / Cancel, a product opened, sign-out): leave `new` and drop the entries.
+    effect(() => {
+      if (!this.panels.newProductOpen() && untracked(() => this.isNew())) {
+        untracked(() => this.leaveNew());
       }
     });
     // Another product, or none: the form closes (US-66). A refresh keeps the key.
@@ -180,6 +276,19 @@ export class DetailsStore {
   /** Drops every edit: each field shows its current value again. */
   reset(): void {
     this.editsSignal.set({});
+  }
+
+  /** Starts a blank New product form (through `ProductNavigation`, US-98); product edits are dropped. */
+  startNew(): void {
+    this.editsSignal.set({});
+    this.formOpenSignal.set(false);
+    this.modeSignal.set('new');
+  }
+
+  /** Back to product mode, dropping the New product entries. */
+  private leaveNew(): void {
+    this.editsSignal.set({});
+    this.modeSignal.set('product');
   }
 
   /** Opens the form (through `ProductNavigation.openDetails`). */

@@ -2,11 +2,11 @@ import { Product } from '@core/models/product';
 import { WritableField } from '@core/sheets/approval';
 
 /**
- * Fields the details form edits (US-21): every writable field except Stock Qty,
- * which changes only through the adjuster (DECISIONS). `id` is not a `Product`
- * field, so it can never appear here.
+ * Fields the details form edits (US-21): every writable field, Stock Qty
+ * included (CR-04, US-63). `id` is not a `Product` field, so it can never
+ * appear here.
  */
-export type DetailField = Exclude<WritableField, 'stockQty'>;
+export type DetailField = WritableField;
 
 export type DetailGroup = 'product' | 'stock' | 'pricing' | 'additional';
 
@@ -23,15 +23,19 @@ export interface EditableDetail {
   readonly required: boolean;
   readonly mono?: boolean;
   readonly multiline?: boolean;
+  /** The label in the New product form, when it differs (US-99). */
+  readonly newLabel?: string;
 }
 
-/** Shown, never typed: Stock Qty (adjuster), Stock Status (derived), Last Updated (stamped), Created At. */
+/** Shown, never typed: Stock Status (derived), Last Updated (stamped), Created At. */
 export interface LockedDetail {
   readonly key: Exclude<keyof Product, DetailField>;
   readonly label: string;
   readonly group: DetailGroup;
   readonly editable: false;
   readonly badge?: boolean;
+  /** Not shown in the New product form: written on save (US-99). */
+  readonly hiddenWhenNew?: boolean;
 }
 
 export type DetailDef = EditableDetail | LockedDetail;
@@ -57,7 +61,7 @@ export const DETAIL_FIELDS: readonly DetailDef[] = [
   text('color', 'Color', 'product', false),
   text('status', 'Status', 'product', true),
   // Stock Info
-  { key: 'stockQty', label: 'Stock Qty', group: 'stock', editable: false },
+  { key: 'stockQty', label: 'Stock Qty', group: 'stock', editable: true, kind: 'whole', required: true, newLabel: 'Opening stock qty' },
   { key: 'lowStockThreshold', label: 'Low Stock Threshold', group: 'stock', editable: true, kind: 'whole', required: true },
   { key: 'stockStatus', label: 'Stock Status', group: 'stock', editable: false, badge: true },
   text('unitOfMeasure', 'Unit of Measure', 'stock', true),
@@ -69,8 +73,8 @@ export const DETAIL_FIELDS: readonly DetailDef[] = [
   { key: 'taxRate', label: 'Tax Rate', group: 'pricing', editable: true, kind: 'number', required: true },
   // Additional Info
   { ...text('notes', 'Notes', 'additional', false), multiline: true },
-  { key: 'lastUpdated', label: 'Last Updated', group: 'additional', editable: false },
-  { key: 'createdAt', label: 'Created At', group: 'additional', editable: false },
+  { key: 'lastUpdated', label: 'Last Updated', group: 'additional', editable: false, hiddenWhenNew: true },
+  { key: 'createdAt', label: 'Created At', group: 'additional', editable: false, hiddenWhenNew: true },
 ];
 
 export const EDITABLE_DETAILS: readonly EditableDetail[] = DETAIL_FIELDS.filter(

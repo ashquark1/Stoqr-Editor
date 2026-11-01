@@ -1,5 +1,7 @@
 # Feature: Review, approve and write to both sheets (US-18, US-19, US-33, US-35, US-20)
 # Sprint 3, story B. Classification: Core (the first real write; linked-sheet rules).
+> **Superseded by CR-04 (2026-10-31):** stock has no review step; one Apply tap writes and the product stays open (`specs/stock-apply.md`, US-64; Undo `specs/stock-undo.md`, US-65). The write path below (one approval, check both sheets first, absolute values, Dr Trust overwritten) still holds; the Dr Trust note moved to the Stock qty tile and the saved strip.
+
 
 ## Problem
 The adjuster shows a valid new quantity, but nothing reaches the sheets. Staff need to review exactly what will change, approve it, and have it written safely — re-checked, to both sheets for a linked product (overwriting a differing Dr Trust quantity, visibly), confirmed by Google — then move on to the next product.

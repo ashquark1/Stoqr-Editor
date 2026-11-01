@@ -78,15 +78,9 @@
 }
 
 // Data health (US-51): 44px secondary icon button at the right end; never
-// shrinks (`.icon-btn`). Pressed look while its panel is open.
+// shrinks (`.icon-btn`). Pressed while its panel is open: shared `.stoqr-btn--pressed`.
 .app-footer__health {
   position: relative;
-
-  &--pressed,
-  &--pressed:hover:not(:disabled) {
-    background: var(--color-dew);
-    border-color: var(--color-pine);
-  }
 }
 
 // Phones only (icon-only button): the count as a small amber badge on the icon;

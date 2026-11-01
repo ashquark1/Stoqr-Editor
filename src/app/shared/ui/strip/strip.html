@@ -29,12 +29,24 @@
   @if (primaryLabel() || secondaryLabel()) {
     <div class="stoqr-strip__actions">
       @if (primaryLabel()) {
-        <button type="button" class="stoqr-btn stoqr-strip__btn stoqr-strip__btn--primary" (click)="primary.emit()">
-          {{ primaryLabel() }}
+        <button
+          type="button"
+          class="stoqr-btn stoqr-strip__btn stoqr-strip__btn--primary"
+          [class.stoqr-btn--busy]="primaryBusy()"
+          [attr.aria-busy]="primaryBusy() || null"
+          [disabled]="primaryBusy()"
+          (click)="primary.emit()"
+        >
+          @if (primaryBusy()) {
+            <span class="stoqr-spinner" aria-hidden="true"></span>
+            {{ primaryBusyLabel() || primaryLabel() }}
+          } @else {
+            {{ primaryLabel() }}
+          }
         </button>
       }
       @if (secondaryLabel()) {
-        <button type="button" class="stoqr-btn stoqr-strip__btn" (click)="secondary.emit()">
+        <button type="button" class="stoqr-btn stoqr-strip__btn" [disabled]="primaryBusy()" (click)="secondary.emit()">
           {{ secondaryLabel() }}
         </button>
       }

@@ -2,7 +2,7 @@
   <button
     type="button"
     class="stoqr-btn stoqr-btn--ghost icon-btn toolbar__filters"
-    [class.toolbar__filters--open]="panels.filtersOpen()"
+    [class.stoqr-btn--pressed]="panels.filtersOpen()"
     [attr.aria-expanded]="panels.filtersOpen()"
     [attr.aria-label]="search.filterCount() ? 'Filters, ' + search.filterCount() + ' changed' : 'Filters'"
     (click)="panels.toggleFilters()"

@@ -3,16 +3,33 @@ import { computed, inject, signal } from '@angular/core';
 import { AppConfig } from '@core/config/app-config';
 import { ApprovedChange, InvalidChangeError } from './approval';
 import { SheetsStore } from './sheets-store';
-import { SheetWritten, SheetsWriter, WriteResult } from './sheets-writer';
+import { SheetWritten, SheetsWriter, WriteFailureKind, WriteResult } from './sheets-writer';
 
 export type ReviewStep = 'editing' | 'reviewing' | 'saving' | 'conflict' | 'partial' | 'failed';
 
+/** One result strip in the card (US-76, US-80): look, text and up to two actions of the store's own kind. */
+export interface ResultStrip<A extends string> {
+  readonly variant: 'success' | 'problem' | 'warning';
+  readonly lead: string;
+  readonly message: string;
+  readonly primary: { readonly label: string; readonly action: A } | null;
+  readonly secondary: { readonly label: string; readonly action: A } | null;
+}
+
 /** What differs between the review steps that use this flow (stock, details). */
 export interface ReviewOutcomes<C> {
-  /** Every sheet confirmed; `labels` are all the sheets written, in order. The flow then returns to editing. */
-  readonly written: (context: C, labels: readonly string[]) => void;
+  /**
+   * Every sheet confirmed; `labels` are all the sheets written, in order;
+   * `retried`: a Retry finished a half-done save. The flow then returns to editing.
+   */
+  readonly written: (context: C, labels: readonly string[], retried: boolean) => void;
+  /** Called on a conflict (e.g. to clear an entry made against the old value). */
+  readonly conflict?: (context: C) => void;
   /** Nothing was saved: a reviewed value changed underneath. */
-  readonly conflictMessage: (result: Extract<WriteResult, { kind: 'conflict' }>, context: C) => string;
+  readonly conflictMessage: (
+    result: Extract<WriteResult, { kind: 'conflict' }>,
+    context: C,
+  ) => string;
   /**
    * Some sheets written, the rest not. `retried`: this is a Retry that still
    * did not finish. `notUpdated` names the sheet(s) still behind.
@@ -26,6 +43,29 @@ export interface ReviewOutcomes<C> {
   ) => string;
   /** Called on the first partial result (e.g. to clear an amount that must not be applied twice). */
   readonly partial?: (context: C) => void;
+  /**
+   * A FIRST save confirmed the Master row (`written`, or `partial` with Master
+   * written; US-95): the Stock Log line follows. Called before `written` /
+   * `partial`. Never from `retry()` (Master is never rewritten there), never
+   * for conflict or failed (incl. unconfirmed).
+   */
+  readonly masterConfirmed?: (context: C, master: SheetWritten) => void;
+}
+
+/**
+ * THE one "Nothing was changed." rule (US-76, US-80), shared by every save's
+ * strips (the New product review included, US-100): added only when certain —
+ * never for `unconfirmed` (Google may have saved), and not when the reason
+ * already says nothing was saved.
+ */
+export function failureText(message: string, kind: WriteFailureKind | null): string {
+  const certain = kind !== 'unconfirmed' && !/nothing was (saved|changed)/i.test(message);
+  return certain ? `${message} Nothing was changed.` : message;
+}
+
+/** A half-saved message plus the shared suffix (US-80, US-100). */
+export function partialText(message: string): string {
+  return `${message} The sheets differ until you retry.`;
 }
 
 /** A half-done linked save that Retry can finish (US-34). */
@@ -38,8 +78,8 @@ interface PendingRetry<C> {
 }
 
 /**
- * The review → save → outcome steps shared by every review (stock US-18–20,
- * 33–35; details US-23, 24, 36): writes through `SheetsWriter`, puts confirmed
+ * The save → outcome steps shared by every approved save (stock Apply US-64,
+ * details review US-23, 24, 36): writes through `SheetsWriter`, puts confirmed
  * values into the loaded data, reports conflict / failed / partial, and
  * finishes a partial save with Retry from the ORIGINAL approval (never a new
  * one). Create it inside a store (it injects its services); the store builds
@@ -54,17 +94,38 @@ export class ReviewFlow<C> {
   private readonly stepSignal = signal<ReviewStep>('editing');
   private readonly messageSignal = signal<string | null>(null);
   private readonly pendingSignal = signal<PendingRetry<C> | null>(null);
+  private readonly failureKindSignal = signal<WriteFailureKind | null>(null);
 
   readonly step = this.stepSignal.asReadonly();
   /** Why the last save did not fully succeed (conflict / partial / failed), or null. */
   readonly message = this.messageSignal.asReadonly();
+  /** Why the last save failed with the `failed` step (e.g. `unconfirmed`: it may have saved), or null. */
+  readonly failureKind = this.failureKindSignal.asReadonly();
+  /**
+   * The failure's reason plus " Nothing was changed." — added only when that
+   * is certain: never for `unconfirmed` (Google may have saved), and not when
+   * the reason already says nothing was saved (US-76, US-80).
+   */
+  readonly failureText = computed(() =>
+    failureText(this.messageSignal() ?? '', this.failureKindSignal()),
+  );
+  /** The half-saved message plus " The sheets differ until you retry." */
+  readonly partialText = computed(() => partialText(this.messageSignal() ?? ''));
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = computed(() => {
     const pending = this.pendingSignal();
     return pending === null ? null : this.labelsOf(pending.approved).join(' and ');
   });
 
-  constructor(private readonly outcomes: ReviewOutcomes<C>) {}
+  /**
+   * `saveFrom`: the steps a save may start from. Details: after its review (or
+   * a failure). Stock (CR-04, no review): editing, conflict or failed. Never
+   * saving or partial, so one tap writes once.
+   */
+  constructor(
+    private readonly outcomes: ReviewOutcomes<C>,
+    private readonly saveFrom: readonly ReviewStep[] = ['reviewing', 'failed'],
+  ) {}
 
   /** Opens the review (not while saving); the store checks the change is ready first. */
   open(): void {
@@ -84,14 +145,14 @@ export class ReviewFlow<C> {
   /** Back to editing, dropping any pending Retry. */
   reset(): void {
     this.pendingSignal.set(null);
+    this.failureKindSignal.set(null);
     this.messageSignal.set(null);
     this.stepSignal.set('editing');
   }
 
-  /** Saving may start only from the review or after a failure with nothing written (no double writes). */
+  /** Saving may start only from this flow's `saveFrom` steps (never while saving or half saved). */
   canSave(): boolean {
-    const step = this.stepSignal();
-    return step === 'reviewing' || step === 'failed';
+    return this.saveFrom.includes(this.stepSignal());
   }
 
   /**
@@ -114,6 +175,7 @@ export class ReviewFlow<C> {
       throw error;
     }
     this.messageSignal.set(null);
+    this.failureKindSignal.set(null);
     this.stepSignal.set('saving');
     this.handle(await this.writer.write(approved), context);
   }
@@ -133,7 +195,7 @@ export class ReviewFlow<C> {
     const result = await this.writer.write(pending.approved);
     if (result.kind === 'written') {
       this.applyWritten(result.sheets);
-      this.succeed(pending.context, [...pending.writtenLabels, ...labelsOf(result.sheets)]);
+      this.succeed(pending.context, [...pending.writtenLabels, ...labelsOf(result.sheets)], true);
       return;
     }
     // An earlier sheet is already written: whatever happened now, it is still partial.
@@ -146,7 +208,10 @@ export class ReviewFlow<C> {
         writtenLabels: [...pending.writtenLabels, ...labelsOf(result.written)],
       };
     }
-    const reason = result.kind === 'conflict' ? `${result.sheet.label} changed while saving.` : result.error.message;
+    const reason =
+      result.kind === 'conflict'
+        ? `${result.sheet.label} changed while saving.`
+        : result.error.message;
     this.toPartial(
       next,
       this.outcomes.partialMessage(
@@ -163,27 +228,44 @@ export class ReviewFlow<C> {
     switch (result.kind) {
       case 'written':
         this.applyWritten(result.sheets);
-        this.succeed(context, labelsOf(result.sheets));
+        this.confirmMaster(context, result.sheets);
+        this.succeed(context, labelsOf(result.sheets), false);
         return;
       case 'conflict':
         this.sheets.applyRow(result.ref, result.current.product, result.current.issues);
+        this.outcomes.conflict?.(context);
         this.messageSignal.set(this.outcomes.conflictMessage(result, context));
         this.stepSignal.set('conflict');
         return;
       case 'partial': {
         this.applyWritten(result.written);
+        this.confirmMaster(context, result.written);
         this.outcomes.partial?.(context);
         const writtenLabels = labelsOf(result.written);
         this.toPartial(
           { approved: result.remaining, context, writtenLabels },
-          this.outcomes.partialMessage(context, writtenLabels, result.error.sheetLabel, result.error.message, false),
+          this.outcomes.partialMessage(
+            context,
+            writtenLabels,
+            result.error.sheetLabel,
+            result.error.message,
+            false,
+          ),
         );
         return;
       }
       case 'failed':
+        this.failureKindSignal.set(result.error.kind);
         this.messageSignal.set(result.error.message);
         this.stepSignal.set('failed');
         return;
+    }
+  }
+
+  private confirmMaster(context: C, sheets: readonly SheetWritten[]): void {
+    const master = sheets.find((s) => s.sheet.key === 'master');
+    if (master !== undefined) {
+      this.outcomes.masterConfirmed?.(context, master);
     }
   }
 
@@ -191,8 +273,8 @@ export class ReviewFlow<C> {
     sheets.forEach((s) => this.sheets.applyRow(s.ref, s.product));
   }
 
-  private succeed(context: C, labels: readonly string[]): void {
-    this.outcomes.written(context, labels);
+  private succeed(context: C, labels: readonly string[], retried: boolean): void {
+    this.outcomes.written(context, labels, retried);
     this.reset();
   }
 

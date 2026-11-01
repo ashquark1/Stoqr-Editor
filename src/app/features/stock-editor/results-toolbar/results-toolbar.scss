@@ -20,14 +20,7 @@
 .toolbar__filters {
   grid-area: filters;
   justify-self: start;
-
-  // Pressed while the filter panel is open (US-69).
-  &--open,
-  &--open:hover:not(:disabled) {
-    background: var(--color-dew);
-    border: 1.5px solid var(--color-pine);
-    color: var(--color-pine);
-  }
+  // Pressed while the filter panel is open: shared `.stoqr-btn--pressed`.
 }
 
 .toolbar__refresh {

@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -19,51 +21,235 @@
   list-style: none;
 }
 
-.picker__result {
+// One result row (US-91). Phones: a slim two-line row (name + Qty tile, then
+// "SKU · brand · status" + a sync flag when not plainly Linked). From 768px:
+// brand | status, name, SKU on the left; Qty, Stock and Sync tiles and a
+// chevron on the right. A 4px left edge shows the stock level (grey when
+// blocked); the words in the tiles carry the meaning, never colour alone.
+.row {
+  --row-edge: var(--color-unknown);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-3);
   width: 100%;
-  padding: var(--space-3) var(--space-4);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
   text-align: left;
   font-family: var(--font-sans);
+  color: var(--color-ink);
   background: var(--color-white);
   border: var(--border-thin);
-  border-radius: var(--radius-control);
+  border-left: 4px solid var(--row-edge);
+  border-radius: var(--radius-2xl);
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+
+  &--in-stock { --row-edge: var(--color-success); }
+  &--low-stock { --row-edge: var(--color-warning); }
+  &--out-of-stock { --row-edge: var(--color-error); }
+  &--unknown,
+  &--blocked { --row-edge: var(--color-unknown); }
+
+// Blocked: dimmed with a grey fill (not opacity, so the text keeps AA contrast); still opens read-only.
+  &--blocked { background: var(--color-unknown-bg); }
 
   &:hover {
-    background: var(--color-paper);
+    background: var(--color-dew);
     border-color: var(--color-pine);
+    border-left-color: var(--row-edge);
+  }
+
+  &:hover .row__chevron {
+    transform: translateX(2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+
+  @include bp.from(tablet) {
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   }
 }
 
-.picker__name {
-  font-size: var(--text-body);
-  font-weight: 600;
-  color: var(--color-ink);
-}
-
-.picker__meta {
-  font-size: var(--text-small);
-  color: var(--color-ink-mid);
-}
-
-.picker__sku {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-}
-
-.picker__stock {
+// The text block: centred vertically against whatever sits on the right.
+.row__left {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+// Phones: the square Qty tile alone is centred; with a flag, the two are
+// spaced evenly and centred together.
+.row__aside {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
 }
 
-.picker__qty {
-  font-size: var(--text-small);
-  font-variant-numeric: tabular-nums;
+// Desktop-only pieces.
+.row__top,
+.row__sku,
+.row__tiles,
+.row__chevron {
+  display: none;
+
+  @include bp.from(tablet) {
+    display: flex;
+  }
+}
+
+
+.row__top {
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.row__status {
+  padding-left: var(--space-2);
+  border-left: var(--border-thin);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+// Up to two lines, then cut.
+.row__name {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.row__sku {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
   color: var(--color-ink-mid);
+  overflow-wrap: anywhere;
+}
+
+.row__line2 {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.row__sku-m {
+  font-family: var(--font-mono);
+}
+
+.row__flag {
+  display: flex;
+}
+
+// Phone Qty tile: a square (grows evenly for a long number), the stock word
+// over the number, tinted by level.
+.row__qty-m {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 80px;
+  aspect-ratio: 1;
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-fg);
+
+  &--in-stock { background: var(--tint-success-bg); color: var(--tint-success-fg); }
+  &--low-stock { background: var(--tint-warning-bg); color: var(--tint-warning-fg); }
+  &--out-of-stock { background: var(--tint-error-bg); color: var(--tint-error-fg); }
+}
+
+.row__qty-word {
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.row__qty-num,
+.row__tile-value--qty {
+  font-size: var(--text-h3);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// Desktop tiles: the product card's label-over-value style (US-74, D41).
+.row__tiles {
+  flex-shrink: 0;
+  gap: var(--space-2);
+}
+
+.row__tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-paper);
+  border-radius: var(--radius-lg);
+
+  &--qty {
+    min-width: 56px;
+  }
+}
+
+.row__tile-label {
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.row__tile-value {
+  display: flex;
+  align-items: center;
+}
+
+.row__chevron {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row:hover .row__chevron {
+    transform: none;
+  }
+}
+
+// Phone-only pieces. Last in the file so it wins over their own `display` (found on 1440: the
+// phone Qty tile showed beside the desktop tiles).
+.row__line2,
+.row__aside {
+  @include bp.from(tablet) {
+    display: none;
+  }
 }

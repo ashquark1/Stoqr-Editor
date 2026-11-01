@@ -131,7 +131,7 @@ const PLAIN_NUMBER = /^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/;
  * in a cell that held 12, and gviz (V1) drops values of a column's minority
  * type. Text that a number would change (`007`, `1.50`) stays text.
  */
-function keepCellType(field: keyof Product, value: CellValue, freshCell: CellValue | undefined): CellValue {
+export function keepCellType(field: keyof Product, value: CellValue, freshCell: CellValue | undefined): CellValue {
   if (NUMBER_FIELDS.has(field) || typeof value !== 'string' || typeof freshCell !== 'number') {
     return value;
   }

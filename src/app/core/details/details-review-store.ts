@@ -3,7 +3,8 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 import { AppConfig } from '@core/config/app-config';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { approve } from '@core/sheets/approval';
-import { ReviewFlow } from '@core/sheets/review-flow';
+import { ResultStrip, ReviewFlow } from '@core/sheets/review-flow';
+import { StockLogStore } from '@core/stock-adjust/stock-log-store';
 import { DiffLine, StatusLine, detailRowChanges, diffLines, statusLines } from './details-diff';
 import { DETAIL_FIELDS } from './details-fields';
 import { DetailsStore } from './details-store';
@@ -20,9 +21,18 @@ export interface DetailsReview {
   readonly statuses: readonly (StatusLine & { readonly sheetLabel: string })[];
 }
 
+/** Buttons on a details result strip (US-80). */
+export type DetailsStripAction = 'review-again' | 'back' | 'try-again' | 'retry' | 'close';
+
+/** How long "Details saved." shows under the card header (US-80). */
+export const DETAILS_SAVED_MS = 5_000;
+
 /** What a details save's messages need. */
 interface DetailsSave {
   readonly productName: string;
+  /** Master's Stock qty before the save (the guarded value), and whether the approval changes it (US-95). */
+  readonly qtyBefore: number | null;
+  readonly qtyChanged: boolean;
 }
 
 /**
@@ -30,21 +40,26 @@ interface DetailsSave {
  * caller of `approve()` for details. Only the changed fields are written, to
  * both sheets of a linked product, each guarded by that sheet's own current
  * values of those fields; Stock Status and Last Updated are filled in by the
- * writer. On success the product stays open with the saved values (owner
- * choice). The steps themselves are the shared `ReviewFlow`.
+ * writer. On success the review and form close, the tiles show the saved
+ * values, and "Details saved." shows under the header for 5 s (US-80; the
+ * product stays open). Other outcomes are strips in the review. The steps
+ * themselves are the shared `ReviewFlow`.
  */
 @Injectable({ providedIn: 'root' })
 export class DetailsReviewStore {
   private readonly details = inject(DetailsStore);
   private readonly search = inject(ProductSearchStore);
   private readonly config = inject(AppConfig);
+  private readonly log = inject(StockLogStore);
 
-  private readonly noticeSignal = signal<string | null>(null);
+  private readonly savedSignal = signal<string | null>(null);
+  private timer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly flow = new ReviewFlow<DetailsSave>({
-    written: ({ productName }, labels) => {
-      this.noticeSignal.set(`${productName}: details saved (${labels.join(' and ')}).`);
-      this.details.reset(); // the form now shows the confirmed values
+    written: (_save, labels) => {
+      // The review and the form close; the tiles show the confirmed values.
+      this.details.closeForm();
+      this.showSaved(labels.join(' and '));
     },
     conflictMessage: (result) =>
       `${fieldLabels(result.fields)} changed in ${result.sheet.label} since you opened this product. ` +
@@ -53,15 +68,45 @@ export class DetailsReviewStore {
       `${writtenLabels.join(' and ')} was updated. ${notUpdated} ${retried ? 'still not updated' : 'was not updated'}: ${reason}`,
     // The written sheet now holds the edits: drop them so they cannot be saved twice.
     partial: () => this.details.reset(),
+    // CR-05: a confirmed Master Stock qty change gets its Form edit line (never other fields, a SKU or Dr Trust).
+    masterConfirmed: (save, master) => {
+      const after = master.product.stockQty;
+      if (save.qtyChanged && after !== null && after !== save.qtyBefore) {
+        this.log.record({ mode: 'Form edit', sku: master.product.sku, before: save.qtyBefore, after });
+      }
+    },
   });
 
   readonly step = this.flow.step;
   /** Why the last save did not fully succeed (conflict / partial / failed), or null. */
   readonly message = this.flow.message;
-  /** Success message for the toast, or null. */
-  readonly notice = this.noticeSignal.asReadonly();
-  /** Details were just saved (for the success strip, US-80). */
-  readonly saved = computed(() => this.noticeSignal() !== null);
+  /** The sheets just saved ("Master and Dr Trust"), for the "Details saved." strip under the header (5 s), or null. */
+  readonly savedSheets = this.savedSignal.asReadonly();
+  /** Details were just saved (US-80). */
+  readonly saved = computed(() => this.savedSignal() !== null);
+
+  /** The result strip inside the review (conflict / failed / half saved), or null (US-80). */
+  readonly strip = computed<ResultStrip<DetailsStripAction> | null>(() => {
+    const message = this.message() ?? '';
+    switch (this.step()) {
+      case 'conflict':
+        return problem(message, { label: 'Review again', action: 'review-again' });
+      case 'failed':
+        return problem(this.flow.failureText(), { label: 'Try again', action: 'try-again' });
+      case 'partial': {
+        const retry = this.retryLabel();
+        return {
+          variant: 'warning',
+          lead: '',
+          message: this.flow.partialText(),
+          primary: retry === null ? null : { label: `Retry ${retry}`, action: 'retry' },
+          secondary: { label: 'Close', action: 'close' },
+        };
+      }
+      default:
+        return null;
+    }
+  });
   /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
   readonly retryLabel = this.flow.retryLabel;
 
@@ -98,7 +143,10 @@ export class DetailsReviewStore {
       const ref = this.search.selected()?.ref ?? null;
       if (ref !== lastRef) {
         lastRef = ref;
-        untracked(() => this.flow.reset());
+        untracked(() => {
+          this.flow.reset();
+          this.clearSaved();
+        });
       }
     });
   }
@@ -106,6 +154,7 @@ export class DetailsReviewStore {
   /** Opens the review when the form is changed and valid. */
   open(): void {
     if (this.details.canReview()) {
+      this.clearSaved();
       this.flow.open();
     }
   }
@@ -119,8 +168,41 @@ export class DetailsReviewStore {
     }
   }
 
-  clearNotice(): void {
-    this.noticeSignal.set(null);
+  /** A strip button (US-80). */
+  stripAction(action: DetailsStripAction): void {
+    switch (action) {
+      case 'review-again':
+        this.open();
+        return;
+      case 'try-again':
+        void this.approve();
+        return;
+      case 'retry':
+        void this.retry();
+        return;
+      case 'back':
+      case 'close':
+        this.back();
+        return;
+    }
+  }
+
+  /** Ends the "Details saved." strip. */
+  clearSaved(): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.savedSignal.set(null);
+  }
+
+  private showSaved(sheets: string): void {
+    this.clearSaved();
+    this.savedSignal.set(sheets);
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      this.savedSignal.set(null);
+    }, DETAILS_SAVED_MS);
   }
 
   /**
@@ -139,8 +221,18 @@ export class DetailsReviewStore {
     }
     // A new SKU may link a master-only product to an unmatched Dr Trust row: both are written (US-38).
     const link = this.search.selectedLink() ?? this.details.linkTo();
-    const rows = detailRowChanges(this.details.changes(), selected, link);
-    await this.flow.save(() => approve(...rows), { productName: selected.product.productName });
+    const changes = this.details.changes();
+    const qtyChanged = changes.has('stockQty');
+    // No Stock Log access: a Stock qty change is refused (the form already blocks it; US-95).
+    if (qtyChanged && this.log.stockChangesOff()) {
+      return;
+    }
+    const rows = detailRowChanges(changes, selected, link);
+    await this.flow.save(() => approve(...rows), {
+      productName: selected.product.productName,
+      qtyBefore: selected.product.stockQty,
+      qtyChanged,
+    });
   }
 
   /** Finishes a partial save from the original approval (an already written sheet is never rewritten). */
@@ -153,4 +245,17 @@ function fieldLabels(fields: readonly string[]): string {
   return DETAIL_FIELDS.filter((def) => fields.includes(def.key))
     .map((def) => def.label)
     .join(', ');
+}
+
+function problem(
+  message: string,
+  primary: ResultStrip<DetailsStripAction>['primary'],
+): ResultStrip<DetailsStripAction> {
+  return {
+    variant: 'problem',
+    lead: '',
+    message,
+    primary,
+    secondary: { label: 'Back', action: 'back' },
+  };
 }

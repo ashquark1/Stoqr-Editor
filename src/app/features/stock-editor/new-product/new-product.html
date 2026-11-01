@@ -1,0 +1,22 @@
+<section class="new-product" aria-labelledby="new-product-title">
+  <header class="new-product__header">
+    <h2 #title id="new-product-title" class="new-product__title" tabindex="-1">New product</h2>
+    <button
+      type="button"
+      class="new-product__close"
+      aria-label="Close new product"
+      stoqrTooltip="Close new product"
+      (click)="navigation.closeNewProduct()"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12" />
+      </svg>
+    </button>
+  </header>
+  <!-- The details form in its New product mode (US-99), lazy like the card's. -->
+  @defer {
+    <app-details-form />
+  } @loading {
+    <p class="new-product__note">Loading the form…</p>
+  }
+</section>

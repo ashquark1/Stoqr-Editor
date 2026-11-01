@@ -168,11 +168,11 @@ badges `--radius-pill`; table wrapper `--radius-lg` (8px).
 ## 5. Component Styling
 Component classes are defined in `stoqr-theme.scss`: `.stoqr-logo`,
 `.stoqr-search`, `.stoqr-badge` (`--in-stock`/`--low-stock`/`--out-of-stock`/
-`--unknown`), `.stoqr-btn` (`--primary`/`--secondary`/`--ghost`/`--danger`/`--busy`, V2) +
+`--unknown`), `.stoqr-btn` (`--primary`/`--secondary`/`--ghost`/`--danger`/`--busy`/`--pressed`, V2) +
 `.icon-btn` (icon-only under 768px, V1's name),
 `.stoqr-table` + `.stoqr-table-wrap`, `.stoqr-modal*` + `.stoqr-field-group`/
 `.stoqr-field` (+ `__error`, V2), `.stoqr-input` (`--mono`/`--invalid`/
-`--multiline`, V2), `.stoqr-toast*`, `.stoqr-pagination*`, `.stoqr-spinner*`,
+`--multiline`, V2), `.stoqr-sr-only` (screen-reader text, V2), `.stoqr-toast*`, `.stoqr-pagination*`, `.stoqr-spinner*`,
 `.stoqr-refresh`, and the page shells `.stoqr-page`/`.stoqr-topbar`/`.stoqr-results`.
 
 Refer to `stoqr-theme.scss` for the authoritative values.
@@ -187,6 +187,24 @@ Search bar hero max-width 640px. Results table 100% width in a scrollable wrappe
 Editor (V2, US-52): floating panels (`<stoqr-floating-panel>`) open just above the
 bottom bar, in the content column, at most the space between the two bars
 (`--bar-height`, 8px gap each side), and are layered under both bars.
+
+---
+
+## 7. Editor (V2) differences from V1
+The Editor's copy of the design system now differs from V1 on purpose (US-81). V1's copy is untouched.
+
+| Area | Editor (V2) | Story |
+|---|---|---|
+| Page column | One `.stoqr-bounds` class for the top bar row, page content and bottom bar row | US-39 |
+| Bars | Sticky top bar and a matching sticky bottom bar (68.5px, one line); no bottom bar on sign-in | US-41, US-45 |
+| Logo | "stoqr" + "Editor" in the top bar; `EDITOR` sub-label on the sign-in card | US-40, US-44 |
+| Buttons | 44px at every width (`--sm` retired); `.icon-btn`; `--busy` (spinner, aria-busy); `--pressed` (Dew fill, Pine outline); `[aria-disabled='true']` looks disabled but stays focusable | US-42, US-43, US-75, US-96 |
+| Text colours | `--color-text-muted`, `--color-text-error`, `--color-on-success/warning/error` for AA small text | US-26, US-54 |
+| Tints | `--tint-{success,warning,error,neutral}-{bg,fg}`: light = semantic bg + on-colour; dark = deep tinted fill + bright text (≥ 4.5:1). Result-row Qty tiles and the sync badge's `tone="tint"` flag | US-91 |
+| Inputs | `.stoqr-input` (`--mono`, `--invalid`, `--multiline`), 16px on phones | US-21, US-26 |
+| Messages | `<stoqr-strip>` in cards for results; the top toast only for Refresh, sign-in and "product gone" | US-54, US-76, US-80 |
+| Panels | `<stoqr-floating-panel>` above the bottom bar or under the toolbar, one at a time | US-52, US-70, US-71 |
+| Accessibility | `.stoqr-sr-only`; explicit `:focus-visible` rings; reduced-motion rules | US-26, US-79 |
 
 ---
 

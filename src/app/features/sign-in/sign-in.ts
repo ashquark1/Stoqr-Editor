@@ -20,6 +20,6 @@ import { Toast } from '@shared/ui/toast/toast';
 export class SignIn {
   protected readonly auth = inject(Auth);
 
-  /** Ticked by default. Nothing reads it yet; US-67 passes it to sign-in. */
+  /** Ticked by default; passed to `Auth.signIn` (US-67). */
   protected readonly rememberMe = new FormControl(true, { nonNullable: true });
 }

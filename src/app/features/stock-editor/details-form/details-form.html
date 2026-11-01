@@ -1,16 +1,35 @@
-@if (search.selected(); as row) {
-  <section class="details" aria-labelledby="details-title">
-    <h3 id="details-title" class="details__title">{{ details.editable() ? 'Edit details' : 'Details' }}</h3>
-
-    @if (!details.editable()) {
-      <ul class="details__reasons" aria-label="Why this product cannot be edited">
-        @for (reason of details.reasons(); track reason) {
-          <li>{{ reason }}</li>
-        }
-      </ul>
+<!-- The product's details, or the New product form (US-99: the same form in `new` mode, inside the shell). -->
+@if (details.isNew() || search.selected()) {
+  <section
+    #formSection
+    class="details"
+    [attr.aria-labelledby]="reviewOpen() ? 'details-review-title' : details.isNew() ? 'new-product-title' : 'details-title'"
+  >
+    @if (!reviewOpen() && !details.isNew()) {
+      <h3 #formTitle id="details-title" class="details__title" tabindex="-1">
+        {{ details.editable() ? 'Edit details' : 'Details' }}
+      </h3>
     }
 
-    @if (review.step() !== 'editing') {
+    @if (!details.editable()) {
+      <!-- Read-only (US-78): the same form, every field as text, with the reasons first. -->
+      <div class="details__blocked">
+        <p id="details-blocked-title" class="details__blocked-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5M12 16h.01" />
+          </svg>
+          Why this product can't be edited
+        </p>
+        <ul class="details__reasons" aria-labelledby="details-blocked-title">
+          @for (reason of details.reasons(); track reason) {
+            <li>{{ reason }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (reviewOpen()) {
       <!-- The review replaces the form; the edits stay in DetailsStore. -->
       <app-details-review />
     } @else {
@@ -19,10 +38,13 @@
           <legend class="details__group-title">{{ section.title }}</legend>
           <div class="details__grid">
             @for (def of section.fields; track def.key) {
-              @if (def.editable && details.editable()) {
+              <!-- Stock qty is read-only without Stock Log access (US-96), with the reason under it. -->
+              @if (!def.editable && def.hiddenWhenNew && details.isNew()) {
+                <!-- Created At / Last Updated: written on save, not shown in the New product form (US-99). -->
+              } @else if (def.editable && details.editable() && !(def.key === 'stockQty' && details.stockQtyLocked())) {
                 <div class="stoqr-field details__field" [class.details__field--wide]="def.multiline">
                   <label class="stoqr-field__label" [for]="'detail-' + def.key">
-                    {{ def.label }}
+                    {{ details.isNew() ? (def.newLabel ?? def.label) : def.label }}
                     @if (def.required) {
                       <span class="details__required" aria-hidden="true">*</span>
                     }
@@ -31,9 +53,9 @@
                     <textarea
                       class="stoqr-input stoqr-input--multiline"
                       [id]="'detail-' + def.key"
-                      [class.stoqr-input--invalid]="details.errors()[def.key]"
-                      [attr.aria-invalid]="details.errors()[def.key] ? true : null"
-                      [attr.aria-describedby]="details.errors()[def.key] ? 'detail-' + def.key + '-error' : null"
+                      [class.stoqr-input--invalid]="shownError(def.key)"
+                      [attr.aria-invalid]="shownError(def.key) ? true : null"
+                      [attr.aria-describedby]="shownError(def.key) ? 'detail-' + def.key + '-error' : null"
                       [formControl]="form.controls[def.key]"
                     ></textarea>
                   } @else {
@@ -44,14 +66,14 @@
                       [id]="'detail-' + def.key"
                       [attr.inputmode]="def.kind === 'text' ? null : def.kind === 'whole' ? 'numeric' : 'decimal'"
                       [class.stoqr-input--mono]="def.mono"
-                      [class.stoqr-input--invalid]="details.errors()[def.key]"
+                      [class.stoqr-input--invalid]="shownError(def.key)"
                       [attr.aria-required]="def.required"
-                      [attr.aria-invalid]="details.errors()[def.key] ? true : null"
-                      [attr.aria-describedby]="details.errors()[def.key] ? 'detail-' + def.key + '-error' : null"
+                      [attr.aria-invalid]="shownError(def.key) ? true : null"
+                      [attr.aria-describedby]="shownError(def.key) ? 'detail-' + def.key + '-error' : null"
                       [formControl]="form.controls[def.key]"
                     />
                   }
-                  @if (details.errors()[def.key]; as message) {
+                  @if (shownError(def.key); as message) {
                     <p class="stoqr-field__error" [id]="'detail-' + def.key + '-error'">{{ message }}</p>
                   }
                 </div>
@@ -59,12 +81,26 @@
                 <div class="stoqr-field details__field">
                   <div class="stoqr-field__label">{{ def.label }}</div>
                   <div class="stoqr-field__value" [class.stoqr-field__value--mono]="def.key === 'sku'">
-                    @if (def.key === 'stockStatus') {
-                      <stoqr-badge [status]="row.product.stockStatus" />
-                    } @else {
-                      {{ display(row.product[def.key]) }}
+                    @if (details.isNew()) {
+                      <!-- New product: Stock Status is derived once opening stock and threshold are valid (US-99). -->
+                      @if (details.newStockStatus(); as status) {
+                        <stoqr-badge [status]="status" />
+                      } @else {
+                        <span class="details__pending">Set when saved</span>
+                      }
+                    } @else if (search.selected(); as row) {
+                      @if (def.key === 'stockStatus') {
+                        <stoqr-badge [status]="row.product.stockStatus" />
+                      } @else {
+                        {{ display(row.product[def.key]) }}
+                      }
                     }
                   </div>
+                  @if (def.key === 'stockQty' && details.editable()) {
+                    @if (details.stockQtyLockedReason(); as message) {
+                      <p class="details__locked-note">{{ message }}</p>
+                    }
+                  }
                 </div>
               }
             }
@@ -72,30 +108,28 @@
         </fieldset>
       }
 
-      @if (details.editable()) {
-        @if (details.hasChanges() && !details.valid()) {
-          <p class="details__hint" role="status">Fix the highlighted fields to continue.</p>
-        }
-        <div class="details__actions">
-          <button
-            type="button"
-            class="stoqr-btn stoqr-btn--primary"
-            [disabled]="!details.canReview()"
-            (click)="review.open()"
-          >
-            Review changes
-          </button>
-          <!-- Always closes the form; asks first when there are edits (US-66). -->
-          <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="navigation.closeDetails()">
-            Cancel
-          </button>
-        </div>
+      <!-- Shared footer (US-92): status, then Cancel and Review changes; read-only gets Close only. -->
+      @if (details.isNew()) {
+        <!-- New product (US-99, US-100): Review product opens the review once every field is valid. -->
+        <stoqr-form-footer
+          [status]="footerStatus()"
+          primaryLabel="Review product"
+          secondaryLabel="Cancel"
+          [primaryDisabled]="details.newValues() === null"
+          (primary)="newReview.open()"
+          (secondary)="navigation.closeNewProduct()"
+        />
+      } @else if (details.editable()) {
+        <stoqr-form-footer
+          [status]="footerStatus()"
+          primaryLabel="Review changes"
+          secondaryLabel="Cancel"
+          [primaryDisabled]="!details.canReview()"
+          (primary)="review.open()"
+          (secondary)="navigation.closeDetails()"
+        />
       } @else {
-        <div class="details__actions">
-          <button type="button" class="stoqr-btn stoqr-btn--ghost" (click)="navigation.closeDetails()">
-            Close
-          </button>
-        </div>
+        <stoqr-form-footer secondaryLabel="Close" (secondary)="navigation.closeDetails()" />
       }
     }
   </section>

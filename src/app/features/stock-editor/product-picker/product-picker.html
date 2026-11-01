@@ -8,21 +8,58 @@
     />
   } @else {
     <!-- Every match, no cap (US-55); the page scrolls. -->
+    <!-- One row component for the home list and the overlay (US-73, US-91); the whole row is the button. -->
     <ul class="picker__results" aria-label="Matching products">
-      @for (row of search.matches(); track row.ref) {
+      @for (item of search.rows(); track item.row.ref) {
+        @let product = item.row.product;
         <li>
-          <button type="button" class="picker__result" (click)="navigation.open(row.ref)">
-            <span class="picker__name">{{ display(row.product.productName) }}</span>
-            <span class="picker__meta">
-              {{ display(row.product.brand) }} ·
-              <span class="picker__sku">{{ display(row.product.sku) }}</span>
+          <button
+            type="button"
+            [class]="'row row--' + item.edge"
+            [attr.aria-label]="item.label"
+            (click)="navigation.open(item.row.ref)"
+          >
+            <!-- Left: the text block, centred vertically. -->
+            <span class="row__left" aria-hidden="true">
+            <span class="row__top">
+              <span class="row__brand">{{ display(product.brand) }}</span>
+              <span class="row__status">{{ display(product.status) }}</span>
             </span>
-            <span class="picker__stock">
-              <span class="picker__qty">Qty {{ display(row.product.stockQty) }}</span>
-              <stoqr-badge [status]="row.product.stockStatus" />
-              <stoqr-sync-badge [kind]="search.syncBadgeOf(row.ref)" />
-              <stoqr-status-badge [status]="row.product.status" />
+            <span class="row__name">{{ display(product.productName) }}</span>
+            <span class="row__sku">{{ display(product.sku) }}</span>
+            <!-- Phones: line 2 under the name. -->
+            <span class="row__line2">
+              <span class="row__sku-m">{{ display(product.sku) }}</span> · {{ display(product.brand) }} · {{ display(product.status) }}
             </span>
+            </span>
+            <!-- Phones: one square Qty tile with the stock word; with a flag, both centred as a group. -->
+            <span class="row__aside" aria-hidden="true">
+              <span [class]="'row__qty-m row__qty-m--' + item.stock">
+                <span class="row__qty-word">{{ item.stockWord }}</span>
+                <span class="row__qty-num">{{ display(product.stockQty) }}</span>
+              </span>
+              @if (item.flag) {
+                <span class="row__flag"><stoqr-sync-badge [kind]="item.sync" tone="tint" /></span>
+              }
+            </span>
+            <!-- From 768px: three tiles in the card's label-over-value style, then a chevron. -->
+            <span class="row__tiles" aria-hidden="true">
+              <span class="row__tile row__tile--qty">
+                <span class="row__tile-label">Qty</span>
+                <span class="row__tile-value row__tile-value--qty">{{ display(product.stockQty) }}</span>
+              </span>
+              <span class="row__tile">
+                <span class="row__tile-label">Stock</span>
+                <span class="row__tile-value"><stoqr-badge [status]="product.stockStatus" /></span>
+              </span>
+              <span class="row__tile">
+                <span class="row__tile-label">Sync</span>
+                <span class="row__tile-value"><stoqr-sync-badge [kind]="item.sync" /></span>
+              </span>
+            </span>
+            <svg class="row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
           </button>
         </li>
       }

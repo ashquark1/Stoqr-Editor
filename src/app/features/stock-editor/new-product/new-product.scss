@@ -1,0 +1,83 @@
+// The New product card (US-93): the product card's look (US-72), short fade in.
+.new-product {
+  // The shared form footer spans the card's full width (US-92).
+  --form-footer-bleed: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-white);
+  border: var(--border-thin);
+  border-radius: var(--radius-2xl);
+  animation: new-product-in 150ms ease-out;
+}
+
+@keyframes new-product-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-product {
+    animation: none;
+  }
+}
+
+.new-product__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.new-product__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-h2);
+  outline: none;
+}
+
+// The close X: 44px tap target, round hover (as the product card's X, US-92).
+.new-product__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-pine);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    background: var(--color-dew);
+  }
+
+  &:active {
+    background: var(--color-mint);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+}
+
+.new-product__note {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}

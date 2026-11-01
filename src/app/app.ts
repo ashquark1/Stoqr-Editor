@@ -1,5 +1,15 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  effect,
+  inject,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -24,6 +34,29 @@ export class App {
   protected readonly auth = inject(Auth);
   protected readonly panels = inject(PanelStore);
   private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
+  private readonly addProduct = viewChild<ElementRef<HTMLElement>>('addProduct');
+
+  constructor() {
+    // The New product shell closed: focus back on Add product (US-93), unless a product opened instead.
+    let wasOpen = false;
+    effect(() => {
+      const open = this.panels.newProductOpen();
+      if (wasOpen && !open) {
+        untracked(() =>
+          afterNextRender(
+            () => {
+              if (document.activeElement === document.body) {
+                this.addProduct()?.nativeElement.focus();
+              }
+            },
+            { injector: this.injector },
+          ),
+        );
+      }
+      wasOpen = open;
+    });
+  }
 
   /**
    * The bottom bar shows unless the active route sets `data.bottomBar: false`

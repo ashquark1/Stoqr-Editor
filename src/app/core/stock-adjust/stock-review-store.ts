@@ -3,95 +3,236 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 import { AppConfig } from '@core/config/app-config';
 import { ProductSearchStore } from '@core/search/product-search-store';
 import { RowChange, approve } from '@core/sheets/approval';
-import { ReviewFlow } from '@core/sheets/review-flow';
+import { ResultStrip, ReviewFlow } from '@core/sheets/review-flow';
 import { StockAdjustStore } from './stock-adjust-store';
-import { StockStatusLabel } from './stock-status';
+import { LogMode } from './stock-log-line';
+import { StockLogStore } from './stock-log-store';
 
 export type { ReviewStep } from '@core/sheets/review-flow';
 
-/** What the review panel shows; null when there is no valid proposal. */
-export interface ReviewSummary {
+/** A confirmed stock save (US-64): what the saved strip shows, and the base for Undo (US-65). */
+export interface StockSaved {
   readonly productName: string;
+  /** Master's quantity before the save. */
+  readonly previous: number;
+  /** The quantity now in every sheet written. */
+  readonly saved: number;
   /** "Master and Dr Trust" or "Master". */
   readonly sheetsText: string;
-  readonly current: number;
-  readonly deltaText: string;
-  readonly proposed: number;
-  readonly status: StockStatusLabel | null;
-  readonly lowStockWarning: boolean;
-  /** Shown when a linked product's Dr Trust qty differs (it will be overwritten, US-35). */
-  readonly drTrustNote: string | null;
+  /** What Dr Trust held when it differed from Master (it was overwritten), else null. */
+  readonly drTrustHad: number | null;
+  /** True when a Retry finished a half-done save (no Undo for it). */
+  readonly retried: boolean;
+  /** The Stock Log Change ID of this save's line (US-95), named by its Undo. */
+  readonly changeId: string | null;
 }
 
-/** What a stock save's messages need. */
+/** One result strip under the adjuster (US-76): look, text and up to two actions. */
+export type StripAction = 'undo' | 'dismiss' | 'try-again' | 'retry' | 'close' | 'retry-log';
+export type StockStrip = ResultStrip<StripAction>;
+
+/** What a stock save's outcomes need. `undo`: this save writes back the previous quantity (US-65). */
 interface StockSave {
+  readonly kind: 'apply' | 'undo';
+  /** The log's Mode for this save (US-95). */
+  readonly mode: LogMode;
+  /** For Undo: the Change ID of the save it reverses. */
+  readonly reverses: string | null;
   readonly productName: string;
+  readonly previous: number;
   readonly proposed: number;
+  readonly drTrustHad: number | null;
 }
+
+/** How long Undo is offered after a save, and how long "restored" shows (US-65). */
+export const UNDO_WINDOW_MS = 10_000;
+export const RESTORED_MS = 5_000;
 
 /**
- * Review → approve → write for a quantity change (US-18, 19, 33, 35, 20). The
- * ONLY caller of `approve()` for stock changes. One approval covers both rows
- * of a linked product; the writer checks both before writing either. After a
- * write the confirmed values go into the loaded data; on success the selection
- * clears for the next product. A partial save can be finished with Retry while
- * the panel is open (US-34); closing it leaves the product out of sync. The
- * steps themselves are the shared `ReviewFlow`.
+ * Apply → write for a quantity change (US-64, CR-04: no review step), and
+ * Undo of the last one (US-65). The ONLY caller of `approve()` for stock
+ * changes. One approval covers both rows of a linked product; the writer
+ * checks both before writing either. After a write the confirmed values go
+ * into the loaded data and the product stays open. Outcomes are state:
+ * saving, saved (Undo for 10 s), restored (5 s), conflict / refused, failed,
+ * half saved (Retry from the original approval, US-34). The steps are the
+ * shared `ReviewFlow`, started from editing, conflict or failed.
  */
 @Injectable({ providedIn: 'root' })
 export class StockReviewStore {
   private readonly adjust = inject(StockAdjustStore);
   private readonly search = inject(ProductSearchStore);
   private readonly config = inject(AppConfig);
+  /** The Stock Log (US-94, US-95): a line after each confirmed Master write; off without log access. */
+  readonly log = inject(StockLogStore);
+  /** The Change ID of the last first-save's line, for `StockSaved` (US-95). */
+  private lastChangeId: string | null = null;
 
-  private readonly noticeSignal = signal<string | null>(null);
+  private readonly savedSignal = signal<StockSaved | null>(null);
+  private readonly undoAvailableSignal = signal(false);
+  private readonly restoredSignal = signal<number | null>(null);
+  /** What Try again repeats after a failure: the last Apply, or the last Undo. */
+  private readonly lastActionSignal = signal<'apply' | 'undo'>('apply');
+  /** The save an Undo reverses, kept for Try again. */
+  private undoSource: StockSaved | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
 
-  private readonly flow = new ReviewFlow<StockSave>({
-    written: ({ productName, proposed }, labels) => {
-      this.noticeSignal.set(`${productName} is now ${proposed} (${labels.join(' and ')}).`);
-      this.adjust.reset();
-      this.search.clearSelection(); // the selection effect returns the review to editing
+  private readonly flow = new ReviewFlow<StockSave>(
+    {
+      written: (save, labels, retried) => {
+        if (save.kind === 'undo') {
+          // Undo is final: no Undo of the undo.
+          this.restoredSignal.set(save.proposed);
+          this.startTimer(RESTORED_MS);
+          return;
+        }
+        this.savedSignal.set({
+          productName: save.productName,
+          previous: save.previous,
+          saved: save.proposed,
+          sheetsText: labels.join(' and '),
+          drTrustHad: save.drTrustHad,
+          retried,
+          changeId: this.lastChangeId,
+        });
+        // No Undo after a half-done save, even once Retry finished it.
+        this.undoAvailableSignal.set(!retried);
+        this.adjust.reset();
+        this.startTimer(UNDO_WINDOW_MS);
+      },
+      conflictMessage: (result, save) => {
+        const now = result.current.product.stockQty ?? 'an invalid value';
+        return save.kind === 'undo'
+          ? `Can't undo: the stock is now ${now}, changed by someone else. Nothing was saved.`
+          : `The stock changed to ${now} since you opened this product. Nothing was saved.`;
+      },
+      // An Apply entry was made against the old quantity; an Undo leaves any new entry alone.
+      conflict: (save) => {
+        if (save.kind === 'apply') {
+          this.adjust.reset();
+        }
+      },
+      // CR-05: the log line follows the confirmed Master write of the same tap (never on Retry).
+      masterConfirmed: (save, master) => {
+        this.lastChangeId = this.log.record({
+          mode: save.mode,
+          sku: master.product.sku,
+          before: save.previous,
+          after: master.product.stockQty ?? save.proposed,
+          ...(save.reverses !== null ? { reverses: save.reverses } : {}),
+        });
+      },
+      partialMessage: ({ proposed }, writtenLabels, notUpdated, reason, retried) =>
+        `${writtenLabels.join(' and ')} was updated to ${proposed}. ${notUpdated} ${retried ? 'still not updated' : 'was not updated'}: ${reason}`,
+      // Master now holds the new qty: clear an Apply entry so it cannot be applied twice.
+      partial: (save) => {
+        if (save.kind === 'apply') {
+          this.adjust.reset();
+        }
+      },
     },
-    conflictMessage: (result) =>
-      `The stock changed to ${result.current.product.stockQty ?? 'an invalid value'} since you reviewed. Nothing was saved.`,
-    partialMessage: ({ proposed }, writtenLabels, notUpdated, reason, retried) =>
-      `${writtenLabels.join(' and ')} was updated to ${proposed}. ${notUpdated} ${retried ? 'still not updated' : 'was not updated'}: ${reason}`,
-    // Master now holds the new qty: clear the amount so it cannot be applied twice.
-    partial: () => this.adjust.reset(),
-  });
+    ['editing', 'conflict', 'failed'],
+  );
 
   readonly step = this.flow.step;
-  /** Why the last approval did not fully succeed (conflict / partial / failed), or null. */
+  /** Why the last Apply did not fully succeed (conflict / partial / failed), or null. */
   readonly message = this.flow.message;
-  /** Success message for the toast, or null. Survives the selection clearing. */
-  readonly notice = this.noticeSignal.asReadonly();
-  /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
-  readonly retryLabel = this.flow.retryLabel;
+  /** The last confirmed save, or null (cleared after 10 s). */
+  readonly saved = this.savedSignal.asReadonly();
+  /** Undo is offered for the last save (US-65). */
+  readonly undoAvailable = computed(
+    () => this.undoAvailableSignal() && this.step() === 'editing' && !this.log.stockChangesOff(),
+  );
+  /** "Stock restored to N." after an Undo (for 5 s), or null. */
+  readonly restored = this.restoredSignal.asReadonly();
+  /** An Undo is being written. */
+  readonly undoing = computed(() => this.step() === 'saving' && this.lastActionSignal() === 'undo');
+  /** What the last failure's Try again repeats. */
+  readonly lastAction = this.lastActionSignal.asReadonly();
+  /** The sheets an Apply or Undo writes, by their config labels ("Master and Dr Trust" / "Master"). */
+  readonly targetsText = computed(() => {
+    const master = this.config.sheet('master').label;
+    return this.search.selectedLink() !== null
+      ? `${master} and ${this.config.sheet('dr-trust').label}`
+      : master;
+  });
 
-  readonly review = computed<ReviewSummary | null>(() => {
-    const proposal = this.adjust.proposal();
-    const selected = this.search.selected();
-    if (proposal === null || !proposal.ok || selected === null) {
+  /**
+   * The one result strip to show under the adjuster (US-76), or null. Texts
+   * per the CR-03 notes; reasons come from the writer's error mapping.
+   */
+  readonly strip = computed<StockStrip | null>(() => {
+    const drTrust = this.config.sheet('dr-trust').label;
+    const message = this.message() ?? '';
+    switch (this.step()) {
+      case 'conflict':
+        return problem(message, { label: 'Dismiss', action: 'dismiss' });
+      case 'failed':
+        return problem(this.flow.failureText(), { label: 'Try again', action: 'try-again' });
+      case 'partial': {
+        const retry = this.retryLabel();
+        return {
+          variant: 'warning',
+          lead: '',
+          message: this.flow.partialText(),
+          primary: retry === null ? null : { label: `Retry ${retry}`, action: 'retry' },
+          secondary: { label: 'Close', action: 'close' },
+        };
+      }
+      case 'editing':
+        break;
+      default:
+        return null;
+    }
+    // A pending log line (US-96): the header's amber strip replaces the green result.
+    if (this.log.hasPending()) {
       return null;
     }
-    const link = this.search.selectedLink();
-    const masterLabel = this.config.sheet('master').label;
-    const drTrustLabel = this.config.sheet('dr-trust').label;
-    const drTrustQty = link?.product.stockQty ?? null;
+    const saved = this.savedSignal();
+    if (saved !== null) {
+      if (saved.retried) {
+        return success(`${drTrust} updated.`, `Both sheets now show ${saved.saved}.`, null);
+      }
+      const had = saved.drTrustHad !== null ? ` ${drTrust} had ${saved.drTrustHad}.` : '';
+      return success(
+        'Stock saved.',
+        `Now ${saved.saved} in ${saved.sheetsText}.${had}`,
+        this.undoAvailable() ? { label: 'Undo', action: 'undo' } : null,
+      );
+    }
+    const restored = this.restoredSignal();
+    return restored === null ? null : success('', `Stock restored to ${restored}.`, null);
+  });
+  /**
+   * The "Retry log" strip under the card header (US-96) while any line is
+   * pending, with Undo while the last Apply's window is open; null otherwise.
+   */
+  readonly logStrip = computed<StockStrip | null>(() => {
+    const count = this.log.pending().length;
+    if (count === 0) {
+      return null;
+    }
     return {
-      productName: selected.product.productName,
-      sheetsText: link ? `${masterLabel} and ${drTrustLabel}` : masterLabel,
-      current: proposal.current,
-      deltaText: this.adjust.deltaText(),
-      proposed: proposal.proposed,
-      status: this.adjust.proposedStatus(),
-      lowStockWarning: this.adjust.lowStockWarning(),
-      drTrustNote:
-        link !== null && this.search.drTrustQtyDiffers()
-          ? `${drTrustLabel} currently has ${drTrustQty ?? 'no valid quantity'}; it will be set to ${proposal.proposed}.`
-          : null,
+      variant: 'warning',
+      lead:
+        count === 1
+          ? "Stock saved, but the change wasn't recorded in the log."
+          : `Stock saved, but ${count} changes weren't recorded in the log.`,
+      message: this.log.failure() ?? '',
+      primary: { label: 'Retry log', action: 'retry-log' },
+      secondary: this.undoAvailable() ? { label: 'Undo', action: 'undo' } : null,
     };
   });
+
+  /** The user's Retry log tap (US-96). */
+  retryLog(): Promise<void> {
+    return this.log.retryLog();
+  }
+
+  /** The sheet(s) Retry would finish ("Dr Trust"), or null when there is nothing to retry. */
+  readonly retryLabel = this.flow.retryLabel;
+  /** Saving, or half saved: the adjuster and the pencil are off until Retry or Close. */
+  readonly locked = computed(() => this.step() === 'saving' || this.step() === 'partial');
 
   constructor() {
     let lastRef = untracked(() => this.search.selected()?.ref ?? null);
@@ -99,64 +240,185 @@ export class StockReviewStore {
       const ref = this.search.selected()?.ref ?? null;
       if (ref !== lastRef) {
         lastRef = ref;
-        untracked(() => this.flow.reset());
+        untracked(() => this.close());
       }
     });
   }
 
-  /** Opens the review when the proposal is valid for an editable product. */
-  open(): void {
-    if (this.adjust.readyForReview()) {
-      this.flow.open();
-    }
-  }
-
-  /** Back to the adjuster (not while saving). */
-  back(): void {
-    this.flow.back();
-  }
-
-  clearNotice(): void {
-    this.noticeSignal.set(null);
-  }
-
   /**
-   * The user's explicit approval. Works only from the review (or after a
-   * failure with nothing written) and only for an editable product, so a
-   * double click cannot write twice.
+   * The user's explicit tap (Apply, or Enter in a box). Writes only for a
+   * valid entry on an editable product, and only from editing, conflict or
+   * failed — so a double tap writes once and Try again repeats the same Apply.
    */
-  async approve(): Promise<void> {
-    if (!this.flow.canSave()) {
+  async apply(): Promise<void> {
+    if (!this.flow.canSave() || !this.adjust.applyReady() || this.log.stockChangesOff()) {
       return;
     }
     const selected = this.search.selected();
     const proposal = this.adjust.proposal();
-    if (selected === null || proposal === null || !proposal.ok || this.search.selectedEditability()?.editable !== true) {
-      this.flow.reset();
+    if (selected === null || proposal === null || !proposal.ok) {
       return;
     }
+    this.clearResults();
+    this.lastActionSignal.set('apply');
 
     // One approval for both rows of a linked product: the same absolute quantity in each.
-    // Master's reviewed qty is re-checked; Dr Trust's is overwritten by design (not checked).
+    // Master is guarded by the qty the user saw; Dr Trust's is overwritten by design (not checked).
     const link = this.search.selectedLink();
     const rows: RowChange[] = [
-      { target: selected.ref, reviewed: { stockQty: proposal.current }, changes: { stockQty: proposal.proposed } },
+      {
+        target: selected.ref,
+        reviewed: { stockQty: proposal.current },
+        changes: { stockQty: proposal.proposed },
+      },
     ];
     if (link !== null) {
       rows.push({ target: link.ref, reviewed: {}, changes: { stockQty: proposal.proposed } });
     }
+    const drTrustQty = link?.product.stockQty ?? null;
     await this.flow.save(() => approve(...rows), {
+      kind: 'apply',
+      mode: this.adjust.way() === 'total' ? 'New total' : this.adjust.mode() === 'subtract' ? 'Subtract' : 'Add',
+      reverses: null,
       productName: selected.product.productName,
+      previous: proposal.current,
       proposed: proposal.proposed,
+      drTrustHad: link !== null && drTrustQty !== proposal.current ? drTrustQty : null,
     });
   }
 
   /**
-   * Finishes a partial save: writes only the rows not yet written, from the
-   * original approval (same absolute values; Master is never rewritten). Works
-   * only from the partial step, so a double click writes once.
+   * The user's explicit Undo tap (US-65): writes the previous quantity back as
+   * a NEW absolute save to the same sheets, only while Master still holds the
+   * quantity just saved (otherwise refused, nothing written). Final: an undo
+   * has no Undo of its own.
+   */
+  async undo(): Promise<void> {
+    const source = this.savedSignal();
+    if (!this.undoAvailable() || source === null) {
+      return;
+    }
+    this.undoSource = source;
+    await this.writeUndo(source);
+  }
+
+  /** Try again after a failure with nothing written: repeats the last Apply or the last Undo. */
+  async tryAgain(): Promise<void> {
+    if (this.step() !== 'failed') {
+      return;
+    }
+    if (this.lastActionSignal() === 'undo' && this.undoSource !== null) {
+      await this.writeUndo(this.undoSource);
+    } else {
+      await this.apply();
+    }
+  }
+
+  /**
+   * Finishes a half-done save: writes only the rows not yet written, from the
+   * original approval (Master is never rewritten). Once per tap.
    */
   retry(): Promise<void> {
     return this.flow.retry();
   }
+
+  /**
+   * Dismisses a conflict or failure, or abandons a half-done save (the product
+   * stays Out of sync), and ends any saved / restored result and the Undo
+   * offer. Not while saving.
+   */
+  close(): void {
+    if (this.step() !== 'saving') {
+      this.flow.reset();
+      this.clearResults();
+      this.undoSource = null;
+    }
+  }
+
+  /** A strip button (US-76). */
+  stripAction(action: StripAction): void {
+    switch (action) {
+      case 'undo':
+        void this.undo();
+        return;
+      case 'try-again':
+        void this.tryAgain();
+        return;
+      case 'retry':
+        void this.retry();
+        return;
+      case 'retry-log':
+        void this.retryLog();
+        return;
+      case 'dismiss':
+      case 'close':
+        this.close();
+        return;
+    }
+  }
+
+  private async writeUndo(source: StockSaved): Promise<void> {
+    const selected = this.search.selected();
+    if (
+      !this.flow.canSave() ||
+      this.log.stockChangesOff() ||
+      selected === null ||
+      this.search.selectedEditability()?.editable !== true
+    ) {
+      return;
+    }
+    this.clearResults();
+    this.lastActionSignal.set('undo');
+    const link = this.search.selectedLink();
+    const rows: RowChange[] = [
+      {
+        target: selected.ref,
+        reviewed: { stockQty: source.saved },
+        changes: { stockQty: source.previous },
+      },
+    ];
+    if (link !== null) {
+      rows.push({ target: link.ref, reviewed: {}, changes: { stockQty: source.previous } });
+    }
+    await this.flow.save(() => approve(...rows), {
+      kind: 'undo',
+      mode: 'Undo',
+      reverses: source.changeId,
+      productName: source.productName,
+      previous: source.saved,
+      proposed: source.previous,
+      drTrustHad: null,
+    });
+  }
+
+  /** Ends the saved / restored result, the Undo offer and its timer. */
+  private clearResults(): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.savedSignal.set(null);
+    this.restoredSignal.set(null);
+    this.undoAvailableSignal.set(false);
+  }
+
+  private startTimer(ms: number): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+    }
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      this.savedSignal.set(null);
+      this.restoredSignal.set(null);
+      this.undoAvailableSignal.set(false);
+    }, ms);
+  }
+}
+
+function problem(message: string, primary: StockStrip['primary']): StockStrip {
+  return { variant: 'problem', lead: '', message, primary, secondary: null };
+}
+
+function success(lead: string, message: string, primary: StockStrip['primary']): StockStrip {
+  return { variant: 'success', lead, message, primary, secondary: null };
 }

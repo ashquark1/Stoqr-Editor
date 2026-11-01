@@ -19,10 +19,27 @@ export class PanelStore {
   private readonly health = inject(DataHealthStore);
 
   private readonly openSignal = signal<PanelKey | null>(null);
+  private readonly newProductSignal = signal(false);
+  private readonly newProductRequestSignal = signal(0);
+  private readonly addProductOffSignal = signal<string | null>(null);
 
   readonly healthOpen = computed(() => this.openSignal() === 'data-health');
   /** The filter panel (US-69 button, US-70 panel). */
   readonly filtersOpen = computed(() => this.openSignal() === 'filters');
+
+  /** The New product shell is open (US-93; its rules are US-98). */
+  readonly newProductOpen = this.newProductSignal.asReadonly();
+  /**
+   * Bumped by the bottom bar's Add product button. `ProductNavigation` answers
+   * it (it may ask "Discard changes?" first); the shell itself never imports
+   * navigation, which keeps the search and editor stores out of the first load.
+   */
+  readonly newProductRequest = this.newProductRequestSignal.asReadonly();
+  /**
+   * Why Add product is off (no Stock Log access, US-96), or null. Set by
+   * `ProductNavigation` from the log status, so the shell needs no stock store.
+   */
+  readonly addProductOff = this.addProductOffSignal.asReadonly();
 
   /** The Data health button's count, and its accessible name ("Data health, 2 issues"). */
   readonly healthCount = computed(() => this.health.health().total);
@@ -33,7 +50,8 @@ export class PanelStore {
 
   /** Data health may be offered once the sheets have loaded (an empty master counts), not while loading or after a load error. */
   readonly healthAvailable = computed(
-    () => this.sheets.fetchedAt() !== null && !this.sheets.loading() && this.sheets.error() === null,
+    () =>
+      this.sheets.fetchedAt() !== null && !this.sheets.loading() && this.sheets.error() === null,
   );
 
   constructor() {
@@ -44,8 +62,29 @@ export class PanelStore {
       if (session !== lastSession) {
         lastSession = session;
         this.openSignal.set(null);
+        this.newProductSignal.set(false);
       }
     });
+  }
+
+  /** Set by `ProductNavigation` (US-96): the no-access message, or null. */
+  setAddProductOff(reason: string | null): void {
+    this.addProductOffSignal.set(reason);
+  }
+
+  /** The Add product button: asks navigation to open or close the New product shell. */
+  requestNewProduct(): void {
+    this.newProductRequestSignal.update((n) => n + 1);
+  }
+
+  /** Opens the New product shell and closes the floating panels (call through `ProductNavigation`). */
+  openNewProduct(): void {
+    this.openSignal.set(null);
+    this.newProductSignal.set(true);
+  }
+
+  closeNewProduct(): void {
+    this.newProductSignal.set(false);
   }
 
   toggleHealth(): void {
