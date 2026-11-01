@@ -490,6 +490,12 @@
 - Decision (owner): the log's Change column is a number (5, −3); the owner formats column G as `+0;-0;0`.
 - Reversed: "Stock Log tab deferred" (2026-10-27) and the "no adding rows" part of V2's scope.
 
+## 2026-11-01: Add product button and shell (US-93) [confirmed]
+
+- Decision: the bottom bar's Add product button only bumps a request in `PanelStore`; `ProductNavigation` answers it (asks "Discard changes?", closes the product and panels, opens the shell). Reason: the shell importing `ProductNavigation` would pull the search and editor stores into the first load (the US-70 lesson).
+- Decision: the button's tooltip is `@defer (on idle)` with a plain-button placeholder: the tooltip directive in the first load cost ~49 kB (550.1 kB, over the warning). First load now 501.0 kB.
+- Decision: opening a product (result or Data health pick) closes the New product shell (`ProductSearchStore.select`). Full shell rules: US-98.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.

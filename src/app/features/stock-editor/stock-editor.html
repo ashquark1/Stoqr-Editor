@@ -84,6 +84,10 @@
       }
       <!-- One list (US-73): the home list, or floated over the open product, which stays dimmed and untouched. -->
       <div class="stock-editor__layout">
+        @if (panels.newProductOpen()) {
+          <!-- Add product (US-93): the shell sits where the product card would. -->
+          <app-new-product class="stock-editor__summary" />
+        }
         @if (search.selected()) {
           <app-product-summary
             class="stock-editor__summary"

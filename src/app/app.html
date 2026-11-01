@@ -72,6 +72,40 @@
         </span>
       }
       @if (panels.healthAvailable()) {
+        <!-- Add product (US-93): left of Data health; icon-only on phones; pressed while the shell is open.
+             Its tooltip loads when the page is idle, like the sheet labels' (keeps PrimeNG's tooltip out of the first load, US-41). -->
+        @defer (on idle) {
+          <button
+            #addProduct
+            type="button"
+            class="stoqr-btn stoqr-btn--secondary icon-btn app-footer__add"
+            [class.stoqr-btn--pressed]="panels.newProductOpen()"
+            [attr.aria-pressed]="panels.newProductOpen()"
+            aria-label="Add product"
+            stoqrTooltip="Add product"
+            (click)="panels.requestNewProduct()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <span class="icon-btn__label">Add product</span>
+          </button>
+        } @placeholder {
+          <button
+            #addProduct
+            type="button"
+            class="stoqr-btn stoqr-btn--secondary icon-btn app-footer__add"
+            [class.stoqr-btn--pressed]="panels.newProductOpen()"
+            [attr.aria-pressed]="panels.newProductOpen()"
+            aria-label="Add product"
+            (click)="panels.requestNewProduct()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <span class="icon-btn__label">Add product</span>
+          </button>
+        }
         <button
           type="button"
           class="stoqr-btn stoqr-btn--secondary icon-btn app-footer__health"

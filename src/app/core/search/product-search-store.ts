@@ -242,6 +242,7 @@ export class ProductSearchStore {
     this.rememberedSignal.set(this.typedSignal());
     this.panels.closeFilters();
     this.panels.closeHealth();
+    this.panels.closeNewProduct(); // a product opens in place of the New product shell (US-93)
   }
 
   /** The same product under the ref a refresh gave it (US-60): nothing else changes. */

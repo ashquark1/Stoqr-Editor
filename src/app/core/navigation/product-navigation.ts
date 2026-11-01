@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { DetailsReviewStore } from '@core/details/details-review-store';
 import { DetailsStore } from '@core/details/details-store';
@@ -55,6 +55,44 @@ export class ProductNavigation {
 
   /** "This product is no longer in the sheet." after a refresh, or null. */
   readonly notice = this.noticeSignal.asReadonly();
+
+  constructor() {
+    // The bottom bar's Add product button (US-93) lives in the shell, which does not
+    // import this store; it bumps a request in PanelStore and this answers it.
+    let lastRequest = untracked(() => this.panels.newProductRequest());
+    effect(() => {
+      const request = this.panels.newProductRequest();
+      if (request !== lastRequest) {
+        lastRequest = request;
+        untracked(() => this.toggleNewProduct());
+      }
+    });
+  }
+
+  /**
+   * Opens the New product shell (US-93): asks "Discard changes?" when the open
+   * product has unsaved work, then closes it and the floating panels. A second
+   * press closes the shell. Not while a save runs. (Its own rules: US-98.)
+   */
+  toggleNewProduct(): void {
+    if (this.panels.newProductOpen()) {
+      this.closeNewProduct();
+      return;
+    }
+    if (this.saving()) {
+      return;
+    }
+    this.ask(() => {
+      this.dropWork();
+      this.search.clearSelection();
+      this.panels.openNewProduct();
+    });
+  }
+
+  /** The shell's X (US-93). Nothing can be typed yet; US-98 adds the "Discard changes?" rules. */
+  closeNewProduct(): void {
+    this.panels.closeNewProduct();
+  }
 
   /** Refresh may run: not while one runs or a save runs (US-60). */
   readonly refreshAvailable = computed(() => !this.sheets.refreshing() && !this.saving());

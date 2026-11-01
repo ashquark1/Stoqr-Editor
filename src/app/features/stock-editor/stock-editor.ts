@@ -10,6 +10,7 @@ import { Modal } from '@shared/ui/modal/modal';
 import { Toast } from '@shared/ui/toast/toast';
 import { DataHealth } from './data-health/data-health';
 import { FilterPanel } from './filter-panel/filter-panel';
+import { NewProduct } from './new-product/new-product';
 import { ProductPicker } from './product-picker/product-picker';
 import { ProductSummary } from './product-summary/product-summary';
 import { ResultsToolbar } from './results-toolbar/results-toolbar';
@@ -24,7 +25,7 @@ import { SearchRow } from './search-row/search-row';
  */
 @Component({
   selector: 'app-stock-editor',
-  imports: [DataHealth, EmptyState, FilterPanel, Modal, ProductPicker, ProductSummary, ResultsToolbar, SearchRow, Toast],
+  imports: [DataHealth, EmptyState, FilterPanel, Modal, NewProduct, ProductPicker, ProductSummary, ResultsToolbar, SearchRow, Toast],
   templateUrl: './stock-editor.html',
   styleUrl: './stock-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
