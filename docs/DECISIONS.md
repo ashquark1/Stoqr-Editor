@@ -557,6 +557,10 @@
 - Decision: the docs now match what was built: the log config is `stockLog` (its own location); AI_CONTRACT names the only callers of `appendLogLine`, `create` and `addRow`; CLAUDE.md's tap list has Save product, Retry log and the one log exception; the writer and environment specs gained CR-05 sections.
 - Still suspended (owner): the rule tests listed in `specs/cr05-docs-rules.md` (US-101 audit, item 7), to add when tests resume.
 
+## 2026-11-01: New product title uses the theme's heading font [confirmed]
+
+- Decision (owner): the New product card's "New product" title uses the product card title's style (DM Sans, `--text-h2`), not Lora; Lora stays for the wordmark only (brand spec §3). Supersedes US-93's "title (Lora)".
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
