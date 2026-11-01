@@ -561,11 +561,15 @@
 
 - Decision (owner): the New product card's "New product" title uses the product card title's style (DM Sans, `--text-h2`), not Lora; Lora stays for the wordmark only (brand spec §3). Supersedes US-93's "title (Lora)".
 
+## 2026-11-01: Hosting on Vercel [confirmed]
+
+- Decision (owner): the static site is hosted on Vercel, connected to this repo. `vercel.json` sets the build (`npm run build`, output `dist/stoqr-editor/browser`) and rewrites every path to `index.html` so a reload on `/sign-in` serves the app.
+- Owner setup: add the Vercel address to the OAuth client as an Authorized JavaScript origin and, with a trailing `/`, as an Authorized redirect URI (Remember me). The production build uses the LIVE sheets; the cutover rules stay in US-27.
+
 ## Open Questions
 - REMINDER: remove the development-only session keeper (`core/auth/dev-session.ts`) before go-live (US-27).
 - Revisit RAW vs typed input for writes (chosen RAW 2026-10-28 to rule out formulas), e.g. if a sheet's formatting or locale needs typed input.
 - Do all staff have Editor access to both LIVE spreadsheets? (TEST copies: yes, confirmed 2026-10-27.)
-- Hosting choice for the static site (Cloudflare Pages / Netlify / Firebase Hosting).
 
 ## Answered 2026-10-27
 - Both sheets have identical column headers and clean, unique SKUs (owner confirmed).
