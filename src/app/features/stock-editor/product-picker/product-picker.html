@@ -19,23 +19,29 @@
             [attr.aria-label]="item.label"
             (click)="navigation.open(item.row.ref)"
           >
-            <span class="row__top" aria-hidden="true">
+            <!-- Left: the text block, centred vertically. -->
+            <span class="row__left" aria-hidden="true">
+            <span class="row__top">
               <span class="row__brand">{{ display(product.brand) }}</span>
               <span class="row__status">{{ display(product.status) }}</span>
             </span>
-            <span class="row__name" aria-hidden="true">{{ display(product.productName) }}</span>
-            <span class="row__sku" aria-hidden="true">{{ display(product.sku) }}</span>
-            <!-- Phones: line 2 and one Qty tile with the stock word; a flag only when not plainly Linked. -->
-            <span class="row__line2" aria-hidden="true">
+            <span class="row__name">{{ display(product.productName) }}</span>
+            <span class="row__sku">{{ display(product.sku) }}</span>
+            <!-- Phones: line 2 under the name. -->
+            <span class="row__line2">
               <span class="row__sku-m">{{ display(product.sku) }}</span> · {{ display(product.brand) }} · {{ display(product.status) }}
             </span>
-            <span [class]="'row__qty-m row__qty-m--' + item.stock" aria-hidden="true">
-              <span class="row__qty-word">{{ item.stockWord }}</span>
-              <span class="row__qty-num">{{ display(product.stockQty) }}</span>
             </span>
-            @if (item.flag) {
-              <span class="row__flag" aria-hidden="true"><stoqr-sync-badge [kind]="item.sync" tone="tint" /></span>
-            }
+            <!-- Phones: one square Qty tile with the stock word; with a flag, both centred as a group. -->
+            <span class="row__aside" aria-hidden="true">
+              <span [class]="'row__qty-m row__qty-m--' + item.stock">
+                <span class="row__qty-word">{{ item.stockWord }}</span>
+                <span class="row__qty-num">{{ display(product.stockQty) }}</span>
+              </span>
+              @if (item.flag) {
+                <span class="row__flag"><stoqr-sync-badge [kind]="item.sync" tone="tint" /></span>
+              }
+            </span>
             <!-- From 768px: three tiles in the card's label-over-value style, then a chevron. -->
             <span class="row__tiles" aria-hidden="true">
               <span class="row__tile row__tile--qty">

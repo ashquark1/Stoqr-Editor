@@ -28,13 +28,9 @@
 // blocked); the words in the tiles carry the meaning, never colour alone.
 .row {
   --row-edge: var(--color-unknown);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'name qtym'
-    'line2 flag';
+  display: flex;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-3);
   width: 100%;
   min-height: 44px;
   padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
@@ -56,7 +52,7 @@
   &--unknown,
   &--blocked { --row-edge: var(--color-unknown); }
 
-  // Blocked: dimmed with a grey fill (not opacity, so the text keeps AA contrast); still opens read-only.
+// Blocked: dimmed with a grey fill (not opacity, so the text keeps AA contrast); still opens read-only.
   &--blocked { background: var(--color-unknown-bg); }
 
   &:hover {
@@ -75,14 +71,30 @@
   }
 
   @include bp.from(tablet) {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      'top tiles chev'
-      'name tiles chev'
-      'sku tiles chev';
-    gap: var(--space-1) var(--space-4);
+    gap: var(--space-4);
     padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   }
+}
+
+// The text block: centred vertically against whatever sits on the right.
+.row__left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+// Phones: the square Qty tile alone is centred; with a flag, the two are
+// spaced evenly and centred together.
+.row__aside {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
 }
 
 // Desktop-only pieces.
@@ -99,7 +111,6 @@
 
 
 .row__top {
-  grid-area: top;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -120,7 +131,6 @@
 
 // Up to two lines, then cut.
 .row__name {
-  grid-area: name;
   min-width: 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -132,7 +142,6 @@
 }
 
 .row__sku {
-  grid-area: sku;
   min-width: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono);
@@ -141,7 +150,6 @@
 }
 
 .row__line2 {
-  grid-area: line2;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -155,19 +163,21 @@
 }
 
 .row__flag {
-  grid-area: flag;
-  justify-self: end;
+  display: flex;
 }
 
-// Phone Qty tile: the stock word over the number, tinted by level.
+// Phone Qty tile: a square (grows evenly for a long number), the stock word
+// over the number, tinted by level.
 .row__qty-m {
-  grid-area: qtym;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-1) var(--space-3);
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 80px;
+  aspect-ratio: 1;
+  padding: var(--space-1);
   border-radius: var(--radius-lg);
-  min-width: 72px;
   background: var(--tint-neutral-bg);
   color: var(--tint-neutral-fg);
 
@@ -191,7 +201,7 @@
 
 // Desktop tiles: the product card's label-over-value style (US-74, D41).
 .row__tiles {
-  grid-area: tiles;
+  flex-shrink: 0;
   gap: var(--space-2);
 }
 
@@ -222,7 +232,7 @@
 }
 
 .row__chevron {
-  grid-area: chev;
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   color: var(--color-text-muted);
@@ -238,8 +248,7 @@
 // Phone-only pieces. Last in the file so it wins over their own `display` (found on 1440: the
 // phone Qty tile showed beside the desktop tiles).
 .row__line2,
-.row__qty-m,
-.row__flag {
+.row__aside {
   @include bp.from(tablet) {
     display: none;
   }
